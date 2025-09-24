@@ -44,13 +44,18 @@
     "rotationSeconds": 60,
     "showClock": true,
     "clockLabel": "Local Time",
+    "clockSubtitle": "Local time",
+    "clockMeta": "",
     "nextLabel": "Next up",
     "nextTitle": "",
     "nextSubtitle": "",
+    "nextMeta": "",
     "sponsorName": "",
     "sponsorTagline": "",
     "sponsorLabel": "This stream is sponsored by Patrons & Members",
+    "sponsorMeta": "",
     "notesLabel": "Enjoying the stream?",
+    "notesMeta": "",
     "notes": [
       "Don't forget to like / follow / sub to know when we go live!"
     ],

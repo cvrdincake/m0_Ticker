@@ -418,18 +418,18 @@
 
     .slate {
       position: fixed;
-      top: calc(16px * var(--ui-scale) / 1.75);
-      right: calc(16px * var(--ui-scale) / 1.75);
-      max-width: min(calc(220px * var(--ui-scale)), 24vw);
+      top: calc(24px * var(--ui-scale) / 1.75);
+      right: calc(24px * var(--ui-scale) / 1.75);
+      max-width: min(calc(320px * var(--popup-scale)), 32vw);
       pointer-events: none;
       opacity: 0;
-      transform: translate3d(8px, -8px, 0);
+      transform: translate3d(calc(16px * var(--popup-scale)), calc(-16px * var(--popup-scale)), 0);
       transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
       z-index: 1080;
     }
 
     .slate.push-down {
-      top: calc(var(--bar-height) + (24px * var(--ui-scale) / 1.75) + (10px * var(--popup-scale)));
+      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
     }
 
     .slate.show {
@@ -441,11 +441,11 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: calc(6px * var(--ui-scale) / 1.75);
-      padding: calc(12px * var(--ui-scale) / 1.75) calc(16px * var(--ui-scale) / 1.75);
-      padding-left: calc(18px * var(--ui-scale) / 1.75);
-      min-width: min(calc(180px * var(--ui-scale) / 1.75), 24vw);
-      max-width: min(calc(220px * var(--ui-scale) / 1.75), 24vw);
+      gap: calc(8px * var(--popup-scale));
+      padding: calc(16px * var(--popup-scale)) calc(20px * var(--popup-scale));
+      padding-left: calc(24px * var(--popup-scale));
+      min-width: min(calc(220px * var(--popup-scale)), 30vw);
+      max-width: min(calc(300px * var(--popup-scale)), 30vw);
       border: 1px solid var(--popup-border-color);
       border-radius: 0;
       background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
@@ -461,7 +461,7 @@
       top: 0;
       bottom: 0;
       left: 0;
-      width: calc(3px * var(--ui-scale));
+      width: calc(5px * var(--popup-scale));
       background: var(--popup-accent-strip);
       opacity: 0.95;
       pointer-events: none;
@@ -478,7 +478,7 @@
     }
 
     .slate-pill {
-      font-size: calc(9.5px * var(--ui-scale) / 1.75);
+      font-size: calc(11px * var(--popup-scale));
       font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -486,7 +486,7 @@
     }
 
     .slate-title {
-      font-size: calc(15px * var(--ui-scale) / 1.75);
+      font-size: calc(18px * var(--popup-scale));
       font-weight: 600;
       line-height: 1.25;
       color: rgba(248, 250, 255, 0.96);
@@ -494,13 +494,13 @@
     }
 
     .slate-card[data-type='clock'] .slate-title {
-      font-size: calc(18px * var(--ui-scale) / 1.75);
+      font-size: calc(22px * var(--popup-scale));
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.06em;
     }
 
     .slate-subtitle {
-      font-size: calc(12px * var(--ui-scale) / 1.75);
+      font-size: calc(13px * var(--popup-scale));
       color: rgba(220, 226, 238, 0.82);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -511,7 +511,7 @@
     }
 
     .slate-meta {
-      font-size: calc(11px * var(--ui-scale) / 1.75);
+      font-size: calc(12px * var(--popup-scale));
       color: rgba(198, 204, 218, 0.65);
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -524,13 +524,13 @@
     .slate-dots {
       display: flex;
       justify-content: flex-end;
-      gap: 4px;
-      margin-top: calc(6px * var(--ui-scale) / 1.75);
+      gap: calc(4px * var(--popup-scale));
+      margin-top: calc(10px * var(--popup-scale));
     }
 
     .slate-dots span {
-      width: 4px;
-      height: 4px;
+      width: calc(6px * var(--popup-scale));
+      height: calc(6px * var(--popup-scale));
       border-radius: 0;
       background: rgba(255, 255, 255, 0.32);
       opacity: 0.45;
@@ -711,13 +711,18 @@
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
+      clockMeta: '',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
+      nextMeta: '',
       sponsorLabel: 'Sponsor',
       sponsorName: '',
       sponsorTagline: '',
+      sponsorMeta: '',
       notesLabel: 'Spotlight',
+      notesMeta: '',
       notes: [],
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
@@ -1085,13 +1090,18 @@
       if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
       if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
       if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.clockSubtitle === 'string') result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.clockMeta === 'string') result.clockMeta = data.clockMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.nextMeta === 'string') result.nextMeta = data.nextMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.sponsorMeta === 'string') result.sponsorMeta = data.sponsorMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.notesMeta === 'string') result.notesMeta = data.notesMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (Array.isArray(data.notes) || typeof data.notes === 'string') {
         result.notes = normaliseSlateNotesList(data.notes);
       }
@@ -1104,16 +1114,17 @@
       const cards = [];
       const activeSlate = normaliseSlateData(slate);
 
-      const pushCard = (type, pill, title, subtitle = '') => {
+      const pushCard = (type, pill, title, subtitle = '', meta = '') => {
         const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
         const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
+        const safeMeta = typeof meta === 'string' ? meta.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
         if (!safeTitle && !safeSubtitle) return;
         cards.push({
           type,
           pill: pill && typeof pill === 'string' ? pill.trim() : '',
           title: safeTitle,
           subtitle: safeSubtitle,
-          meta: ''
+          meta: safeMeta
         });
       };
 
@@ -1126,13 +1137,13 @@
           hour12: false,
           timeZone: 'Europe/London'
         });
-        cards.push({
-          type: 'clock',
-          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
-          title: time,
-          subtitle: 'UK time',
-          meta: ''
-        });
+        pushCard(
+          'clock',
+          activeSlate.clockLabel || 'UK TIME',
+          time,
+          activeSlate.clockSubtitle,
+          activeSlate.clockMeta
+        );
       }
 
       if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
@@ -1140,7 +1151,8 @@
           'next',
           activeSlate.nextLabel || 'Next up',
           activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
-          activeSlate.nextSubtitle || ''
+          activeSlate.nextSubtitle || '',
+          activeSlate.nextMeta || ''
         );
       }
 
@@ -1149,13 +1161,14 @@
           'sponsor',
           activeSlate.sponsorLabel || 'Sponsor',
           activeSlate.sponsorName,
-          activeSlate.sponsorTagline || ''
+          activeSlate.sponsorTagline || '',
+          activeSlate.sponsorMeta || ''
         );
       }
 
       if (Array.isArray(activeSlate.notes)) {
         for (const note of activeSlate.notes) {
-          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '', activeSlate.notesMeta || '');
         }
       }
 
@@ -2257,7 +2270,7 @@
           if (messagesChanged) {
             this.refreshVisible();
           }
-          if (durationChanged) {
+          if (durationChanged || intervalChanged) {
             this.startVisibleTimer();
           }
         }
@@ -2269,16 +2282,11 @@
 
       showTicker() {
         if (!this.container || !this.messages.length) return;
-        const marquee = this.shouldUseMarquee();
         this.container.classList.remove('is-hiding');
         this.phase = 'visible';
         this.refreshVisible();
         this.container.classList.add('show');
-        if (marquee) {
-          this.debugSet('Status', 'marquee');
-        } else {
-          this.startVisibleTimer();
-        }
+        this.startVisibleTimer();
       }
 
       refreshVisible(force = false) {
@@ -2305,23 +2313,16 @@
       }
 
       startVisibleTimer() {
-        if (this.shouldUseMarquee()) {
-          this.debugSet('Status', 'marquee');
-          clearTimeout(this.stopTimer);
-          this.stopTimer = null;
-          return;
-        }
+        const marquee = this.shouldUseMarquee();
         clearTimeout(this.stopTimer);
+        this.stopTimer = null;
+
         const durationMs = Math.max(1000, this.displayDuration * 1000);
         this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
-        this.debugSet('Status', `visible ${this.displayDuration}s`);
+        this.debugSet('Status', marquee ? `marquee ${this.displayDuration}s` : `visible ${this.displayDuration}s`);
       }
 
       completeRun() {
-        if (this.shouldUseMarquee()) {
-          this.debugSet('Status', 'marquee');
-          return;
-        }
         this.hideTicker().then(() => {
           this.scheduleCooldown();
         });

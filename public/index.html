@@ -1270,6 +1270,15 @@
               <input type="text" id="slateClockLabel" maxlength="48" placeholder="UK TIME" />
             </div>
             <div class="control-group">
+              <label for="slateClockSubtitle">Clock subtitle</label>
+              <input type="text" id="slateClockSubtitle" maxlength="200" placeholder="UK time" />
+            </div>
+            <div class="control-group">
+              <label for="slateClockMeta">Clock meta</label>
+              <input type="text" id="slateClockMeta" maxlength="200" placeholder="Friday 12 April" />
+              <p class="control-hint">Optional line displayed beneath the clock.</p>
+            </div>
+            <div class="control-group">
               <label for="slateNextLabel">Next-up label</label>
               <input type="text" id="slateNextLabel" maxlength="48" placeholder="Next up" />
             </div>
@@ -1280,6 +1289,10 @@
             <div class="control-group">
               <label for="slateNextSubtitle">Next-up details</label>
               <input type="text" id="slateNextSubtitle" maxlength="200" placeholder="Happening after the break" />
+            </div>
+            <div class="control-group">
+              <label for="slateNextMeta">Next-up meta</label>
+              <input type="text" id="slateNextMeta" maxlength="200" placeholder="Live at 7:30 PM" />
             </div>
             <div class="control-group">
               <label for="slateSponsorLabel">Sponsor label</label>
@@ -1294,8 +1307,17 @@
               <input type="text" id="slateSponsorTagline" maxlength="200" placeholder="Proudly supporting tonight's stream" />
             </div>
             <div class="control-group">
+              <label for="slateSponsorMeta">Sponsor meta</label>
+              <input type="text" id="slateSponsorMeta" maxlength="200" placeholder="Link in chat" />
+            </div>
+            <div class="control-group">
               <label for="slateNotesLabel">Spotlight label</label>
               <input type="text" id="slateNotesLabel" maxlength="48" placeholder="Spotlight" />
+            </div>
+            <div class="control-group">
+              <label for="slateNotesMeta">Spotlight meta</label>
+              <input type="text" id="slateNotesMeta" maxlength="200" placeholder="Community highlight" />
+              <p class="control-hint">Appears beneath each spotlight message.</p>
             </div>
             <div class="control-group">
               <label for="slateNotes">Spotlight notes (one per line)</label>
@@ -1512,13 +1534,18 @@
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
+      clockMeta: '',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
+      nextMeta: '',
       sponsorName: '',
       sponsorTagline: '',
       sponsorLabel: 'Sponsor',
+      sponsorMeta: '',
       notesLabel: 'Spotlight',
+      notesMeta: '',
       notes: [],
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
@@ -1638,13 +1665,18 @@
       slateRotation: document.getElementById('slateRotation'),
       slateRotationNumber: document.getElementById('slateRotationNumber'),
       slateClockLabel: document.getElementById('slateClockLabel'),
+      slateClockSubtitle: document.getElementById('slateClockSubtitle'),
+      slateClockMeta: document.getElementById('slateClockMeta'),
       slateNextLabel: document.getElementById('slateNextLabel'),
       slateNextTitle: document.getElementById('slateNextTitle'),
       slateNextSubtitle: document.getElementById('slateNextSubtitle'),
+      slateNextMeta: document.getElementById('slateNextMeta'),
       slateSponsorLabel: document.getElementById('slateSponsorLabel'),
       slateSponsorName: document.getElementById('slateSponsorName'),
       slateSponsorTagline: document.getElementById('slateSponsorTagline'),
+      slateSponsorMeta: document.getElementById('slateSponsorMeta'),
       slateNotesLabel: document.getElementById('slateNotesLabel'),
+      slateNotesMeta: document.getElementById('slateNotesMeta'),
       slateNotes: document.getElementById('slateNotes'),
       slatePreview: document.getElementById('slatePreview'),
       slatePreviewDots: document.getElementById('slatePreviewDots'),
@@ -1867,13 +1899,18 @@
       if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
       if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
       if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.clockSubtitle === 'string') result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.clockMeta === 'string') result.clockMeta = data.clockMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.nextMeta === 'string') result.nextMeta = data.nextMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.sponsorMeta === 'string') result.sponsorMeta = data.sponsorMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.notesMeta === 'string') result.notesMeta = data.notesMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (Array.isArray(data.notes)) result.notes = normaliseSlateNotesList(data.notes);
       const updatedAt = Number(data.updatedAt ?? data._updatedAt);
       if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
@@ -1887,13 +1924,18 @@
         rotationSeconds: clampSlateRotation(normalised.rotationSeconds),
         showClock: !!normalised.showClock,
         clockLabel: normalised.clockLabel || '',
+        clockSubtitle: typeof normalised.clockSubtitle === 'string' ? normalised.clockSubtitle : '',
+        clockMeta: typeof normalised.clockMeta === 'string' ? normalised.clockMeta : '',
         nextLabel: normalised.nextLabel || '',
         nextTitle: normalised.nextTitle || '',
         nextSubtitle: normalised.nextSubtitle || '',
+        nextMeta: typeof normalised.nextMeta === 'string' ? normalised.nextMeta : '',
         sponsorLabel: normalised.sponsorLabel || '',
         sponsorName: normalised.sponsorName || '',
         sponsorTagline: normalised.sponsorTagline || '',
+        sponsorMeta: typeof normalised.sponsorMeta === 'string' ? normalised.sponsorMeta : '',
         notesLabel: normalised.notesLabel || '',
+        notesMeta: typeof normalised.notesMeta === 'string' ? normalised.notesMeta : '',
         notes: Array.isArray(normalised.notes) ? normalised.notes.slice(0, MAX_SLATE_NOTES) : []
       };
     }
@@ -1902,16 +1944,17 @@
       const cards = [];
       const activeSlate = normaliseSlateData(slate);
 
-      const pushCard = (type, pill, title, subtitle = '') => {
+      const pushCard = (type, pill, title, subtitle = '', meta = '') => {
         const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
         const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
+        const safeMeta = typeof meta === 'string' ? meta.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
         if (!safeTitle && !safeSubtitle) return;
         cards.push({
           type,
           pill: pill && typeof pill === 'string' ? pill.trim() : '',
           title: safeTitle,
           subtitle: safeSubtitle,
-          meta: ''
+          meta: safeMeta
         });
       };
 
@@ -1924,13 +1967,13 @@
           hour12: false,
           timeZone: 'Europe/London'
         });
-        cards.push({
-          type: 'clock',
-          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
-          title: time,
-          subtitle: 'UK time',
-          meta: ''
-        });
+        pushCard(
+          'clock',
+          activeSlate.clockLabel || 'UK TIME',
+          time,
+          activeSlate.clockSubtitle,
+          activeSlate.clockMeta
+        );
       }
 
       if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
@@ -1938,7 +1981,8 @@
           'next',
           activeSlate.nextLabel || 'Next up',
           activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
-          activeSlate.nextSubtitle || ''
+          activeSlate.nextSubtitle || '',
+          activeSlate.nextMeta || ''
         );
       }
 
@@ -1947,13 +1991,14 @@
           'sponsor',
           activeSlate.sponsorLabel || 'Sponsor',
           activeSlate.sponsorName,
-          activeSlate.sponsorTagline || ''
+          activeSlate.sponsorTagline || '',
+          activeSlate.sponsorMeta || ''
         );
       }
 
       if (Array.isArray(activeSlate.notes)) {
         for (const note of activeSlate.notes) {
-          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '', activeSlate.notesMeta || '');
         }
       }
 
@@ -2171,13 +2216,18 @@
       if (el.slateRotation) el.slateRotation.value = rotation;
       if (el.slateRotationNumber) el.slateRotationNumber.value = rotation;
       if (el.slateClockLabel) el.slateClockLabel.value = slateState.clockLabel || '';
+      if (el.slateClockSubtitle) el.slateClockSubtitle.value = slateState.clockSubtitle || '';
+      if (el.slateClockMeta) el.slateClockMeta.value = slateState.clockMeta || '';
       if (el.slateNextLabel) el.slateNextLabel.value = slateState.nextLabel || '';
       if (el.slateNextTitle) el.slateNextTitle.value = slateState.nextTitle || '';
       if (el.slateNextSubtitle) el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+      if (el.slateNextMeta) el.slateNextMeta.value = slateState.nextMeta || '';
       if (el.slateSponsorLabel) el.slateSponsorLabel.value = slateState.sponsorLabel || '';
       if (el.slateSponsorName) el.slateSponsorName.value = slateState.sponsorName || '';
       if (el.slateSponsorTagline) el.slateSponsorTagline.value = slateState.sponsorTagline || '';
+      if (el.slateSponsorMeta) el.slateSponsorMeta.value = slateState.sponsorMeta || '';
       if (el.slateNotesLabel) el.slateNotesLabel.value = slateState.notesLabel || '';
+      if (el.slateNotesMeta) el.slateNotesMeta.value = slateState.notesMeta || '';
       if (el.slateNotes) el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
       updateSlatePreview();
     }
@@ -3243,13 +3293,18 @@ function normalisePopupData(data) {
           rotationSeconds: clampSlateRotation(normalisedSlate.rotationSeconds),
           showClock: !!normalisedSlate.showClock,
           clockLabel: normalisedSlate.clockLabel || '',
+          clockSubtitle: typeof normalisedSlate.clockSubtitle === 'string' ? normalisedSlate.clockSubtitle : '',
+          clockMeta: typeof normalisedSlate.clockMeta === 'string' ? normalisedSlate.clockMeta : '',
           nextLabel: normalisedSlate.nextLabel || '',
           nextTitle: normalisedSlate.nextTitle || '',
           nextSubtitle: normalisedSlate.nextSubtitle || '',
+          nextMeta: typeof normalisedSlate.nextMeta === 'string' ? normalisedSlate.nextMeta : '',
           sponsorLabel: normalisedSlate.sponsorLabel || '',
           sponsorName: normalisedSlate.sponsorName || '',
           sponsorTagline: normalisedSlate.sponsorTagline || '',
+          sponsorMeta: typeof normalisedSlate.sponsorMeta === 'string' ? normalisedSlate.sponsorMeta : '',
           notesLabel: normalisedSlate.notesLabel || '',
+          notesMeta: typeof normalisedSlate.notesMeta === 'string' ? normalisedSlate.notesMeta : '',
           notes: Array.isArray(normalisedSlate.notes) ? normalisedSlate.notes.slice(0, MAX_SLATE_NOTES) : []
         };
       }
@@ -4565,6 +4620,24 @@ function normalisePopupData(data) {
         el.slateClockLabel.value = slateState.clockLabel || '';
       });
     }
+    if (el.slateClockSubtitle) {
+      const commitClockSubtitle = () => {
+        updateSlateTextField('clockSubtitle', el.slateClockSubtitle.value, MAX_SLATE_TEXT_LENGTH);
+      };
+      el.slateClockSubtitle.addEventListener('input', commitClockSubtitle);
+      el.slateClockSubtitle.addEventListener('blur', () => {
+        el.slateClockSubtitle.value = slateState.clockSubtitle || '';
+      });
+    }
+    if (el.slateClockMeta) {
+      const commitClockMeta = () => {
+        updateSlateTextField('clockMeta', el.slateClockMeta.value, MAX_SLATE_TEXT_LENGTH);
+      };
+      el.slateClockMeta.addEventListener('input', commitClockMeta);
+      el.slateClockMeta.addEventListener('blur', () => {
+        el.slateClockMeta.value = slateState.clockMeta || '';
+      });
+    }
     if (el.slateNextLabel) {
       el.slateNextLabel.addEventListener('input', () => {
         updateSlateTextField('nextLabel', el.slateNextLabel.value, MAX_SLATE_TITLE_LENGTH);
@@ -4587,6 +4660,15 @@ function normalisePopupData(data) {
       });
       el.slateNextSubtitle.addEventListener('blur', () => {
         el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+      });
+    }
+    if (el.slateNextMeta) {
+      const commitNextMeta = () => {
+        updateSlateTextField('nextMeta', el.slateNextMeta.value, MAX_SLATE_TEXT_LENGTH);
+      };
+      el.slateNextMeta.addEventListener('input', commitNextMeta);
+      el.slateNextMeta.addEventListener('blur', () => {
+        el.slateNextMeta.value = slateState.nextMeta || '';
       });
     }
     if (el.slateSponsorLabel) {
@@ -4613,12 +4695,30 @@ function normalisePopupData(data) {
         el.slateSponsorTagline.value = slateState.sponsorTagline || '';
       });
     }
+    if (el.slateSponsorMeta) {
+      const commitSponsorMeta = () => {
+        updateSlateTextField('sponsorMeta', el.slateSponsorMeta.value, MAX_SLATE_TEXT_LENGTH);
+      };
+      el.slateSponsorMeta.addEventListener('input', commitSponsorMeta);
+      el.slateSponsorMeta.addEventListener('blur', () => {
+        el.slateSponsorMeta.value = slateState.sponsorMeta || '';
+      });
+    }
     if (el.slateNotesLabel) {
       el.slateNotesLabel.addEventListener('input', () => {
         updateSlateTextField('notesLabel', el.slateNotesLabel.value, MAX_SLATE_TITLE_LENGTH);
       });
       el.slateNotesLabel.addEventListener('blur', () => {
         el.slateNotesLabel.value = slateState.notesLabel || '';
+      });
+    }
+    if (el.slateNotesMeta) {
+      const commitNotesMeta = () => {
+        updateSlateTextField('notesMeta', el.slateNotesMeta.value, MAX_SLATE_TEXT_LENGTH);
+      };
+      el.slateNotesMeta.addEventListener('input', commitNotesMeta);
+      el.slateNotesMeta.addEventListener('blur', () => {
+        el.slateNotesMeta.value = slateState.notesMeta || '';
       });
     }
     if (el.slateNotes) {
