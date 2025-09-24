@@ -1,0 +1,4984 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OBS Ticker Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link rel="stylesheet" href="css/themes.css">
+  <style>
+    :root {
+      --ui-scale: 1;
+      --bg: #04060e;
+      --bg-accent: #080b17;
+      --panel: rgba(14, 18, 32, 0.9);
+      --panel-border: rgba(92, 104, 152, 0.28);
+      --panel-highlight: rgba(124, 92, 255, 0.42);
+      --muted: rgba(22, 26, 40, 0.92);
+      --text: #f5f7ff;
+      --subtle: #9da6c4;
+      --accent: #7c5cff;
+      --accent-strong: #8a7fff;
+      --accent-soft: rgba(124, 92, 255, 0.16);
+      --accent-bright: color-mix(in srgb, var(--accent) 82%, white 18%);
+      --accent-glow: color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.5));
+      --accent-duo: color-mix(in srgb, var(--accent) 65%, #5aa8ff 35%);
+      --accent-contrast: color-mix(in srgb, var(--accent) 58%, #45e6c3 42%);
+      --success: #3ddc97;
+      --danger: #ff6b6b;
+      --danger-soft: rgba(255, 107, 107, 0.18);
+      --radius: 18px;
+      --shadow: 0 22px 55px rgba(5, 8, 22, 0.55);
+      --shadow-soft: 0 16px 38px rgba(5, 8, 22, 0.45);
+      --pill-bg: rgba(34, 40, 60, 0.85);
+      --input-bg: rgba(14, 18, 28, 0.88);
+      --input-border: rgba(102, 119, 163, 0.28);
+      --chip-bg: rgba(54, 62, 92, 0.55);
+      --chip-border: rgba(116, 132, 188, 0.35);
+      --toast-bg: rgba(18, 22, 34, 0.94);
+      --popup-scale: 1;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { height: 100%; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(1400px 900px at -10% -20%, rgba(132, 96, 255, 0.22), transparent),
+        radial-gradient(1200px 700px at 120% 0%, rgba(47, 103, 255, 0.18), transparent),
+        linear-gradient(160deg, var(--bg) 0%, var(--bg-accent) 55%, #02030a 100%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      padding: 48px 20px 64px;
+    }
+
+    body.is-modal-open { overflow: hidden; }
+
+    .app { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+
+    .panel {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      --panel-bg: var(--panel);
+      --panel-border-color: var(--panel-border);
+      --panel-glow: rgba(124, 92, 255, 0.16);
+      --panel-sheen: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--panel-border-color);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 32%) var(--panel-bg);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px) saturate(1.05);
+    }
+
+    .panel::before,
+    .panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+
+    .panel::before {
+      inset: -40% -35%;
+      background: radial-gradient(ellipse at top left, var(--panel-glow), transparent 60%);
+      opacity: 0.85;
+      transform: rotate(8deg);
+    }
+
+    .panel::after {
+      background: linear-gradient(135deg, var(--panel-sheen), transparent 65%);
+      mix-blend-mode: screen;
+    }
+
+    .panel > * { position: relative; z-index: 1; }
+
+    .panel--accent {
+      --panel-bg: rgba(18, 22, 42, 0.92);
+      --panel-border-color: color-mix(in srgb, var(--accent) 40%, rgba(118, 134, 189, 0.4));
+      --panel-glow: color-mix(in srgb, var(--accent) 28%, rgba(124, 92, 255, 0.26));
+      --panel-sheen: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 28px 70px rgba(8, 12, 30, 0.55);
+    }
+
+    .panel--neutral {
+      --panel-bg: rgba(16, 20, 32, 0.88);
+      --panel-border-color: rgba(118, 134, 189, 0.28);
+      --panel-glow: rgba(118, 134, 189, 0.18);
+      --panel-sheen: rgba(255, 255, 255, 0.05);
+    }
+
+    .panel--muted {
+      --panel-bg: rgba(12, 16, 26, 0.85);
+      --panel-border-color: rgba(92, 104, 152, 0.2);
+      --panel-glow: rgba(84, 96, 138, 0.16);
+      --panel-sheen: rgba(255, 255, 255, 0.03);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+    }
+
+    .title-block { display: flex; flex-direction: column; gap: 8px; max-width: 620px; }
+    h1 { font-size: 30px; font-weight: 700; margin: 0; letter-spacing: 0.3px; }
+    .subtitle { color: var(--subtle); font-size: 15px; line-height: 1.5; margin: 0; }
+
+    .overlay-chip {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: 14px;
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+      max-width: 360px;
+      font-size: 12px;
+      color: var(--subtle);
+      word-break: break-all;
+    }
+    .overlay-chip strong { color: var(--text); font-weight: 600; }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .status-card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(20, 24, 36, 0.9);
+      border: 1px solid rgba(118, 136, 190, 0.18);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+
+    .status-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--subtle); }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(149, 160, 196, 0.5);
+      box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.25);
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .status-dot.active { background: var(--success); box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.22); }
+    .status-value { color: var(--text); font-weight: 600; }
+    .status-value.is-full { color: var(--danger); }
+
+    .grid-two {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+    }
+
+    .section-title { font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
+    .section-sub { font-size: 13px; color: rgba(201, 208, 230, 0.75); }
+
+    .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+    .control-group { display: flex; flex-direction: column; gap: 10px; }
+    .control-hint { margin: 2px 0 0; font-size: 12px; color: rgba(201, 208, 230, 0.7); }
+    .control-hint.is-error { color: rgba(255, 152, 152, 0.85); }
+    .accent-inputs { display: flex; align-items: center; gap: 10px; }
+    .accent-inputs input[type="color"] {
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      background: none;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(5, 7, 16, 0.32);
+      transition: border 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .accent-inputs input[type="color"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.25);
+      transform: translateY(-1px);
+    }
+    .accent-inputs input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; border-radius: inherit; }
+    .accent-inputs input[type="color"]::-webkit-color-swatch { border: none; border-radius: inherit; }
+    .accent-inputs input[type="color"]::-moz-color-swatch { border: none; border-radius: inherit; }
+    .accent-inputs input[type="text"] { flex: 1; }
+    .accent-inputs.has-error input[type="text"],
+    .accent-inputs.has-error input[type="color"] {
+      border-color: rgba(255, 107, 107, 0.65);
+      box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.22);
+    }
+    .theme-notes { display: flex; flex-wrap: wrap; gap: 8px 12px; font-size: 12px; color: rgba(201, 208, 230, 0.72); }
+    .theme-notes span { display: inline-flex; gap: 4px; align-items: baseline; }
+    .theme-notes strong { color: var(--text); font-weight: 600; letter-spacing: 0.02em; }
+
+    label { font-size: 13px; color: var(--subtle); font-weight: 500; letter-spacing: 0.2px; }
+    input[type="number"], input[type="text"] {
+      width: 100%;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 11px 13px;
+      font-size: 14px;
+      outline: none;
+      transition: border 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      box-shadow: 0 10px 24px rgba(5, 7, 16, 0.32);
+    }
+    input[type="number"]:focus, input[type="text"]:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 96px;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      resize: vertical;
+      outline: none;
+      transition: border 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+      box-shadow: inset 0 1px 2px rgba(5, 7, 16, 0.45);
+      font-family: inherit;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(124, 92, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(84, 96, 138, 0.45);
+      border: 1px solid rgba(118, 134, 189, 0.4);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 8px 20px rgba(124, 92, 255, 0.35);
+      border: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      border: none; cursor: pointer;
+    }
+
+    .segment-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .segment-button {
+      appearance: none;
+      border: 1px solid rgba(118, 134, 189, 0.4);
+      border-radius: 999px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      background: rgba(48, 56, 86, 0.4);
+      color: rgba(220, 226, 255, 0.88);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, border 0.15s ease, background 0.15s ease;
+    }
+    .segment-button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(18, 22, 34, 0.42); }
+    .segment-button.is-active {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 14px 30px rgba(124, 92, 255, 0.35);
+    }
+
+    .toggle-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .toggle-row label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+    .actions .spacer { flex: 1; }
+
+    .btn {
+      appearance: none;
+      border: none;
+      border-radius: 12px;
+      padding: 11px 16px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      transition: transform 0.14s ease, box-shadow 0.14s ease, filter 0.14s ease;
+      font-size: 14px;
+      letter-spacing: 0.2px;
+      box-shadow: 0 14px 30px rgba(124, 92, 255, 0.28);
+    }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+    .btn:active { transform: translateY(1px); }
+    .btn-secondary { background: rgba(54, 62, 92, 0.9); color: #f3f4ff; box-shadow: none; }
+    .btn-secondary:hover { box-shadow: 0 12px 26px rgba(32, 38, 60, 0.4); }
+    .btn-ghost { background: rgba(255, 255, 255, 0.04); color: var(--subtle); box-shadow: none; border: 1px dashed rgba(118, 134, 189, 0.35); }
+    .btn-ghost:hover { filter: none; transform: none; border-color: var(--accent); color: #fff; }
+    .btn-danger { background: linear-gradient(135deg, var(--danger), #ff856b); box-shadow: 0 14px 26px rgba(255, 107, 107, 0.32); }
+    .btn-success { background: linear-gradient(135deg, var(--success), #23c485); color: #04160f; box-shadow: 0 14px 26px rgba(61, 220, 151, 0.32); }
+
+    .message-composer { display: flex; flex-wrap: wrap; gap: 12px; }
+    .message-composer input { flex: 1; }
+    .message-composer input[disabled],
+    .message-composer button[disabled] {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+    .hint-row { font-size: 12px; color: rgba(201, 208, 230, 0.7); display: flex; flex-wrap: wrap; gap: 10px; }
+    .hint-row code { background: rgba(44, 50, 72, 0.7); padding: 2px 6px; border-radius: 6px; font-size: 12px; color: #f0f4ff; }
+
+    .popup-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: flex-start;
+    }
+    .popup-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .popup-duration {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      margin-left: auto;
+    }
+    .popup-duration input {
+      width: 112px;
+      min-width: 96px;
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      box-shadow: inset 0 1px 2px rgba(5, 7, 16, 0.35);
+    }
+    .popup-duration input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+    }
+    .popup-countdown {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-top: 10px;
+      font-size: 13px;
+      color: var(--subtle);
+    }
+    .popup-countdown-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .popup-countdown-input {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 220px;
+    }
+    .popup-countdown-input label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: rgba(201, 208, 230, 0.7);
+    }
+    .popup-countdown-input input {
+      background: var(--input-bg);
+      color: var(--text);
+      border: 1px solid var(--input-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      box-shadow: inset 0 1px 2px rgba(5, 7, 16, 0.35);
+    }
+    .popup-countdown-input input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
+    }
+    .popup-preview {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: calc(var(--space-sm) * var(--popup-scale));
+      padding: calc(var(--space-md) * var(--popup-scale)) calc(var(--space-lg) * var(--popup-scale));
+      border-radius: 0;
+      border: 1px solid var(--popup-border-color, rgba(118, 134, 189, 0.28));
+      background:
+        var(--ticker-ambient-mask, transparent),
+        linear-gradient(150deg, var(--popup-surface-a, rgba(28, 30, 44, 0.95)), var(--popup-surface-b, rgba(12, 14, 24, 0.9)));
+      color: var(--popup-text-color, rgba(248, 250, 255, 0.96));
+      font-size: calc(var(--text-lg) * var(--popup-scale) / var(--ui-scale));
+      font-weight: 600;
+      line-height: 1.45;
+      box-shadow: var(--popup-shadow, 0 22px 52px rgba(5, 8, 22, 0.5)), var(--ticker-chromatic-shadows, 0 0 0 transparent);
+      min-height: 64px;
+      overflow: hidden;
+      transition: padding 0.2s var(--ease-smooth), font-size 0.2s var(--ease-smooth);
+      backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+      filter: var(--ticker-depth-filter, none);
+      mask-image: var(--ticker-depth-mask, none);
+      -webkit-mask-image: var(--ticker-depth-mask, none);
+      mask-mode: luminance;
+      mask-size: cover;
+      -webkit-mask-size: cover;
+      mask-repeat: no-repeat;
+      -webkit-mask-repeat: no-repeat;
+      animation: var(--popup-glow-anim, none);
+      --preview-accent: #ef4444;
+      --accent: var(--preview-accent);
+      --accent-bright: color-mix(in srgb, var(--accent) 82%, white 18%);
+      --accent-glow: color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.45));
+      --accent-duo: color-mix(in srgb, var(--accent) 68%, #5aa8ff 32%);
+      --accent-contrast: color-mix(in srgb, var(--accent) 58%, #45e6c3 42%);
+      --ticker-surface-a: rgba(18, 20, 28, 0.92);
+      --ticker-surface-b: rgba(8, 10, 16, 0.9);
+      --ticker-border: rgba(118, 134, 189, 0.28);
+      --ticker-shadow: 0 22px 52px rgba(5, 8, 22, 0.5);
+      --ticker-divider-color: rgba(255, 255, 255, 0.16);
+      --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
+      --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
+      --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+      --popup-shadow: var(--ticker-shadow);
+      --popup-text-color: rgba(248, 250, 255, 0.96);
+      --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
+      --popup-countdown-color: color-mix(in srgb, rgba(247, 249, 255, 0.9) 85%, var(--accent) 15%);
+      --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 75%, var(--accent) 25%);
+      --popup-accent-strip:
+        linear-gradient(165deg, var(--accent), color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.45)));
+      --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
+    }
+    .popup-preview::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: calc(4px * var(--popup-scale));
+      background: var(--popup-accent-strip);
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    .popup-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        var(--ticker-ambient-caustics, transparent),
+        var(--popup-sheen);
+      opacity: 0.4;
+      pointer-events: none;
+      animation: var(--popup-glow-anim, none);
+      mix-blend-mode: screen;
+    }
+    .popup-preview > * { position: relative; z-index: 1; }
+    .popup-preview-message { flex: 1 1 auto; }
+    .popup-preview.is-empty { color: rgba(201, 208, 230, 0.65); font-weight: 500; }
+    .popup-preview .popup-countdown-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(10px * var(--popup-scale));
+      margin-left: calc(16px * var(--popup-scale));
+      font-size: 0.9em;
+      font-weight: 600;
+      color: var(--popup-countdown-color, rgba(247, 249, 255, 0.85));
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .popup-preview .popup-countdown-chip::before {
+      content: '•';
+      margin-right: calc(4px * var(--popup-scale));
+      color: var(--popup-countdown-dot, rgba(255, 255, 255, 0.6));
+    }
+    .popup-meta { font-size: 12px; color: rgba(201, 208, 230, 0.68); }
+    .popup-buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .brb-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .brb-actions .spacer { flex: 1 1 auto; }
+    .brb-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .brb-status { font-size: 12px; color: rgba(201, 208, 230, 0.75); }
+
+    .message-list {
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(118, 134, 189, 0.25);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(10, 14, 24, 0.85);
+    }
+    .message-item {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(118, 134, 189, 0.18);
+    }
+    .message-item:last-child { border-bottom: none; }
+    .message-preview { font-size: 15px; line-height: 1.4; color: #e7ebff; }
+    .message-actions { display: flex; gap: 8px; }
+    .message-actions button {
+      appearance: none;
+      border: none;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f3f4ff;
+      background: rgba(54, 62, 92, 0.9);
+      transition: transform 0.14s ease, box-shadow 0.14s ease;
+    }
+    .message-actions button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(18, 22, 34, 0.4); }
+    .message-actions button[data-action="delete"] { background: rgba(255, 107, 107, 0.12); color: #ff9696; }
+    .message-actions button[data-action="save-preset"] { background: rgba(124, 92, 255, 0.18); color: #dad6ff; }
+
+    .message-item.is-editing { align-items: flex-start; }
+    .message-editor { display: flex; flex-direction: column; gap: 8px; }
+    .message-edit-input {
+      width: 100%;
+      min-height: 72px;
+      resize: vertical;
+      border-radius: 10px;
+      border: 1px solid rgba(118, 134, 189, 0.35);
+      background: rgba(14, 18, 28, 0.92);
+      color: #f5f7ff;
+      font-size: 14px;
+      padding: 10px 12px;
+      font-family: inherit;
+      line-height: 1.45;
+      box-shadow: inset 0 1px 2px rgba(4, 6, 12, 0.4);
+    }
+    .message-edit-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.22);
+    }
+    .message-item.is-editing .message-actions { align-items: center; }
+    .message-actions button[data-action="save"] {
+      background: rgba(61, 220, 151, 0.18);
+      color: #8df0c6;
+    }
+    .message-actions button[data-action="cancel"] {
+      background: rgba(118, 134, 189, 0.22);
+      color: #d5ddff;
+    }
+
+    .empty-state { padding: 24px; text-align: center; color: rgba(201, 208, 230, 0.7); font-size: 14px; }
+
+    .preview-block {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      border: 1px solid rgba(118, 134, 189, 0.22);
+      border-radius: 16px;
+      padding: 18px;
+      background: rgba(12, 16, 28, 0.72);
+    }
+    .preview-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .preview-title { font-weight: 600; font-size: 15px; }
+    .preview-sub { font-size: 12px; color: rgba(201, 208, 230, 0.68); }
+    .preview-actions { display: flex; gap: 8px; }
+    .preview-frame {
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(118, 134, 189, 0.26);
+      background: radial-gradient(120% 120% at 50% 0%, color-mix(in srgb, var(--accent) 18%, rgba(42, 52, 96, 0.55)), rgba(10, 12, 20, 0.9));
+      aspect-ratio: 16 / 9;
+      min-height: 220px;
+    }
+    .preview-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+    }
+
+    .preset-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .preset-header input { max-width: 240px; }
+    .preset-list { display: flex; flex-direction: column; gap: 12px; }
+    .preset-card {
+      border: 1px solid rgba(118, 134, 189, 0.25);
+      border-radius: 12px;
+      padding: 16px;
+      background: rgba(18, 22, 34, 0.82);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: center;
+    }
+    .preset-title { font-weight: 600; font-size: 15px; color: #f6f7ff; }
+    .preset-meta { font-size: 12px; color: rgba(201, 208, 230, 0.65); margin-top: 4px; }
+    .preset-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .preset-actions button { border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(54, 62, 92, 0.9); color: #eef1ff; }
+    .preset-actions button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(18, 22, 34, 0.4); }
+    .preset-actions button[data-action="delete"] { background: rgba(255, 107, 107, 0.14); color: #ff8e8e; }
+
+    .preset-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(6, 10, 22, 0.6);
+      backdrop-filter: blur(10px);
+      z-index: 1200;
+    }
+    .preset-modal.is-visible { display: flex; }
+    .preset-modal__card {
+      position: relative;
+      width: min(420px, 100%);
+      border-radius: var(--radius);
+      border: 1px solid rgba(118, 136, 190, 0.35);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent 28%) rgba(14, 18, 32, 0.95);
+      box-shadow: 0 32px 70px rgba(8, 12, 30, 0.65);
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .preset-modal__title { font-size: 18px; font-weight: 600; color: var(--text); }
+    .preset-modal__message {
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: rgba(12, 16, 28, 0.85);
+      min-height: 48px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+      box-shadow: inset 0 1px 2px rgba(5, 7, 16, 0.4);
+    }
+    .preset-modal__message .small { color: rgba(201, 208, 230, 0.7); }
+    .preset-modal__field { display: flex; flex-direction: column; gap: 8px; }
+    .preset-modal__input { width: 100%; }
+    .preset-modal__input.has-error {
+      border-color: rgba(255, 107, 107, 0.7);
+      box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.24);
+    }
+    .preset-modal__hint { font-size: 12px; color: rgba(201, 208, 230, 0.7); margin-top: -6px; }
+    .preset-modal__hint.is-error { color: rgba(255, 152, 152, 0.85); }
+    .preset-modal__actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+    .scene-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .scene-header input { max-width: 240px; }
+    .scene-list { display: flex; flex-direction: column; gap: 12px; }
+    .scene-card {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid rgba(118, 134, 189, 0.32);
+      background: rgba(20, 26, 44, 0.85);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 18px 38px rgba(5, 7, 16, 0.45);
+    }
+    .scene-title { font-weight: 600; font-size: 15px; color: #f6f7ff; }
+    .scene-meta { font-size: 12px; color: rgba(201, 208, 230, 0.65); margin-top: 4px; }
+    .scene-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .scene-actions button {
+      border-radius: 10px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      background: rgba(54, 62, 92, 0.9);
+      color: #eef1ff;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .scene-actions button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(18, 22, 34, 0.4); }
+    .scene-actions button[data-action="delete"] { background: rgba(255, 107, 107, 0.14); color: #ff8e8e; }
+
+    .toast {
+      position: fixed;
+      left: 24px;
+      bottom: 24px;
+      background: var(--toast-bg);
+      border: 1px solid rgba(118, 134, 189, 0.35);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 12px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+      font-size: 13px;
+      box-shadow: 0 14px 30px rgba(5, 8, 22, 0.45);
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .fx { display: inline-flex; position: relative; color: inherit; }
+    .fx-letter { display: inline-block; --i: 0; will-change: transform, filter; }
+    .fx.fx-sparkle { animation: gentlePulse 6s ease-in-out infinite; }
+    .fx-rainbow .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent-contrast) 60%, rgba(8, 12, 22, 0.25) 40%),
+        color-mix(in srgb, var(--accent-duo) 55%, rgba(10, 12, 24, 0.32) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow:
+        0 0 6px color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.35)),
+        0 0 16px color-mix(in srgb, var(--accent-glow) 45%, rgba(0, 0, 0, 0.15));
+      filter: saturate(1.08) brightness(1.04);
+    }
+    .fx-sparkle .fx-letter {
+      background-image:
+        radial-gradient(circle at 38% 62%, color-mix(in srgb, var(--accent-bright) 75%, white 25%) 0 18%, transparent 42%),
+        radial-gradient(circle at 68% 32%, color-mix(in srgb, var(--accent-glow) 65%, rgba(255, 255, 255, 0.05)) 0 16%, transparent 40%),
+        linear-gradient(120deg, color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.08)), color-mix(in srgb, var(--accent-contrast) 50%, rgba(8, 12, 22, 0.4)));
+      background-size: 160% 160%, 220% 220%, 280% 100%;
+      background-position: 0% 0%, 100% 100%, 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: sparkleShift 4.2s linear infinite, subtleFloat 1.9s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.07s);
+      text-shadow:
+        0 0 8px color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.4)),
+        0 0 18px color-mix(in srgb, var(--accent-glow) 30%, rgba(0, 0, 0, 0.2));
+      filter: saturate(1.1) contrast(1.05);
+    }
+
+    body.no-sparkle .fx-sparkle .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent) 55%, rgba(8, 12, 22, 0.25) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.3));
+      filter: saturate(1.05) brightness(1.03);
+    }
+
+    .fx-bounce {
+      display: inline-block;
+      animation: enhancedBounce 2.2s ease-in-out infinite;
+      transform-origin: center bottom;
+      will-change: transform;
+    }
+
+    .fx-neon {
+      color: color-mix(in srgb, var(--accent-bright) 72%, white 28%);
+      text-shadow:
+        0 0 3px color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.35)),
+        0 0 12px color-mix(in srgb, var(--accent-glow) 55%, rgba(10, 14, 26, 0.5)),
+        0 0 22px color-mix(in srgb, var(--accent) 35%, rgba(0, 0, 0, 0.2));
+      animation: neonFlicker 3.4s ease-in-out infinite, gentlePulse 5.2s ease-in-out infinite;
+    }
+
+    .fx-glitch {
+      position: relative;
+      display: inline-block;
+      color: #f4f7ff;
+      animation: dataGlitch 2.4s steps(2, end) infinite;
+    }
+
+    .fx-glitch::before,
+    .fx-glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0.5;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .fx-glitch::before {
+      color: color-mix(in srgb, var(--accent-duo) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .fx-glitch::after {
+      color: color-mix(in srgb, var(--accent-contrast) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .highlight { color: #fbbf24; font-weight: 600; }
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+
+    @keyframes rainbowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    @keyframes sparkleShift {
+      0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 0%; }
+      25% { background-position: 50% 50%, 0% 0%, 100% 50%, 50% 50%; }
+      50% { background-position: 100% 100%, 50% 50%, 0% 100%, 100% 100%; }
+      75% { background-position: 50% 0%, 100% 0%, 50% 50%, 150% 50%; }
+      100% { background-position: 0% 0%, 100% 100%, 50% 0%, 200% 0%; }
+    }
+    @keyframes subtleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+    @keyframes gentlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+    @keyframes enhancedBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      30% { transform: translateY(-3px) scale(1.03, 0.98); }
+      55% { transform: translateY(-4px) scale(1.05, 0.96); }
+      75% { transform: translateY(-1px) scale(1.01, 0.99); }
+    }
+    @keyframes neonFlicker {
+      0%, 100% {
+        text-shadow:
+          0 0 2px color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.32)),
+          0 0 8px color-mix(in srgb, var(--accent-glow) 60%, rgba(12, 16, 28, 0.5)),
+          0 0 16px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.2));
+      }
+      50% {
+        text-shadow:
+          0 0 4px color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.4)),
+          0 0 14px color-mix(in srgb, var(--accent-glow) 70%, rgba(10, 14, 26, 0.35)),
+          0 0 26px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.25));
+      }
+    }
+    @keyframes dataGlitch {
+      0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+      12% { transform: translate(-1px, 1px); filter: hue-rotate(-4deg); }
+      24% { transform: translate(1px, -1px); filter: hue-rotate(5deg); }
+      38% { transform: translate(-1.5px, 0); filter: hue-rotate(-6deg); }
+      52% { transform: translate(0.5px, 1px); filter: hue-rotate(4deg); }
+      68% { transform: translate(1.5px, -1px); filter: hue-rotate(-3deg); }
+      82% { transform: translate(-0.8px, 0); filter: hue-rotate(3deg); }
+      92% { transform: translate(0.8px, -0.6px); filter: hue-rotate(-2deg); }
+    }
+
+    .slate-panel-controls {
+      display: grid;
+      gap: 20px;
+    }
+
+    .slate-toggles {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+      align-items: center;
+      font-size: 13px;
+      color: var(--subtle);
+    }
+
+    .slate-toggles label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      background: rgba(30, 34, 52, 0.6);
+      border: 1px solid rgba(110, 128, 182, 0.26);
+      transition: border 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .slate-toggles label:hover {
+      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--accent) 32%, rgba(110, 128, 182, 0.36));
+      background: rgba(38, 44, 70, 0.72);
+    }
+
+    .slate-toggles input[type='checkbox'] {
+      accent-color: var(--accent);
+    }
+
+    .slate-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .slate-preview {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-radius: 0;
+      padding: 16px 18px;
+      padding-left: 20px;
+      background: linear-gradient(150deg, rgba(30, 34, 50, 0.94), rgba(14, 18, 28, 0.9));
+      border: 1px solid rgba(124, 144, 200, 0.28);
+      box-shadow: 0 18px 40px rgba(6, 10, 28, 0.42);
+      min-height: 120px;
+      opacity: 0;
+      transform: translate3d(0, 12px, 0);
+      transition: opacity 0.32s ease, transform 0.32s ease;
+    }
+
+    .slate-preview.is-visible {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .slate-preview::before,
+    .slate-preview::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .slate-preview::before {
+      width: 3px;
+      left: 0;
+      background: linear-gradient(172deg, color-mix(in srgb, var(--accent) 80%, rgba(255, 255, 255, 0.3)), color-mix(in srgb, var(--accent) 52%, rgba(12, 18, 32, 0.9)));
+      opacity: 0.95;
+    }
+
+    .slate-preview::after {
+      background: linear-gradient(130deg, rgba(255, 255, 255, 0.18), transparent 70%);
+      opacity: 0.25;
+    }
+
+    .slate-preview.is-empty {
+      justify-content: center;
+      text-align: center;
+      color: rgba(200, 208, 230, 0.72);
+      gap: 8px;
+    }
+
+    .slate-preview.is-disabled {
+      opacity: 0.55;
+    }
+
+    .slate-preview-row {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+    }
+
+    .slate-preview-row.refresh {
+      animation: slatePreviewRefresh 0.32s ease;
+    }
+
+    .slate-preview-pill {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.65));
+    }
+
+    .slate-preview-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(244, 246, 255, 0.96);
+      letter-spacing: 0.02em;
+    }
+
+    .slate-preview[data-type='clock'] .slate-preview-title {
+      font-size: 18px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+    }
+
+    .slate-preview-subtitle {
+      font-size: 12px;
+      color: rgba(210, 216, 234, 0.8);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .slate-preview-meta {
+      font-size: 11px;
+      color: rgba(182, 196, 226, 0.68);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .slate-preview-dots {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 4px;
+      margin-top: auto;
+      justify-content: flex-end;
+    }
+
+    .slate-preview-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 0;
+      background: rgba(236, 238, 255, 0.38);
+      opacity: 0.45;
+      transition: opacity 0.25s ease;
+    }
+
+    .slate-preview-dot.is-active {
+      opacity: 1;
+      background: color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.6));
+    }
+
+    .is-hidden {
+      display: none !important;
+    }
+
+    @keyframes slatePreviewRefresh {
+      0% { opacity: 0; transform: translate3d(0, 10px, 0) scale(0.98); }
+      100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+      .panel::before { animation: none; }
+      .slate-preview::before,
+      .slate-preview::after,
+      .slate-preview-row,
+      .slate-preview-dot { animation: none !important; transition: none !important; }
+    }
+
+    @media (max-width: 960px) {
+      body { padding: 32px 16px 48px; }
+      .panel { padding: 24px; }
+    }
+
+    @media (max-width: 640px) {
+      .message-item { grid-template-columns: 1fr; }
+      .message-actions { justify-content: flex-end; }
+      .preset-card { grid-template-columns: 1fr; }
+      .preset-actions { justify-content: flex-end; }
+      .scene-card { grid-template-columns: 1fr; }
+      .scene-actions { justify-content: flex-end; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel panel--accent">
+      <div class="header">
+        <div class="title-block">
+          <h1>OBS Ticker Dashboard</h1>
+          <p class="subtitle">Curate ticker copy, configure overlay styling, and manage presets in one place. Minutes-based intervals and rich text modifiers are supported.</p>
+        </div>
+        <div class="overlay-chip" title="Click to copy" id="overlayUrlChip">
+          <strong>Overlay URL</strong>
+          <span id="overlayUrlText">–</span>
+        </div>
+      </div>
+
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-item"><span class="status-dot" id="statusActive"></span><span>State</span><span class="status-value" id="statusActiveText">Inactive</span></div>
+          <div class="status-item"><span>Messages</span><span class="status-value" id="statusMessageCount">0</span></div>
+          <div class="status-item"><span class="status-dot" id="statusBrbDot"></span><span>BRB</span><span class="status-value" id="statusBrb">Hidden</span></div>
+        </div>
+        <div class="status-card">
+          <div class="status-item"><span>Last Update</span><span class="status-value" id="statusUpdated">–</span></div>
+          <div class="status-item"><span>Server</span><span class="status-value" id="statusServer">Checking…</span></div>
+        </div>
+        <div class="status-card">
+          <div class="status-item" style="flex-wrap: wrap; gap: 6px;">
+            <span>Server URL</span>
+            <input type="text" id="serverUrl" placeholder="http://127.0.0.1:3000" style="flex:1; min-width: 160px;" />
+          </div>
+          <div class="status-item"><label><input type="checkbox" id="autoStart" /> Auto-start when messages exist</label></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-two">
+      <section class="panel panel--neutral" id="tickerPanel">
+        <div>
+          <div class="section-title">Ticker Timing</div>
+          <div class="section-sub">Control rotation and cooldown cadence. Intervals are stored in minutes (0–60) and converted server-side.</div>
+        </div>
+        <div class="control-grid">
+          <div class="control-group">
+            <label for="displayDuration">Display Duration (seconds)</label>
+            <input type="number" id="displayDuration" min="2" max="90" step="1" value="5" />
+          </div>
+          <div class="control-group">
+            <label for="intervalMinutes">Interval Between Messages (minutes)</label>
+            <input type="number" id="intervalMinutes" min="0" max="60" step="0.01" value="0" />
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" id="startBtn">Start</button>
+          <button class="btn btn-danger" id="stopBtn">Stop</button>
+          <div class="spacer"></div>
+          <button class="btn btn-secondary" id="refreshBtn">Refresh</button>
+        </div>
+      </section>
+
+      <section class="panel panel--accent" id="overlayPanel">
+        <div>
+          <div class="section-title">Overlay Styling</div>
+          <div class="section-sub">Adjust label, highlights, animation preferences, and scale for the browser source preview.</div>
+        </div>
+        <div class="control-grid">
+          <div class="control-group">
+            <label for="overlayLabel">Overlay Label</label>
+            <input type="text" id="overlayLabel" maxlength="32" />
+          </div>
+          <div class="control-group">
+            <label for="overlayAccent">Accent Colour</label>
+            <div class="accent-inputs" id="overlayAccentGroup">
+              <input type="color" id="overlayAccentPicker" aria-label="Accent colour" value="#ef4444" />
+              <input type="text" id="overlayAccent" placeholder="#ef4444" autocomplete="off" spellcheck="false" />
+            </div>
+            <p class="control-hint" id="overlayAccentHint">Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.</p>
+          </div>
+          <div class="control-group">
+            <label for="highlightWords">Highlight Words (comma separated)</label>
+            <input type="text" id="highlightWords" placeholder="YouTube,Twitch,breaking" />
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="scaleRange">Overlay Scale</label>
+          <div class="segment-row" style="flex-wrap: nowrap; gap: 12px; align-items: center;">
+            <input type="range" id="scaleRange" min="0.75" max="2.5" step="0.05" value="1.75" />
+            <input type="number" id="scaleNumber" min="0.75" max="2.5" step="0.05" value="1.75" style="max-width: 90px;" />
+          </div>
+        </div>
+        <div class="control-group">
+          <label for="popupScaleRange">Popup Scale</label>
+          <div class="segment-row" style="flex-wrap: nowrap; gap: 12px; align-items: center;">
+            <input type="range" id="popupScaleRange" min="0.6" max="1.5" step="0.05" value="1" />
+            <input type="number" id="popupScaleNumber" min="0.6" max="1.5" step="0.05" value="1" style="max-width: 90px;" />
+          </div>
+          <p class="control-hint">Shrink or grow the popup independently of the ticker.</p>
+        </div>
+        <div class="control-group">
+          <label>Position</label>
+          <div class="segment-row" id="positionButtons">
+            <button type="button" class="segment-button" data-position="bottom">Bottom</button>
+            <button type="button" class="segment-button" data-position="top">Top</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Animation Mode</label>
+          <div class="segment-row" id="modeButtons">
+            <button type="button" class="segment-button" data-mode="auto">Auto</button>
+            <button type="button" class="segment-button" data-mode="marquee">Marquee</button>
+            <button type="button" class="segment-button" data-mode="chunk">Chunk</button>
+          </div>
+        </div>
+        <div class="control-group">
+          <label>Theme</label>
+            <div class="segment-row" id="themeButtons">
+              <button type="button" class="segment-button" data-theme="holographic">Holographic</button>
+              <button type="button" class="segment-button" data-theme="neural">Neural</button>
+              <button type="button" class="segment-button" data-theme="quantum">Quantum</button>
+              <button type="button" class="segment-button" data-theme="crystalline">Crystalline</button>
+              <button type="button" class="segment-button" data-theme="neon-noir">Neon Noir</button>
+            </div>
+            <div class="theme-notes">
+              <span><strong>Holographic</strong> iridescent refraction with caustic light</span>
+              <span><strong>Neural</strong> AI-inspired circuitry with pulsing glow</span>
+              <span><strong>Quantum</strong> particle gradients and energetic beams</span>
+              <span><strong>Crystalline</strong> precision glass facets and cool sheen</span>
+              <span><strong>Neon Noir</strong> cyberpunk neon with deep contrast</span>
+            </div>
+        </div>
+        <div class="toggle-row">
+          <label><input type="checkbox" id="accentAnimToggle" checked /> Accent shimmer</label>
+          <label><input type="checkbox" id="sparkleToggle" checked /> Sparkle effects</label>
+        </div>
+        <div class="actions">
+          <button class="btn btn-ghost" id="copyOverlay">Copy URL</button>
+        </div>
+        <div class="preview-block">
+          <div class="preview-toolbar">
+            <div>
+              <div class="preview-title">Live Preview</div>
+              <div class="preview-sub">Embeds the overlay URL above so changes appear instantly.</div>
+            </div>
+            <div class="preview-actions">
+              <button type="button" class="btn btn-secondary" id="reloadPreview">Reload</button>
+              <button type="button" class="btn btn-ghost" id="openOverlay">Open in new tab</button>
+            </div>
+          </div>
+          <div class="preview-frame">
+            <iframe id="overlayPreview" title="Overlay preview" loading="lazy" sandbox="allow-same-origin allow-scripts"></iframe>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--neutral" id="slatePanel">
+        <div>
+          <div class="section-title">Segment Slate</div>
+          <div class="section-sub">Curate the compact top-right slate with UK time and short notices such as next-up cues or sponsor callouts.</div>
+        </div>
+        <div class="slate-panel-controls">
+          <div class="slate-toggles">
+            <label><input type="checkbox" id="slateEnabled" /> Enable segment slate</label>
+            <label><input type="checkbox" id="slateShowClock" /> Show clock</label>
+          </div>
+          <div class="slate-grid">
+            <div class="control-group">
+              <label for="slateRotation">Rotation Interval (seconds)</label>
+              <div class="segment-row" style="gap: 12px; align-items: center;">
+                <input type="range" id="slateRotation" min="4" max="60" step="1" value="12" />
+                <input type="number" id="slateRotationNumber" min="4" max="60" step="1" value="12" style="max-width: 80px;" />
+              </div>
+            </div>
+            <div class="control-group">
+              <label for="slateClockLabel">Clock label</label>
+              <input type="text" id="slateClockLabel" maxlength="48" placeholder="UK TIME" />
+            </div>
+            <div class="control-group">
+              <label for="slateNextLabel">Next-up label</label>
+              <input type="text" id="slateNextLabel" maxlength="48" placeholder="Next up" />
+            </div>
+            <div class="control-group">
+              <label for="slateNextTitle">Next-up title</label>
+              <input type="text" id="slateNextTitle" maxlength="64" placeholder="Guest interview" />
+            </div>
+            <div class="control-group">
+              <label for="slateNextSubtitle">Next-up details</label>
+              <input type="text" id="slateNextSubtitle" maxlength="200" placeholder="Happening after the break" />
+            </div>
+            <div class="control-group">
+              <label for="slateSponsorLabel">Sponsor label</label>
+              <input type="text" id="slateSponsorLabel" maxlength="48" placeholder="Sponsor" />
+            </div>
+            <div class="control-group">
+              <label for="slateSponsorName">Sponsor name</label>
+              <input type="text" id="slateSponsorName" maxlength="64" placeholder="Acme Co." />
+            </div>
+            <div class="control-group">
+              <label for="slateSponsorTagline">Sponsor tagline</label>
+              <input type="text" id="slateSponsorTagline" maxlength="200" placeholder="Proudly supporting tonight's stream" />
+            </div>
+            <div class="control-group">
+              <label for="slateNotesLabel">Spotlight label</label>
+              <input type="text" id="slateNotesLabel" maxlength="48" placeholder="Spotlight" />
+            </div>
+            <div class="control-group">
+              <label for="slateNotes">Spotlight notes (one per line)</label>
+              <textarea id="slateNotes" maxlength="600" placeholder="Follow @channelhandle&#10;Share your questions with #AskLive"></textarea>
+              <p class="control-hint">Up to six short lines rotate alongside the clock card.</p>
+            </div>
+          </div>
+          <div class="slate-preview is-empty is-visible" id="slatePreview">
+            <div class="slate-preview-row" id="slatePreviewContent">
+              <span class="slate-preview-pill">Segment slate</span>
+              <div class="slate-preview-title">Add upcoming items or notes to preview the slate.</div>
+              <div class="slate-preview-subtitle">Clock and messages will rotate automatically.</div>
+              <div class="slate-preview-meta">Rotation preview</div>
+            </div>
+            <div class="slate-preview-dots" id="slatePreviewDots"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel panel--neutral" id="popupPanel">
+        <div>
+          <div class="section-title">Popup Message</div>
+          <div class="section-sub">Send a top-left callout styled like the ticker. Supports the same text modifiers.</div>
+        </div>
+        <textarea id="popupText" placeholder="Enter popup message…"></textarea>
+        <div class="popup-actions">
+          <label class="popup-toggle"><input type="checkbox" id="popupActive" /> Display popup</label>
+          <div class="popup-duration">
+            <label for="popupDuration">Auto-hide (seconds)</label>
+            <input type="number" id="popupDuration" min="0" max="600" step="1" placeholder="Leave blank to stay visible" inputmode="numeric" />
+          </div>
+          <div class="popup-buttons">
+            <button class="btn btn-secondary" type="button" id="clearPopup">Clear</button>
+            <button class="btn" type="button" id="savePopup">Update Popup</button>
+          </div>
+        </div>
+        <div class="popup-countdown">
+          <label class="popup-countdown-toggle"><input type="checkbox" id="popupCountdownEnabled" /> Append countdown timer</label>
+          <div class="popup-countdown-input">
+            <label for="popupCountdownTarget">Countdown target</label>
+            <input type="datetime-local" id="popupCountdownTarget" />
+          </div>
+        </div>
+        <div class="popup-preview is-empty" id="popupPreview">Popup preview</div>
+        <div class="popup-meta" id="popupMeta">Popup hidden</div>
+      </section>
+
+      <section class="panel panel--muted" id="brbPanel">
+        <div>
+          <div class="section-title">BRB Message</div>
+          <div class="section-sub">Manage the standby banner shared with the overlay output.</div>
+        </div>
+        <textarea id="brbText" placeholder="Enter BRB message…"></textarea>
+        <div class="brb-actions">
+          <label class="brb-toggle"><input type="checkbox" id="brbActive" /> Show BRB message</label>
+          <div class="spacer"></div>
+          <button class="btn btn-secondary" type="button" id="brbClear">Clear</button>
+          <button class="btn" type="button" id="brbSave">Update BRB</button>
+        </div>
+        <div class="brb-status" id="brbStatus">BRB hidden</div>
+      </section>
+    </div>
+
+    <section class="panel panel--neutral" id="messagesPanel">
+      <div>
+        <div class="section-title">Ticker Messages</div>
+        <div class="section-sub">Use modifiers like <code>~~rainbow~~</code>, <code>%%spark%%</code>, <code>^^bounce^^</code>, <code>==neon==</code>, and <code>!!glitch!!</code>. Markdown-style <code>**bold**</code> and <code>*italic*</code> are supported.</div>
+      </div>
+      <form class="message-composer" id="messageForm">
+        <input type="text" id="newMessage" placeholder="Add a ticker message…" autocomplete="off" />
+        <button type="submit" class="btn" id="addMessageButton">Add</button>
+        <button type="button" class="btn btn-secondary" id="clearMessages">Clear</button>
+        <button type="button" class="btn btn-ghost" id="exportMessages">Export</button>
+        <button type="button" class="btn btn-ghost" id="importMessages">Import</button>
+      </form>
+      <div class="message-list" id="messageList">
+        <div class="empty-state">No messages yet — add a line above or load a preset.</div>
+      </div>
+    </section>
+
+    <section class="panel panel--muted" id="presetsPanel">
+      <div>
+        <div class="section-title">Message Presets</div>
+        <div class="section-sub">Save frequently used rotations. Loading replaces the current queue; appending pushes messages to the bottom.</div>
+      </div>
+      <div class="preset-header">
+        <input type="text" id="presetName" placeholder="Preset name" />
+        <button class="btn" type="button" id="savePreset">Save Current Messages</button>
+      </div>
+      <div class="preset-list" id="presetList">
+        <div class="empty-state">No presets saved yet.</div>
+      </div>
+    </section>
+
+    <section class="panel panel--accent" id="scenesPanel">
+      <div>
+        <div class="section-title">Scene Presets</div>
+        <div class="section-sub">Snapshot ticker queues with popup and theme settings so you can recall complete looks for recurring segments.</div>
+      </div>
+      <div class="scene-header">
+        <input type="text" id="sceneName" placeholder="Scene name" />
+        <button class="btn" type="button" id="saveScene">Save Scene</button>
+      </div>
+      <div class="scene-list" id="sceneList">
+        <div class="empty-state">No scenes saved yet.</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="preset-modal" id="presetMessageModal" aria-hidden="true">
+    <div class="preset-modal__card" role="dialog" aria-modal="true" aria-labelledby="presetModalTitle" aria-describedby="presetModalHint">
+      <div class="preset-modal__title" id="presetModalTitle">Save message to presets</div>
+      <div class="preset-modal__message" id="presetModalPreview"><span class="small">Select a message to begin.</span></div>
+      <div class="preset-modal__field">
+        <label for="presetModalName">Preset name</label>
+        <input type="text" class="preset-modal__input" id="presetModalName" maxlength="80" autocomplete="off" spellcheck="false" />
+      </div>
+      <p class="preset-modal__hint" id="presetModalHint">Preset names can be up to 80 characters.</p>
+      <div class="preset-modal__actions">
+        <button type="button" class="btn btn-secondary" id="presetModalCancel">Cancel</button>
+        <button type="button" class="btn" id="presetModalSave">Save preset</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/shared-config.js"></script>
+  <script src="js/shared-utils.js"></script>
+  <script>
+    const {
+      OVERLAY_THEMES,
+      clampDurationSeconds,
+      clampIntervalSeconds,
+      clampScaleValue,
+      clampPopupScaleValue,
+      clampSlateRotationSeconds,
+      normaliseHighlightList,
+      normaliseMode: sharedNormaliseMode,
+      normalisePosition: sharedNormalisePosition,
+      normaliseTheme: sharedNormaliseTheme,
+      normaliseSlateNotes,
+      isSafeCssColor: sharedIsSafeCssColor
+    } = window.TickerShared || {};
+
+    const STORAGE_KEY = 'ticker-dashboard-v3';
+    const MAX_MESSAGES = 50;
+    const MAX_MESSAGE_LENGTH = 280;
+    const MAX_POPUP_SECONDS = 600;
+    const MAX_SLATE_TITLE_LENGTH = 64;
+    const MAX_SLATE_TEXT_LENGTH = 200;
+    const MAX_SLATE_NOTES = 6;
+    const MAX_BRB_LENGTH = 280;
+    const MESSAGE_PLACEHOLDER = 'Add a ticker message…';
+      const THEME_OPTIONS = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
+        ? OVERLAY_THEMES
+        : ['holographic', 'neural', 'quantum', 'crystalline', 'neon-noir'];
+    const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
+    const MAX_PRESET_NAME_LENGTH = 80;
+    const MAX_SCENE_NAME_LENGTH = 80;
+
+    const sharedConfig = window.SharedConfig || {};
+    const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
+      ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
+      : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
+    const DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+      ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
+      : DEFAULT_HIGHLIGHTS.join(',');
+
+    const DEFAULT_OVERLAY = {
+      label: 'LIVE',
+      accent: '#ef4444',
+      highlight: DEFAULT_HIGHLIGHT_STRING,
+      scale: 1.75,
+      popupScale: 1,
+      position: 'bottom',
+      mode: 'auto',
+      accentAnim: true,
+      sparkle: true,
+        theme: 'holographic',
+        ...(sharedConfig.DEFAULT_OVERLAY || {})
+      };
+    if (!DEFAULT_OVERLAY.highlight) {
+      DEFAULT_OVERLAY.highlight = DEFAULT_HIGHLIGHT_STRING;
+    }
+
+    const DEFAULT_ACCENT = DEFAULT_OVERLAY.accent && DEFAULT_OVERLAY.accent.trim()
+      ? DEFAULT_OVERLAY.accent.trim()
+      : '#ef4444';
+    const ACCENT_FALLBACK_HEX = parseHexForPicker(DEFAULT_ACCENT) || '#ef4444';
+    const ACCENT_HINT_DEFAULT = 'Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.';
+    const PRESET_NAME_HINT = 'Preset names can be up to 80 characters.';
+
+    const DEFAULT_STATE = {
+      isActive: false,
+      messages: [],
+      displayDuration: 5,
+      intervalMinutes: 0,
+      updatedAt: null
+    };
+
+    const DEFAULT_POPUP = {
+      text: '',
+      isActive: false,
+      durationSeconds: null,
+      countdownEnabled: false,
+      countdownTarget: null,
+      ...(sharedConfig.DEFAULT_POPUP || {}),
+      updatedAt: null
+    };
+
+    const DEFAULT_SLATE_SOURCE = {
+      isEnabled: true,
+      rotationSeconds: 12,
+      showClock: true,
+      clockLabel: 'UK TIME',
+      nextLabel: 'Next up',
+      nextTitle: '',
+      nextSubtitle: '',
+      sponsorName: '',
+      sponsorTagline: '',
+      sponsorLabel: 'Sponsor',
+      notesLabel: 'Spotlight',
+      notes: [],
+      ...(sharedConfig.DEFAULT_SLATE || {})
+    };
+
+    const DEFAULT_SLATE = {
+      ...DEFAULT_SLATE_SOURCE,
+      rotationSeconds: typeof clampSlateRotationSeconds === 'function'
+        ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
+        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 60),
+      notes: typeof normaliseSlateNotes === 'function'
+        ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH)
+        : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
+            ? DEFAULT_SLATE_SOURCE.notes
+                .map(item => String(item).trim().slice(0, MAX_SLATE_TEXT_LENGTH))
+                .filter(Boolean)
+                .slice(0, MAX_SLATE_NOTES)
+            : []),
+      updatedAt: null
+    };
+
+    const DEFAULT_BRB = {
+      text: 'Be Right Back',
+      isActive: false,
+      updatedAt: null
+    };
+
+    const hasRandomUUID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
+
+    function generateClientId(prefix) {
+      const base = hasRandomUUID
+        ? crypto.randomUUID()
+        : `${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+      return prefix ? `${prefix}-${base}` : base;
+    }
+
+    const SPECIAL_MAP = {
+      '~~': 'rainbow',
+      '%%': 'sparkle',
+      '^^': 'bounce',
+      '==': 'neon',
+      '!!': 'glitch'
+    };
+
+    let state = { ...DEFAULT_STATE };
+    let overlayPrefs = { ...DEFAULT_OVERLAY };
+    let popupState = { ...DEFAULT_POPUP };
+    let slateState = { ...DEFAULT_SLATE };
+    let brbState = { ...DEFAULT_BRB };
+    let presets = [];
+    let scenes = [];
+    let editingIndex = -1;
+    let editingDraft = '';
+    let pendingPresetMessage = null;
+    let eventSource = null;
+    let lastPreviewUrl = '';
+    let previewUpdateTimer = null;
+
+    const el = {
+      overlayChip: document.getElementById('overlayUrlChip'),
+      overlayText: document.getElementById('overlayUrlText'),
+      serverUrl: document.getElementById('serverUrl'),
+      statusServer: document.getElementById('statusServer'),
+      statusActive: document.getElementById('statusActive'),
+      statusActiveText: document.getElementById('statusActiveText'),
+      statusCount: document.getElementById('statusMessageCount'),
+      statusUpdated: document.getElementById('statusUpdated'),
+      autoStart: document.getElementById('autoStart'),
+      duration: document.getElementById('displayDuration'),
+      interval: document.getElementById('intervalMinutes'),
+      startBtn: document.getElementById('startBtn'),
+      stopBtn: document.getElementById('stopBtn'),
+      refreshBtn: document.getElementById('refreshBtn'),
+      overlayLabel: document.getElementById('overlayLabel'),
+      overlayAccent: document.getElementById('overlayAccent'),
+      overlayAccentPicker: document.getElementById('overlayAccentPicker'),
+      overlayAccentGroup: document.getElementById('overlayAccentGroup'),
+      overlayAccentHint: document.getElementById('overlayAccentHint'),
+      highlightWords: document.getElementById('highlightWords'),
+      scaleRange: document.getElementById('scaleRange'),
+      scaleNumber: document.getElementById('scaleNumber'),
+      popupScaleRange: document.getElementById('popupScaleRange'),
+      popupScaleNumber: document.getElementById('popupScaleNumber'),
+      positionButtons: document.getElementById('positionButtons'),
+      modeButtons: document.getElementById('modeButtons'),
+      themeButtons: document.getElementById('themeButtons'),
+      accentAnim: document.getElementById('accentAnimToggle'),
+      sparkle: document.getElementById('sparkleToggle'),
+      openOverlay: document.getElementById('openOverlay'),
+      copyOverlay: document.getElementById('copyOverlay'),
+      reloadPreview: document.getElementById('reloadPreview'),
+      previewFrame: document.getElementById('overlayPreview'),
+      messageForm: document.getElementById('messageForm'),
+      newMessage: document.getElementById('newMessage'),
+      addMessageButton: document.getElementById('addMessageButton'),
+      clearMessages: document.getElementById('clearMessages'),
+      exportMessages: document.getElementById('exportMessages'),
+      importMessages: document.getElementById('importMessages'),
+      messageList: document.getElementById('messageList'),
+      presetName: document.getElementById('presetName'),
+      savePreset: document.getElementById('savePreset'),
+      presetList: document.getElementById('presetList'),
+      sceneName: document.getElementById('sceneName'),
+      saveScene: document.getElementById('saveScene'),
+      sceneList: document.getElementById('sceneList'),
+      toast: document.getElementById('toast'),
+      popupText: document.getElementById('popupText'),
+      popupActive: document.getElementById('popupActive'),
+      popupPreview: document.getElementById('popupPreview'),
+      popupMeta: document.getElementById('popupMeta'),
+      popupDuration: document.getElementById('popupDuration'),
+      popupCountdownEnabled: document.getElementById('popupCountdownEnabled'),
+      popupCountdownTarget: document.getElementById('popupCountdownTarget'),
+      savePopup: document.getElementById('savePopup'),
+      clearPopup: document.getElementById('clearPopup'),
+      slateEnabled: document.getElementById('slateEnabled'),
+      slateShowClock: document.getElementById('slateShowClock'),
+      slateRotation: document.getElementById('slateRotation'),
+      slateRotationNumber: document.getElementById('slateRotationNumber'),
+      slateClockLabel: document.getElementById('slateClockLabel'),
+      slateNextLabel: document.getElementById('slateNextLabel'),
+      slateNextTitle: document.getElementById('slateNextTitle'),
+      slateNextSubtitle: document.getElementById('slateNextSubtitle'),
+      slateSponsorLabel: document.getElementById('slateSponsorLabel'),
+      slateSponsorName: document.getElementById('slateSponsorName'),
+      slateSponsorTagline: document.getElementById('slateSponsorTagline'),
+      slateNotesLabel: document.getElementById('slateNotesLabel'),
+      slateNotes: document.getElementById('slateNotes'),
+      slatePreview: document.getElementById('slatePreview'),
+      slatePreviewDots: document.getElementById('slatePreviewDots'),
+      slatePreviewContent: document.getElementById('slatePreviewContent'),
+      slatePreviewPill: document.querySelector('#slatePreviewContent .slate-preview-pill'),
+      slatePreviewTitle: document.querySelector('#slatePreviewContent .slate-preview-title'),
+      slatePreviewSubtitle: document.querySelector('#slatePreviewContent .slate-preview-subtitle'),
+      slatePreviewMeta: document.querySelector('#slatePreviewContent .slate-preview-meta'),
+      brbText: document.getElementById('brbText'),
+      brbActive: document.getElementById('brbActive'),
+      brbSave: document.getElementById('brbSave'),
+      brbClear: document.getElementById('brbClear'),
+      brbStatus: document.getElementById('brbStatus'),
+      statusBrb: document.getElementById('statusBrb'),
+      statusBrbDot: document.getElementById('statusBrbDot'),
+      presetModal: document.getElementById('presetMessageModal'),
+      presetModalName: document.getElementById('presetModalName'),
+      presetModalPreview: document.getElementById('presetModalPreview'),
+      presetModalHint: document.getElementById('presetModalHint'),
+      presetModalSave: document.getElementById('presetModalSave'),
+      presetModalCancel: document.getElementById('presetModalCancel')
+    };
+
+    let fetchInFlight = false;
+    let fetchPending = false;
+    let fetchPendingSilent = true;
+    let saveTimer = null;
+    let overlaySaveTimer = null;
+    let overlaySaveInFlight = false;
+    let pendingOverlayPayload = null;
+    let popupSaveTimer = null;
+    let popupSaveInFlight = false;
+    let slateSaveTimer = null;
+    let slateSaveInFlight = false;
+    let pendingSlatePayload = null;
+    let slatePreviewTimer = null;
+    let slatePreviewDisplayTimer = null;
+    let slatePreviewClockTimer = null;
+    let slatePreviewIndex = 0;
+    let slatePreviewCards = [];
+    let popupPreviewCountdownTimer = null;
+    let popupPreviewCountdownTarget = null;
+    let popupPreviewAnimator = null;
+    let popupPreviewLastText = '';
+    let slatePreviewAnimator = null;
+    let brbSaveTimer = null;
+    let brbSaveInFlight = false;
+    let scenesSaveInFlight = false;
+    let pendingSceneMessage = null;
+    let highlightRegex = null;
+    let streamPrimed = false;
+    let streamFallbackTimer = null;
+
+    function toast(message) {
+      el.toast.textContent = message;
+      el.toast.classList.add('show');
+      clearTimeout(el.toast._hideTimer);
+      el.toast._hideTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
+    }
+
+    function serverBase() {
+      const value = (el.serverUrl.value || 'http://127.0.0.1:3000').trim();
+      return value.replace(/\/?$/, '');
+    }
+
+    function secondsToMinutes(seconds) {
+      return Math.max(0, Math.min(60, Math.round((Number(seconds) || 0) * 100 / 60) / 100));
+    }
+
+    function minutesToSeconds(minutes) {
+      const numeric = Number(minutes);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.max(0, Math.min(3600, Math.round(numeric * 60)));
+    }
+
+    function isSafeColour(value) {
+      if (typeof sharedIsSafeCssColor === 'function') {
+        return sharedIsSafeCssColor(value);
+      }
+      return /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(value || ''));
+    }
+
+    function parseHexForPicker(value) {
+      if (typeof value !== 'string') return null;
+      const trimmed = value.trim();
+      const match = trimmed.match(/^#([0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+      if (!match) return null;
+      const hex = match[1];
+      if (hex.length === 3) {
+        return `#${hex.split('').map(ch => `${ch}${ch}`).join('').toLowerCase()}`;
+      }
+      if (hex.length === 4) {
+        const rgb = hex.slice(0, 3).split('').map(ch => `${ch}${ch}`).join('');
+        return `#${rgb.toLowerCase()}`;
+      }
+      if (hex.length === 6) {
+        return `#${hex.toLowerCase()}`;
+      }
+      if (hex.length === 8) {
+        return `#${hex.slice(0, 6).toLowerCase()}`;
+      }
+      return null;
+    }
+
+    function normaliseHighlightInput(value) {
+      if (typeof normaliseHighlightList === 'function') {
+        return normaliseHighlightList(value);
+      }
+      return String(value || '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .join(',');
+    }
+
+    function normaliseOverlayData(data) {
+      const result = { ...DEFAULT_OVERLAY };
+      if (!data || typeof data !== 'object') return result;
+      if (typeof data.label === 'string' && data.label.trim()) {
+        result.label = data.label.trim().slice(0, 48);
+      }
+      if (typeof data.accent === 'string') {
+        const trimmed = data.accent.trim();
+        if (!trimmed) {
+          result.accent = '';
+        } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
+          result.accent = trimmed;
+        }
+      }
+      if (typeof data.highlight === 'string') {
+        result.highlight = normaliseHighlightInput(data.highlight);
+      }
+      if (Number.isFinite(data.scale)) {
+        result.scale = typeof clampScaleValue === 'function'
+          ? clampScaleValue(data.scale, result.scale)
+          : Math.max(0.75, Math.min(2.5, Math.round(Number(data.scale) * 100) / 100));
+      }
+      if (Number.isFinite(data.popupScale)) {
+        result.popupScale = typeof clampPopupScaleValue === 'function'
+          ? clampPopupScaleValue(data.popupScale, result.popupScale)
+          : Math.max(0.6, Math.min(1.5, Math.round(Number(data.popupScale) * 100) / 100));
+      }
+      if (typeof data.position === 'string') {
+        result.position = typeof sharedNormalisePosition === 'function'
+          ? sharedNormalisePosition(data.position)
+          : (data.position.toLowerCase() === 'top' ? 'top' : 'bottom');
+      }
+      if (typeof data.mode === 'string') {
+        result.mode = typeof sharedNormaliseMode === 'function'
+          ? sharedNormaliseMode(data.mode)
+          : (['auto', 'marquee', 'chunk'].includes(data.mode.toLowerCase()) ? data.mode.toLowerCase() : 'auto');
+      }
+      if (typeof data.accentAnim === 'boolean') {
+        result.accentAnim = data.accentAnim;
+      }
+      if (typeof data.sparkle === 'boolean') {
+        result.sparkle = data.sparkle;
+      }
+      if (typeof data.theme === 'string') {
+        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
+          ? sharedNormaliseTheme(data.theme)
+          : data.theme.trim().toLowerCase();
+        if (normalisedTheme && THEME_OPTIONS.includes(normalisedTheme)) {
+          result.theme = normalisedTheme;
+        }
+      }
+      return result;
+    }
+
+    function clampSlateRotation(value) {
+      if (typeof clampSlateRotationSeconds === 'function') {
+        return clampSlateRotationSeconds(value, DEFAULT_SLATE.rotationSeconds || 12);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_SLATE.rotationSeconds || 12;
+      return Math.min(Math.max(Math.round(numeric), 4), 60);
+    }
+
+    function computeSlateVisibleSeconds(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const candidate = rotation - 1;
+      const visible = Math.min(6, Math.max(2, candidate));
+      return visible;
+    }
+
+    function computeSlateGapMs(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const visibleSeconds = computeSlateVisibleSeconds(rotation);
+      const totalMs = rotation * 1000;
+      const visibleMs = visibleSeconds * 1000;
+      const gap = Math.max(1000, totalMs - visibleMs);
+      return gap;
+    }
+
+    function normaliseSlateNotesList(value) {
+      if (typeof normaliseSlateNotes === 'function') {
+        return normaliseSlateNotes(value, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH);
+      }
+      const list = Array.isArray(value)
+        ? value
+        : String(value || '')
+            .split(/\r?\n|[,;]/)
+            .map(entry => entry.trim());
+      return list
+        .map(entry => String(entry || '').trim().slice(0, MAX_SLATE_TEXT_LENGTH))
+        .filter(Boolean)
+        .slice(0, MAX_SLATE_NOTES);
+    }
+
+    function normaliseSlateData(data) {
+      const result = {
+        ...DEFAULT_SLATE,
+        notes: [...DEFAULT_SLATE.notes],
+        updatedAt: DEFAULT_SLATE.updatedAt
+      };
+      if (!data || typeof data !== 'object') return result;
+      if (typeof data.isEnabled === 'boolean') result.isEnabled = data.isEnabled;
+      if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
+      if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
+      if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (Array.isArray(data.notes)) result.notes = normaliseSlateNotesList(data.notes);
+      const updatedAt = Number(data.updatedAt ?? data._updatedAt);
+      if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
+      return result;
+    }
+
+    function serialiseSlateState(source = slateState) {
+      const normalised = normaliseSlateData(source);
+      return {
+        isEnabled: !!normalised.isEnabled,
+        rotationSeconds: clampSlateRotation(normalised.rotationSeconds),
+        showClock: !!normalised.showClock,
+        clockLabel: normalised.clockLabel || '',
+        nextLabel: normalised.nextLabel || '',
+        nextTitle: normalised.nextTitle || '',
+        nextSubtitle: normalised.nextSubtitle || '',
+        sponsorLabel: normalised.sponsorLabel || '',
+        sponsorName: normalised.sponsorName || '',
+        sponsorTagline: normalised.sponsorTagline || '',
+        notesLabel: normalised.notesLabel || '',
+        notes: Array.isArray(normalised.notes) ? normalised.notes.slice(0, MAX_SLATE_NOTES) : []
+      };
+    }
+
+    function deriveSlateCardsForPreview(slate, _overlay = overlayPrefs) {
+      const cards = [];
+      const activeSlate = normaliseSlateData(slate);
+
+      const pushCard = (type, pill, title, subtitle = '') => {
+        const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
+        const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
+        if (!safeTitle && !safeSubtitle) return;
+        cards.push({
+          type,
+          pill: pill && typeof pill === 'string' ? pill.trim() : '',
+          title: safeTitle,
+          subtitle: safeSubtitle,
+          meta: ''
+        });
+      };
+
+      if (activeSlate.showClock) {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/London'
+        });
+        cards.push({
+          type: 'clock',
+          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
+          title: time,
+          subtitle: 'UK time',
+          meta: ''
+        });
+      }
+
+      if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
+        pushCard(
+          'next',
+          activeSlate.nextLabel || 'Next up',
+          activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
+          activeSlate.nextSubtitle || ''
+        );
+      }
+
+      if (activeSlate.sponsorName) {
+        pushCard(
+          'sponsor',
+          activeSlate.sponsorLabel || 'Sponsor',
+          activeSlate.sponsorName,
+          activeSlate.sponsorTagline || ''
+        );
+      }
+
+      if (Array.isArray(activeSlate.notes)) {
+        for (const note of activeSlate.notes) {
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
+        }
+      }
+
+      return cards;
+    }
+
+    function clearSlatePreviewTimers() {
+      if (slatePreviewTimer) {
+        clearTimeout(slatePreviewTimer);
+        slatePreviewTimer = null;
+      }
+      if (slatePreviewDisplayTimer) {
+        clearTimeout(slatePreviewDisplayTimer);
+        slatePreviewDisplayTimer = null;
+      }
+      stopSlatePreviewClock();
+    }
+
+    function startSlatePreviewClock(card) {
+      stopSlatePreviewClock();
+      if (!card || card.type !== 'clock') return;
+      slatePreviewClockTimer = setInterval(() => {
+        const cards = deriveSlateCardsForPreview(slateState, overlayPrefs);
+        slatePreviewCards = cards;
+        if (!slateState.isEnabled || !cards.length) {
+          updateSlatePreview();
+          return;
+        }
+        if (slatePreviewIndex >= cards.length) {
+          slatePreviewIndex = 0;
+        }
+        applySlatePreviewCard(cards[slatePreviewIndex], { updateDots: true, animate: false });
+      }, 1000);
+    }
+
+    function stopSlatePreviewClock() {
+      if (slatePreviewClockTimer) {
+        clearInterval(slatePreviewClockTimer);
+        slatePreviewClockTimer = null;
+      }
+    }
+
+    function renderSlatePreviewDots() {
+      if (!el.slatePreviewDots) return;
+      if (!slateState.isEnabled || slatePreviewCards.length <= 1) {
+        el.slatePreviewDots.innerHTML = '';
+        return;
+      }
+      const dots = slatePreviewCards.map((_, index) => {
+        const active = index === slatePreviewIndex ? ' is-active' : '';
+        return `<button type="button" class="slate-preview-dot${active}" data-index="${index}" aria-label="Show slate card ${index + 1}"></button>`;
+      }).join('');
+      el.slatePreviewDots.innerHTML = dots;
+    }
+
+    function showSlatePreview() {
+      if (el.slatePreview) {
+        el.slatePreview.classList.add('is-visible');
+      }
+    }
+
+    function hideSlatePreview() {
+      if (el.slatePreview) {
+        el.slatePreview.classList.remove('is-visible');
+      }
+      destroySlatePreviewAnimator();
+    }
+
+    function applySlatePreviewCard(card, { updateDots = true, animate = true } = {}) {
+      if (!el.slatePreview || !el.slatePreviewContent || !card) return;
+      destroySlatePreviewAnimator();
+      el.slatePreview.classList.remove('is-empty');
+      el.slatePreview.dataset.type = card.type || '';
+      el.slatePreviewContent.dataset.type = card.type || '';
+      if (el.slatePreviewPill) el.slatePreviewPill.textContent = card.pill || 'Slate';
+      if (el.slatePreviewTitle) el.slatePreviewTitle.textContent = card.title || '';
+      if (el.slatePreviewSubtitle) {
+        if (card.subtitle) {
+          el.slatePreviewSubtitle.textContent = card.subtitle;
+          el.slatePreviewSubtitle.classList.remove('is-hidden');
+        } else {
+          el.slatePreviewSubtitle.textContent = '';
+          el.slatePreviewSubtitle.classList.add('is-hidden');
+        }
+      }
+      if (el.slatePreviewMeta) {
+        if (card.meta) {
+          el.slatePreviewMeta.textContent = card.meta;
+          el.slatePreviewMeta.classList.remove('is-hidden');
+        } else {
+          el.slatePreviewMeta.textContent = '';
+          el.slatePreviewMeta.classList.add('is-hidden');
+        }
+      }
+      if (animate && el.slatePreviewContent) {
+        el.slatePreviewContent.classList.remove('refresh');
+        if (el.slatePreviewContent._refreshTimer) {
+          clearTimeout(el.slatePreviewContent._refreshTimer);
+          el.slatePreviewContent._refreshTimer = null;
+        }
+        void el.slatePreviewContent.offsetWidth;
+        el.slatePreviewContent.classList.add('refresh');
+        el.slatePreviewContent._refreshTimer = setTimeout(() => {
+          el.slatePreviewContent.classList.remove('refresh');
+          el.slatePreviewContent._refreshTimer = null;
+        }, 400);
+      }
+      stopSlatePreviewClock();
+      if (updateDots) {
+        renderSlatePreviewDots();
+      }
+      if (card.type === 'clock') {
+        startSlatePreviewClock(card);
+      }
+      if (animate && card.type !== 'clock') {
+        const headerEl = el.slatePreviewTitle && el.slatePreviewTitle.textContent.trim() ? el.slatePreviewTitle : null;
+        const bodyTargets = [];
+        if (el.slatePreviewSubtitle && !el.slatePreviewSubtitle.classList.contains('is-hidden') && el.slatePreviewSubtitle.textContent.trim()) {
+          bodyTargets.push(el.slatePreviewSubtitle);
+        }
+        if (el.slatePreviewMeta && !el.slatePreviewMeta.classList.contains('is-hidden') && el.slatePreviewMeta.textContent.trim()) {
+          bodyTargets.push(el.slatePreviewMeta);
+        }
+        if (headerEl) {
+          const animator = createTextAnimator(headerEl, bodyTargets);
+          if (animator) {
+            slatePreviewAnimator = animator;
+            animator.playIn().catch(() => destroySlatePreviewAnimator());
+          }
+        }
+      }
+    }
+
+    function playSlatePreviewCard(index = slatePreviewIndex, { animate = true, updateDots = true } = {}) {
+      if (!slatePreviewCards.length) return;
+      const rotationSeconds = clampSlateRotation(slateState.rotationSeconds);
+      clearSlatePreviewTimers();
+      const nextIndex = index % slatePreviewCards.length;
+      slatePreviewIndex = nextIndex < 0 ? slatePreviewCards.length - 1 : nextIndex;
+      applySlatePreviewCard(slatePreviewCards[slatePreviewIndex], { updateDots, animate });
+      showSlatePreview();
+      const visibleSeconds = computeSlateVisibleSeconds(rotationSeconds);
+      if (visibleSeconds <= 0) {
+        scheduleSlatePreviewNext(rotationSeconds);
+        return;
+      }
+      slatePreviewDisplayTimer = setTimeout(() => {
+        slatePreviewDisplayTimer = null;
+        stopSlatePreviewClock();
+        hideSlatePreview();
+        scheduleSlatePreviewNext(rotationSeconds);
+      }, visibleSeconds * 1000);
+    }
+
+    function scheduleSlatePreviewNext(rotationSeconds = clampSlateRotation(slateState.rotationSeconds)) {
+      if (!slateState.isEnabled || slatePreviewCards.length === 0) return;
+      const gapMs = computeSlateGapMs(rotationSeconds);
+      slatePreviewTimer = setTimeout(() => {
+        slatePreviewTimer = null;
+        if (!slateState.isEnabled || slatePreviewCards.length === 0) return;
+        slatePreviewIndex = (slatePreviewIndex + 1) % slatePreviewCards.length;
+        playSlatePreviewCard(slatePreviewIndex, { animate: true, updateDots: true });
+      }, gapMs > 0 ? gapMs : 1000);
+    }
+
+    function updateSlatePreview() {
+      if (!el.slatePreview) return;
+      clearSlatePreviewTimers();
+      destroySlatePreviewAnimator();
+      slatePreviewCards = deriveSlateCardsForPreview(slateState, overlayPrefs);
+      if (!slateState.isEnabled) {
+        el.slatePreview.classList.add('is-disabled', 'is-empty');
+        if (el.slatePreviewPill) el.slatePreviewPill.textContent = 'Slate disabled';
+        if (el.slatePreviewTitle) el.slatePreviewTitle.textContent = 'Enable the segment slate to show rotating cards.';
+        if (el.slatePreviewSubtitle) {
+          el.slatePreviewSubtitle.textContent = 'Use the toggles above to reactivate the slate.';
+          el.slatePreviewSubtitle.classList.remove('is-hidden');
+        }
+        if (el.slatePreviewMeta) {
+          el.slatePreviewMeta.textContent = '';
+          el.slatePreviewMeta.classList.add('is-hidden');
+        }
+        renderSlatePreviewDots();
+        showSlatePreview();
+        return;
+      }
+      el.slatePreview.classList.remove('is-disabled');
+      if (!slatePreviewCards.length) {
+        el.slatePreview.classList.add('is-empty');
+        if (el.slatePreviewPill) el.slatePreviewPill.textContent = 'Segment slate';
+        if (el.slatePreviewTitle) el.slatePreviewTitle.textContent = 'Add headline, sponsor, or spotlight notes to preview cards.';
+        if (el.slatePreviewSubtitle) {
+          el.slatePreviewSubtitle.textContent = 'Clock and highlight cards appear automatically when enabled.';
+          el.slatePreviewSubtitle.classList.remove('is-hidden');
+        }
+        if (el.slatePreviewMeta) {
+          el.slatePreviewMeta.textContent = 'Rotation preview';
+          el.slatePreviewMeta.classList.remove('is-hidden');
+        }
+        renderSlatePreviewDots();
+        showSlatePreview();
+        return;
+      }
+      el.slatePreview.classList.remove('is-empty');
+      if (slatePreviewIndex >= slatePreviewCards.length) {
+        slatePreviewIndex = 0;
+      }
+      playSlatePreviewCard(slatePreviewIndex, { animate: false, updateDots: true });
+    }
+
+    function renderSlateControls() {
+      if (el.slateEnabled) el.slateEnabled.checked = !!slateState.isEnabled;
+      if (el.slateShowClock) el.slateShowClock.checked = !!slateState.showClock;
+      const rotation = clampSlateRotation(slateState.rotationSeconds);
+      if (el.slateRotation) el.slateRotation.value = rotation;
+      if (el.slateRotationNumber) el.slateRotationNumber.value = rotation;
+      if (el.slateClockLabel) el.slateClockLabel.value = slateState.clockLabel || '';
+      if (el.slateNextLabel) el.slateNextLabel.value = slateState.nextLabel || '';
+      if (el.slateNextTitle) el.slateNextTitle.value = slateState.nextTitle || '';
+      if (el.slateNextSubtitle) el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+      if (el.slateSponsorLabel) el.slateSponsorLabel.value = slateState.sponsorLabel || '';
+      if (el.slateSponsorName) el.slateSponsorName.value = slateState.sponsorName || '';
+      if (el.slateSponsorTagline) el.slateSponsorTagline.value = slateState.sponsorTagline || '';
+      if (el.slateNotesLabel) el.slateNotesLabel.value = slateState.notesLabel || '';
+      if (el.slateNotes) el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
+      updateSlatePreview();
+    }
+
+    function updateSlateBoolean(key, value) {
+      const next = !!value;
+      if (slateState[key] === next) return;
+      slateState = {
+        ...slateState,
+        [key]: next,
+        updatedAt: Date.now()
+      };
+      updateSlatePreview();
+      queueSlateSave();
+    }
+
+    function updateSlateRotationInput(value) {
+      const clamped = clampSlateRotation(value);
+      if (el.slateRotation && Number(el.slateRotation.value) !== clamped) {
+        el.slateRotation.value = clamped;
+      }
+      if (el.slateRotationNumber && Number(el.slateRotationNumber.value) !== clamped) {
+        el.slateRotationNumber.value = clamped;
+      }
+      if (slateState.rotationSeconds === clamped) return;
+      slateState = {
+        ...slateState,
+        rotationSeconds: clamped,
+        updatedAt: Date.now()
+      };
+      updateSlatePreview();
+      queueSlateSave();
+    }
+
+    function updateSlateTextField(key, rawValue, limit) {
+      const source = typeof rawValue === 'string' ? rawValue : '';
+      const clipped = source.slice(0, limit);
+      const trimmed = clipped.trim();
+      if (slateState[key] === trimmed) {
+        return trimmed;
+      }
+      slateState = {
+        ...slateState,
+        [key]: trimmed,
+        updatedAt: Date.now()
+      };
+      updateSlatePreview();
+      queueSlateSave();
+      return trimmed;
+    }
+
+    function updateSlateNotes(rawValue) {
+      const notes = normaliseSlateNotesList(rawValue);
+      const previous = Array.isArray(slateState.notes) ? slateState.notes : [];
+      const changed = notes.length !== previous.length || notes.some((note, index) => note !== previous[index]);
+      if (!changed) return notes;
+      slateState = {
+        ...slateState,
+        notes,
+        updatedAt: Date.now()
+      };
+      updateSlatePreview();
+      queueSlateSave();
+      return notes;
+    }
+
+function normalisePopupData(data) {
+      const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 280) : '';
+      const isActive = !!data?.isActive && !!text;
+      const durationRaw = Number(data?.durationSeconds);
+      const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
+        ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
+        : null;
+      const countdownTargetRaw = Number(data?.countdownTarget);
+      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
+      const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
+      const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
+      return {
+        text,
+        isActive,
+        durationSeconds,
+        countdownEnabled,
+        countdownTarget,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+      };
+    }
+
+    function normaliseBrbData(data) {
+      const raw = typeof data?.text === 'string' ? data.text : '';
+      const text = raw.trim().slice(0, MAX_BRB_LENGTH);
+      const isActive = !!data?.isActive && !!text;
+      const updatedAtRaw = Number(data?._updatedAt ?? data?.updatedAt);
+      return {
+        text,
+        isActive,
+        updatedAt: Number.isFinite(updatedAtRaw) ? updatedAtRaw : null
+      };
+    }
+
+    function updateHighlightRegex() {
+      const custom = (overlayPrefs.highlight || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+      const merged = Array.from(new Set([...DEFAULT_HIGHLIGHTS, ...custom]));
+      if (!merged.length) {
+        highlightRegex = null;
+        return;
+      }
+      const escaped = merged
+        .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+        .join('|');
+      highlightRegex = new RegExp(`\\b(${escaped})\\b`, 'gi');
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, match => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[match]);
+    }
+
+    function applyEmphasis(html) {
+      return html
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, (match, prefix, inner) => `${prefix}<em>${inner}</em>`);
+    }
+
+    function applyHighlights(html) {
+      if (!highlightRegex) return html;
+      return html.replace(highlightRegex, '<span class="highlight">$1</span>');
+    }
+
+    function buildLetters(text) {
+      let index = 0;
+      let result = '';
+      for (const char of text) {
+        if (/\s/.test(char)) {
+          result += escapeHtml(char);
+        } else {
+          result += `<span class="fx-letter" style="--i:${index++}">${escapeHtml(char)}</span>`;
+        }
+      }
+      return result;
+    }
+
+    function renderSegment(type, text) {
+      const clean = escapeHtml(text);
+      switch (type) {
+        case 'rainbow':
+          return `<span class="fx fx-rainbow">${buildLetters(text)}</span>`;
+        case 'sparkle':
+          return `<span class="fx fx-sparkle">${buildLetters(text)}</span>`;
+        case 'bounce':
+          return `<span class="fx fx-bounce">${clean}</span>`;
+        case 'neon':
+          return `<span class="fx fx-neon">${clean}</span>`;
+        case 'glitch':
+          return `<span class="fx fx-glitch" data-text="${clean}">${clean}</span>`;
+        default: {
+          const emphasised = applyEmphasis(clean);
+          return applyHighlights(emphasised);
+        }
+      }
+    }
+
+    function formatMessage(raw) {
+      const str = String(raw || '').trim();
+      if (!str) return '';
+      const segments = [];
+      const regex = /(%%|~~|\^\^|==|!!)([\s\S]+?)\1/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str))) {
+        if (match.index > lastIndex) {
+          segments.push({ type: 'text', text: str.slice(lastIndex, match.index) });
+        }
+        const mapped = SPECIAL_MAP[match[1]] || 'text';
+        segments.push({ type: mapped, text: match[2] });
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < str.length) {
+        segments.push({ type: 'text', text: str.slice(lastIndex) });
+      }
+      return segments.map(seg => renderSegment(seg.type, seg.text)).join('');
+    }
+
+    function registerTextAnimationPlugins() {
+      if (typeof window === 'undefined' || typeof gsap === 'undefined' || typeof SplitText === 'undefined') {
+        return false;
+      }
+      if (!registerTextAnimationPlugins._registered) {
+        const plugins = [SplitText];
+        if (typeof ScrambleTextPlugin !== 'undefined') {
+          plugins.push(ScrambleTextPlugin);
+        }
+        if (plugins.length) {
+          gsap.registerPlugin(...plugins);
+        }
+        registerTextAnimationPlugins._registered = true;
+      }
+      return true;
+    }
+
+    function createTextAnimator(headerEl, bodyEls = []) {
+      if (!headerEl) return null;
+      if (!registerTextAnimationPlugins()) return null;
+      const groups = Array.isArray(bodyEls) ? bodyEls : [bodyEls];
+      const activeBodies = groups.filter(el => el && typeof el.textContent === 'string' && el.textContent.trim().length);
+      let headerSplit;
+      let bodySplit;
+      try {
+        headerSplit = SplitText.create(headerEl, { type: 'chars', mask: 'chars' });
+        if (activeBodies.length) {
+          bodySplit = SplitText.create(activeBodies, { type: 'lines', mask: 'lines' });
+        }
+      } catch (err) {
+        console.warn('[dashboard] text animation setup failed', err);
+        return null;
+      }
+
+      const headerChars = Array.isArray(headerSplit?.chars) ? headerSplit.chars : [];
+      const bodyLines = Array.isArray(bodySplit?.lines) ? bodySplit.lines : [];
+      const timeline = gsap.timeline({ paused: true });
+      const scrambleConfig = typeof ScrambleTextPlugin !== 'undefined' ? { text: '#', speed: 0.15 } : null;
+
+      timeline.from(headerChars, {
+        filter: 'blur(6px)',
+        y: '-15%',
+        opacity: 0,
+        scale: 0.95,
+        duration: 1.2,
+        ease: 'power2.out',
+        ...(scrambleConfig ? { scrambleText: scrambleConfig } : {}),
+        stagger: { each: 0.3, from: 'left' }
+      });
+
+      if (bodyLines.length) {
+        timeline.from(bodyLines, {
+          filter: 'blur(10px)',
+          delay: 0.55,
+          opacity: 0,
+          scale: 0.95,
+          y: '100%',
+          duration: 0.55,
+          ease: 'power1.out'
+        }, '-=0.9');
+      }
+
+      timeline.to(headerChars, {
+        opacity: 1,
+        y: '0%',
+        duration: 0.2
+      });
+
+      const playIn = () => new Promise(resolve => {
+        timeline.eventCallback('onComplete', () => {
+          timeline.eventCallback('onComplete', null);
+          resolve();
+        });
+        timeline.play(0);
+      });
+
+      const playOut = () => new Promise(resolve => {
+        const outTimeline = gsap.timeline({
+          defaults: { ease: 'power2.in', duration: 0.45 },
+          onComplete: resolve
+        });
+        outTimeline.to(headerChars, {
+          filter: 'blur(6px)',
+          y: '-15%',
+          opacity: 0,
+          scale: 0.95,
+          stagger: { each: 0.12, from: 'right' }
+        });
+        if (bodyLines.length) {
+          outTimeline.to(bodyLines, {
+            filter: 'blur(10px)',
+            opacity: 0,
+            y: '100%',
+            duration: 0.4
+          }, '<');
+        }
+      });
+
+      const revert = () => {
+        try {
+          bodySplit?.revert();
+          headerSplit?.revert();
+        } catch (err) {
+          console.warn('[dashboard] text animation revert failed', err);
+        }
+      };
+
+      return {
+        playIn() {
+          return playIn();
+        },
+        playOut() {
+          timeline.pause(0);
+          timeline.kill();
+          return playOut().finally(() => {
+            revert();
+          });
+        },
+        kill() {
+          timeline.kill();
+          revert();
+        }
+      };
+    }
+
+    function sanitiseMessages(list, options = {}) {
+      if (!Array.isArray(list)) {
+        return options.includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
+      }
+      const {
+        maxMessages = MAX_MESSAGES,
+        maxLength = MAX_MESSAGE_LENGTH,
+        includeMeta = false
+      } = options;
+      const cleaned = [];
+      let trimmedCount = 0;
+      let truncatedCount = 0;
+      for (const entry of list) {
+        let text = String(entry ?? '').trim();
+        if (!text) continue;
+        if (cleaned.length >= maxMessages) {
+          truncatedCount += 1;
+          continue;
+        }
+        if (text.length > maxLength) {
+          text = text.slice(0, maxLength);
+          trimmedCount += 1;
+        }
+        cleaned.push(text);
+      }
+      if (includeMeta) {
+        return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
+      }
+      return cleaned;
+    }
+
+    function updateOverlayChip() {
+      const url = buildOverlayUrl();
+      el.overlayText.textContent = url;
+      el.overlayText.dataset.url = url;
+      if (url !== lastPreviewUrl) {
+        lastPreviewUrl = url;
+        schedulePreviewUpdate(url);
+      }
+    }
+
+    function buildOverlayUrl() {
+      const basePath = `${location.origin}${location.pathname.replace(/index\.html$/, '')}output.html`;
+      const params = new URLSearchParams();
+      params.set('server', serverBase());
+      params.set('label', overlayPrefs.label || 'LIVE');
+      if (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)) params.set('accent', overlayPrefs.accent);
+      const highlights = (overlayPrefs.highlight || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .join(',');
+      if (highlights) params.set('hl', highlights);
+      params.set('scale', String(overlayPrefs.scale));
+      params.set('popupScale', String(overlayPrefs.popupScale));
+      params.set('position', overlayPrefs.position);
+      params.set('mode', overlayPrefs.mode);
+      params.set('theme', overlayPrefs.theme);
+      if (!overlayPrefs.accentAnim) params.set('accentAnim', '0');
+      if (!overlayPrefs.sparkle) params.set('sparkle', '0');
+      return `${basePath}?${params.toString()}`;
+    }
+
+    function saveLocal() {
+      const payload = {
+        overlay: overlayPrefs,
+        autoStart: el.autoStart.checked,
+        serverUrl: el.serverUrl.value
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      } catch (err) {
+        console.warn('Failed to save local preferences', err);
+      }
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed.overlay) overlayPrefs = normaliseOverlayData({ ...overlayPrefs, ...parsed.overlay });
+        if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
+        if (typeof parsed.serverUrl === 'string') el.serverUrl.value = parsed.serverUrl;
+      } catch (err) {
+        console.warn('Failed to read local preferences', err);
+      }
+    }
+
+    function clearEditing() {
+      editingIndex = -1;
+      editingDraft = '';
+    }
+
+    function clampDuration(value) {
+      if (typeof clampDurationSeconds === 'function') {
+        return clampDurationSeconds(value, state.displayDuration);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return state.displayDuration;
+      return Math.min(Math.max(Math.round(numeric), 2), 90);
+    }
+
+    function clampMinutesValue(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return state.intervalMinutes;
+      if (typeof clampIntervalSeconds === 'function') {
+        const seconds = clampIntervalSeconds(minutesToSeconds(numeric), minutesToSeconds(state.intervalMinutes));
+        return secondsToMinutes(seconds);
+      }
+      return Math.max(0, Math.min(60, Math.round(numeric * 100) / 100));
+    }
+
+    function formatMinutesValue(value) {
+      const numeric = clampMinutesValue(value);
+      if (numeric === 0) return '0';
+      const fixed = numeric.toFixed(2);
+      return fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
+    }
+
+    function formatDurationSeconds(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return '';
+      const seconds = Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(numeric)));
+      if (seconds < 60) return `${seconds}s`;
+      const minutes = Math.floor(seconds / 60);
+      const remainder = seconds % 60;
+      return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
+    }
+
+    function parseCountdownTarget(value) {
+      if (value === null || value === undefined) return null;
+      const raw = String(value).trim();
+      if (!raw) return null;
+      const numeric = Number(raw);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        return Math.round(numeric);
+      }
+      const parsed = new Date(raw);
+      const ms = parsed.getTime();
+      return Number.isNaN(ms) ? null : ms;
+    }
+
+    function formatCountdownLabel(targetMs) {
+      const numeric = Number(targetMs);
+      if (!Number.isFinite(numeric)) return '';
+      const diff = Math.round(numeric - Date.now());
+      if (diff <= 0) return 'now';
+      const seconds = Math.floor(diff / 1000);
+      if (seconds >= 60) {
+        const minutes = Math.floor(seconds / 60);
+        return `${minutes} min${minutes === 1 ? '' : 's'}`;
+      }
+      const clampedSeconds = Math.max(1, seconds);
+      return `${clampedSeconds}s`;
+    }
+
+    function formatDatetimeLocal(timestamp) {
+      const numeric = Number(timestamp);
+      if (!Number.isFinite(numeric)) return '';
+      const date = new Date(numeric);
+      if (Number.isNaN(date.getTime())) return '';
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function schedulePreviewUpdate(url) {
+      if (!el.previewFrame) return;
+      if (previewUpdateTimer) clearTimeout(previewUpdateTimer);
+      previewUpdateTimer = setTimeout(() => {
+        previewUpdateTimer = null;
+        try {
+          if (el.previewFrame.src !== url) {
+            el.previewFrame.src = url;
+          } else if (el.previewFrame.contentWindow) {
+            el.previewFrame.contentWindow.location.replace(url);
+          }
+        } catch (err) {
+          // Ignore navigation errors (cross-origin etc.) and fall back silently.
+        }
+      }, 180);
+    }
+
+    function renderTicker() {
+      el.duration.value = state.displayDuration;
+      el.interval.value = formatMinutesValue(state.intervalMinutes);
+      el.statusActive.classList.toggle('active', state.isActive);
+      el.statusActiveText.textContent = state.isActive ? 'Active' : 'Inactive';
+      const count = state.messages.length;
+      const queueFull = count >= MAX_MESSAGES;
+      el.statusCount.textContent = `${count}/${MAX_MESSAGES}`;
+      el.statusCount.classList.toggle('is-full', queueFull);
+      el.statusUpdated.textContent = state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : '–';
+      updateQueueControls(queueFull);
+    }
+
+    function updateQueueControls(queueFull = state.messages.length >= MAX_MESSAGES) {
+      if (el.newMessage) {
+        el.newMessage.disabled = queueFull;
+        el.newMessage.placeholder = queueFull
+          ? `Queue full — max ${MAX_MESSAGES} messages`
+          : MESSAGE_PLACEHOLDER;
+      }
+      if (el.addMessageButton) {
+        el.addMessageButton.disabled = queueFull;
+      }
+    }
+
+    function updateAccentInputsFromPrefs() {
+      const accent = overlayPrefs.accent || '';
+      if (el.overlayAccent) {
+        el.overlayAccent.value = accent;
+      }
+      if (el.overlayAccentPicker) {
+        el.overlayAccentPicker.value = parseHexForPicker(accent) || ACCENT_FALLBACK_HEX;
+      }
+    }
+
+    function setAccentError(message) {
+      const hasError = Boolean(message);
+      if (el.overlayAccentGroup) {
+        el.overlayAccentGroup.classList.toggle('has-error', hasError);
+      }
+      if (el.overlayAccentHint) {
+        el.overlayAccentHint.textContent = hasError ? message : ACCENT_HINT_DEFAULT;
+        el.overlayAccentHint.classList.toggle('is-error', hasError);
+      }
+    }
+
+    function applyPreviewTheme() {
+      if (!el.popupPreview) return;
+      const theme = overlayPrefs.theme && THEME_OPTIONS.includes(overlayPrefs.theme)
+        ? overlayPrefs.theme
+        : THEME_OPTIONS[0];
+      el.popupPreview.classList.remove(...THEME_CLASSNAMES);
+      if (theme) {
+        el.popupPreview.classList.add(`ticker--${theme}`);
+      }
+      if (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)) {
+        el.popupPreview.style.setProperty('--preview-accent', overlayPrefs.accent);
+      } else {
+        el.popupPreview.style.removeProperty('--preview-accent');
+      }
+    }
+
+    function renderOverlayControls() {
+      el.overlayLabel.value = overlayPrefs.label;
+      updateAccentInputsFromPrefs();
+      setAccentError('');
+      el.highlightWords.value = overlayPrefs.highlight;
+      el.scaleRange.value = overlayPrefs.scale;
+      el.scaleNumber.value = overlayPrefs.scale;
+      if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
+      if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
+      el.accentAnim.checked = overlayPrefs.accentAnim;
+      el.sparkle.checked = overlayPrefs.sparkle;
+      Array.from(el.positionButtons.querySelectorAll('.segment-button')).forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.position === overlayPrefs.position);
+      });
+      Array.from(el.modeButtons.querySelectorAll('.segment-button')).forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.mode === overlayPrefs.mode);
+      });
+      if (el.themeButtons) {
+        Array.from(el.themeButtons.querySelectorAll('.segment-button')).forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.theme === overlayPrefs.theme);
+        });
+      }
+      applyPreviewTheme();
+      renderPopupPreviewScale();
+    }
+
+    function renderMessages() {
+      if (editingIndex >= state.messages.length) clearEditing();
+      if (!state.messages.length) {
+        clearEditing();
+        el.messageList.innerHTML = '<div class="empty-state">No messages yet — add a line above or load a preset.</div>';
+        return;
+      }
+      const rows = state.messages.map((msg, index) => {
+        if (index === editingIndex) {
+          const editorValue = editingDraft;
+          const preview = formatMessage(editorValue);
+          const previewHtml = preview || '<span class="small">Preview updates as you type.</span>';
+          return `<div class="message-item is-editing" data-index="${index}">
+            <div class="message-editor">
+              <textarea class="message-edit-input" data-role="editor">${escapeHtml(editorValue)}</textarea>
+              <div class="message-preview">${previewHtml}</div>
+            </div>
+            <div class="message-actions">
+              <button type="button" data-action="save">Save</button>
+              <button type="button" data-action="cancel">Cancel</button>
+            </div>
+          </div>`;
+        }
+        const formatted = formatMessage(msg);
+        return `<div class="message-item" data-index="${index}">
+          <div class="message-preview">${formatted}</div>
+          <div class="message-actions">
+            <button type="button" data-action="edit" title="Edit">Edit</button>
+            <button type="button" data-action="save-preset" title="Save to presets">Save preset</button>
+            <button type="button" data-action="up" title="Move up">↑</button>
+            <button type="button" data-action="down" title="Move down">↓</button>
+            <button type="button" data-action="delete" title="Remove">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.messageList.innerHTML = rows;
+      updateQueueControls();
+    }
+
+    function formatPresetMeta(preset) {
+      const date = new Date(preset.updatedAt);
+      const count = Array.isArray(preset.messages) ? preset.messages.length : 0;
+      const parts = [];
+      parts.push(count === 1 ? 'Single message' : `${count} messages`);
+      parts.push(date.toLocaleString());
+      return parts.join(' • ');
+    }
+
+    function renderPresets() {
+      if (!presets.length) {
+        el.presetList.innerHTML = '<div class="empty-state">No presets saved yet.</div>';
+        return;
+      }
+      const cards = presets.map(preset => {
+        return `<div class="preset-card" data-id="${preset.id}">
+          <div>
+            <div class="preset-title">${escapeHtml(preset.name)}</div>
+            <div class="preset-meta">${formatPresetMeta(preset)}</div>
+          </div>
+          <div class="preset-actions">
+            <button type="button" data-action="load">Load</button>
+            <button type="button" data-action="append">Append</button>
+            <button type="button" data-action="delete">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.presetList.innerHTML = cards;
+    }
+
+    function formatSceneMeta(scene) {
+      const parts = [];
+      const messageCount = Array.isArray(scene?.ticker?.messages) ? scene.ticker.messages.length : 0;
+      parts.push(`${messageCount} message${messageCount === 1 ? '' : 's'}`);
+      if (typeof scene?.ticker?.displayDuration === 'number') {
+        parts.push(`${scene.ticker.displayDuration}s on`);
+      }
+      if (typeof scene?.ticker?.intervalBetween === 'number') {
+        const minutes = secondsToMinutes(scene.ticker.intervalBetween);
+        parts.push(minutes ? `${formatMinutesValue(minutes)}m interval` : 'loop');
+      }
+      const popupText = scene?.popup?.text || '';
+      if (popupText) {
+        parts.push(scene.popup.isActive ? 'popup active' : 'popup ready');
+      }
+      if (scene?.overlay?.theme) {
+        parts.push(`theme: ${scene.overlay.theme}`);
+      }
+      if (scene?.slate) {
+        if (scene.slate.isEnabled) {
+          parts.push('slate on');
+          if (scene.slate.nextTitle) {
+            const nextSummary = scene.slate.nextTitle.length > 32
+              ? `${scene.slate.nextTitle.slice(0, 32)}…`
+              : scene.slate.nextTitle;
+            parts.push(`next: ${nextSummary}`);
+          } else if (scene.slate.showClock) {
+            parts.push('clock card');
+          }
+          if (scene.slate.sponsorName) {
+            const sponsorSummary = scene.slate.sponsorName.length > 28
+              ? `${scene.slate.sponsorName.slice(0, 28)}…`
+              : scene.slate.sponsorName;
+            parts.push(`sponsor: ${sponsorSummary}`);
+          }
+        } else {
+          parts.push('slate off');
+        }
+      }
+      const updatedAt = Number(scene?.updatedAt);
+      if (Number.isFinite(updatedAt)) {
+        parts.push(new Date(updatedAt).toLocaleString());
+      }
+      return parts.join(' • ');
+    }
+
+    function renderScenes() {
+      if (!scenes.length) {
+        el.sceneList.innerHTML = '<div class="empty-state">No scenes saved yet.</div>';
+        return;
+      }
+      const cards = scenes.map(scene => {
+        return `<div class="scene-card" data-id="${scene.id}">
+          <div>
+            <div class="scene-title">${escapeHtml(scene.name)}</div>
+            <div class="scene-meta">${escapeHtml(formatSceneMeta(scene))}</div>
+          </div>
+          <div class="scene-actions">
+            <button type="button" data-action="activate">Activate</button>
+            <button type="button" data-action="replace">Replace</button>
+            <button type="button" data-action="delete">Delete</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.sceneList.innerHTML = cards;
+    }
+
+    function stopPopupPreviewCountdown() {
+      if (popupPreviewCountdownTimer) {
+        clearInterval(popupPreviewCountdownTimer);
+        popupPreviewCountdownTimer = null;
+      }
+    }
+
+    function refreshPopupPreviewCountdown() {
+      if (!el.popupPreview) return true;
+      const countdownEl = el.popupPreview.querySelector('[data-popup-countdown]');
+      if (!countdownEl) return true;
+      if (!Number.isFinite(popupPreviewCountdownTarget)) {
+        countdownEl.textContent = '';
+        return true;
+      }
+      const label = formatCountdownLabel(popupPreviewCountdownTarget);
+      countdownEl.textContent = label;
+      return label === 'now';
+    }
+
+    function startPopupPreviewCountdown() {
+      stopPopupPreviewCountdown();
+      if (!Number.isFinite(popupPreviewCountdownTarget)) return;
+      const finished = refreshPopupPreviewCountdown();
+      if (popupState.countdownEnabled) {
+        updatePopupMeta();
+      }
+      if (finished) return;
+      popupPreviewCountdownTimer = setInterval(() => {
+        const done = refreshPopupPreviewCountdown();
+        if (popupState.countdownEnabled) {
+          updatePopupMeta();
+        }
+        if (done) {
+          stopPopupPreviewCountdown();
+          if (popupState.countdownEnabled) {
+            updatePopupMeta();
+          }
+        }
+      }, 1000);
+    }
+
+    function destroyPopupPreviewAnimator() {
+      if (popupPreviewAnimator && typeof popupPreviewAnimator.kill === 'function') {
+        try {
+          popupPreviewAnimator.kill();
+        } catch (err) {
+          console.warn('[dashboard] popup preview animation cleanup failed', err);
+        }
+      }
+      popupPreviewAnimator = null;
+    }
+
+    function destroySlatePreviewAnimator() {
+      if (slatePreviewAnimator && typeof slatePreviewAnimator.kill === 'function') {
+        try {
+          slatePreviewAnimator.kill();
+        } catch (err) {
+          console.warn('[dashboard] slate preview animation cleanup failed', err);
+        }
+      }
+      slatePreviewAnimator = null;
+    }
+
+    function updatePopupPreview() {
+      if (!el.popupPreview) return;
+      destroyPopupPreviewAnimator();
+      stopPopupPreviewCountdown();
+      popupPreviewCountdownTarget = null;
+      const text = el.popupText.value.trim();
+      const previous = popupPreviewLastText;
+      let messageNode = null;
+      let shouldAnimate = false;
+      if (text) {
+        el.popupPreview.innerHTML = '';
+        el.popupPreview.classList.remove('is-empty');
+        messageNode = document.createElement('div');
+        messageNode.className = 'popup-preview-message';
+        messageNode.innerHTML = formatMessage(text);
+        el.popupPreview.appendChild(messageNode);
+        shouldAnimate = text !== previous;
+        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+          const target = el.popupCountdownTarget ? parseCountdownTarget(el.popupCountdownTarget.value) : null;
+          if (Number.isFinite(target)) {
+            popupPreviewCountdownTarget = target;
+            const countdownChip = document.createElement('span');
+            countdownChip.className = 'popup-countdown-chip';
+            countdownChip.dataset.popupCountdown = 'true';
+            el.popupPreview.appendChild(countdownChip);
+            startPopupPreviewCountdown();
+          }
+        }
+        popupPreviewLastText = text;
+      } else {
+        popupPreviewLastText = '';
+        el.popupPreview.textContent = 'Popup preview';
+        el.popupPreview.classList.add('is-empty');
+        if (el.popupCountdownEnabled) {
+          el.popupCountdownEnabled.checked = false;
+        }
+        if (el.popupCountdownTarget) {
+          el.popupCountdownTarget.disabled = true;
+        }
+      }
+      if (el.popupCountdownTarget && el.popupCountdownEnabled) {
+        const countdownActive = el.popupCountdownEnabled.checked;
+        el.popupCountdownTarget.disabled = popupSaveInFlight || !countdownActive;
+      }
+      if (shouldAnimate && messageNode) {
+        const animator = createTextAnimator(messageNode);
+        if (animator) {
+          popupPreviewAnimator = animator;
+          animator.playIn().catch(() => destroyPopupPreviewAnimator());
+        }
+      }
+    }
+
+    function updatePopupMeta() {
+      if (!el.popupMeta) return;
+      const status = popupState.isActive && popupState.text ? 'Popup live' : 'Popup hidden';
+      const durationLabel = formatDurationSeconds(popupState.durationSeconds);
+      const parts = [status];
+      if (durationLabel) {
+        parts.push(`Auto-hide ${durationLabel}`);
+      }
+      if (popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget)) {
+        parts.push(`Countdown ${formatCountdownLabel(popupState.countdownTarget)}`);
+      }
+      if (popupState.updatedAt) {
+        parts.push(`Updated ${new Date(popupState.updatedAt).toLocaleTimeString()}`);
+      }
+      el.popupMeta.textContent = parts.join(' • ');
+    }
+
+    function renderPopupPreviewScale() {
+      if (!el.popupPreview) return;
+      el.popupPreview.style.setProperty('--popup-scale', String(overlayPrefs.popupScale));
+      document.documentElement.style.setProperty('--popup-scale', String(overlayPrefs.popupScale));
+    }
+
+    function renderPopupControls() {
+      if (!el.popupText) return;
+      el.popupText.value = popupState.text;
+      el.popupActive.checked = popupState.isActive && !!popupState.text;
+      if (el.popupDuration) {
+        el.popupDuration.value = popupState.durationSeconds ? String(popupState.durationSeconds) : '';
+      }
+      if (el.popupCountdownEnabled) {
+        const hasCountdown = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget);
+        el.popupCountdownEnabled.checked = hasCountdown && !!popupState.text;
+      }
+      if (el.popupCountdownTarget) {
+        el.popupCountdownTarget.value = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget)
+          ? formatDatetimeLocal(popupState.countdownTarget)
+          : '';
+      }
+      updatePopupPreview();
+      updatePopupMeta();
+      renderPopupPreviewScale();
+      const disabled = popupSaveInFlight;
+      el.popupText.disabled = disabled;
+      el.popupActive.disabled = disabled;
+      if (el.popupDuration) el.popupDuration.disabled = disabled;
+      if (el.popupCountdownEnabled) el.popupCountdownEnabled.disabled = disabled;
+      if (el.popupCountdownTarget) {
+        const countdownEnabled = el.popupCountdownEnabled && el.popupCountdownEnabled.checked;
+        el.popupCountdownTarget.disabled = disabled || !countdownEnabled;
+      }
+      if (el.savePopup) el.savePopup.disabled = disabled;
+      if (el.clearPopup) el.clearPopup.disabled = disabled;
+    }
+
+    function renderBrbControls() {
+      if (el.brbText) {
+        el.brbText.value = brbState.text;
+        el.brbText.disabled = brbSaveInFlight;
+      }
+      if (el.brbActive) {
+        el.brbActive.checked = brbState.isActive && !!brbState.text;
+        el.brbActive.disabled = brbSaveInFlight;
+      }
+      if (el.brbSave) el.brbSave.disabled = brbSaveInFlight;
+      if (el.brbClear) el.brbClear.disabled = brbSaveInFlight;
+
+      if (el.brbStatus) {
+        const parts = [];
+        parts.push(brbState.isActive && brbState.text ? 'BRB live' : 'BRB hidden');
+        if (brbState.updatedAt) {
+          parts.push(`Updated ${new Date(brbState.updatedAt).toLocaleTimeString()}`);
+        }
+        el.brbStatus.textContent = parts.join(' • ');
+      }
+
+      const brbActive = brbState.isActive && !!brbState.text;
+      if (el.statusBrb) {
+        el.statusBrb.textContent = brbActive ? 'Active' : 'Hidden';
+      }
+      if (el.statusBrbDot) {
+        el.statusBrbDot.classList.toggle('active', brbActive);
+      }
+    }
+
+    function renderAll() {
+      renderTicker();
+      renderOverlayControls();
+      updateHighlightRegex();
+      renderPopupControls();
+      renderBrbControls();
+      renderMessages();
+      renderPresets();
+      updateOverlayChip();
+      saveLocal();
+    }
+
+    function applyTickerData(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      const nextStampRaw = Number(payload._updatedAt ?? payload.updatedAt);
+      const hasStamp = Number.isFinite(nextStampRaw);
+      if (hasStamp && typeof state.updatedAt === 'number' && state.updatedAt === nextStampRaw) {
+        return;
+      }
+
+      const messages = sanitiseMessages(payload.messages || []);
+      const messagesChanged = JSON.stringify(state.messages) !== JSON.stringify(messages);
+      state.messages = messages;
+      state.isActive = !!payload.isActive && state.messages.length > 0;
+      state.displayDuration = clampDuration(payload.displayDuration ?? state.displayDuration);
+      const incomingIntervalSeconds = Number.isFinite(payload.intervalBetween)
+        ? payload.intervalBetween
+        : minutesToSeconds(state.intervalMinutes);
+      state.intervalMinutes = secondsToMinutes(incomingIntervalSeconds);
+      state.updatedAt = hasStamp ? nextStampRaw : Date.now();
+      if (!state.messages.length) state.isActive = false;
+      if (messagesChanged) {
+        clearEditing();
+        renderMessages();
+      }
+      renderTicker();
+    }
+
+    function flushPendingOverlayPayload() {
+      if (!pendingOverlayPayload || overlaySaveTimer || overlaySaveInFlight) return;
+      const latest = pendingOverlayPayload;
+      pendingOverlayPayload = null;
+      applyOverlayData(latest);
+    }
+
+    function applyOverlayData(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      if (overlaySaveTimer || overlaySaveInFlight) {
+        pendingOverlayPayload = payload;
+        return;
+      }
+      pendingOverlayPayload = null;
+      overlayPrefs = normaliseOverlayData(payload);
+      renderOverlayControls();
+      updateHighlightRegex();
+      renderSlateControls();
+      renderMessages();
+      renderPopupControls();
+      updateOverlayChip();
+      saveLocal();
+    }
+
+    function flushPendingSlatePayload() {
+      if (!pendingSlatePayload || slateSaveTimer || slateSaveInFlight) return;
+      const latest = pendingSlatePayload;
+      pendingSlatePayload = null;
+      applySlateData(latest);
+    }
+
+    function applySlateData(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      if (slateSaveTimer || slateSaveInFlight) {
+        pendingSlatePayload = payload;
+        return;
+      }
+      pendingSlatePayload = null;
+      const next = normaliseSlateData(payload);
+      const stamp = Number(payload._updatedAt ?? payload.updatedAt);
+      if (Number.isFinite(stamp) && Number.isFinite(slateState.updatedAt) && slateState.updatedAt === stamp) {
+        return;
+      }
+      slateState = { ...next };
+      renderSlateControls();
+    }
+
+    function applyPopupData(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      popupState = normalisePopupData(payload);
+      renderPopupControls();
+    }
+
+    function applyBrbData(payload) {
+      if (!payload || typeof payload !== 'object') return;
+      brbState = normaliseBrbData(payload);
+      renderBrbControls();
+    }
+
+    function applyPresetsData(list) {
+      if (!Array.isArray(list)) return;
+      presets = list.map(entry => ({
+        id: String(entry.id || generateClientId('preset')),
+        name: String(entry.name || 'Preset'),
+        messages: sanitiseMessages(entry.messages || []),
+        updatedAt: Number(entry.updatedAt) || Date.now()
+      }));
+      renderPresets();
+    }
+
+    function normaliseSceneEntry(entry) {
+      if (!entry || typeof entry !== 'object') return null;
+      const name = String(entry.name || '').trim().slice(0, MAX_SCENE_NAME_LENGTH);
+      if (!name) return null;
+
+      const tickerSource = (entry.ticker && typeof entry.ticker === 'object') ? entry.ticker : entry;
+      const tickerMessages = sanitiseMessages(tickerSource.messages || entry.messages || []);
+      const displayDuration = clampDuration(tickerSource.displayDuration ?? state.displayDuration);
+      const intervalRaw = tickerSource.intervalBetween ?? entry.intervalBetween;
+      const intervalSeconds = typeof clampIntervalSeconds === 'function'
+        ? clampIntervalSeconds(intervalRaw, minutesToSeconds(state.intervalMinutes))
+        : Math.max(0, Math.min(3600, Math.round(Number(intervalRaw) || 0)));
+      const ticker = {
+        messages: tickerMessages,
+        displayDuration,
+        intervalBetween: intervalSeconds,
+        isActive: !!(tickerSource.isActive ?? entry.isActive) && tickerMessages.length > 0
+      };
+
+      const popup = normalisePopupData(entry.popup || {});
+
+      let slate = null;
+      if (entry.slate && typeof entry.slate === 'object') {
+        const normalisedSlate = normaliseSlateData(entry.slate);
+        slate = {
+          isEnabled: !!normalisedSlate.isEnabled,
+          rotationSeconds: clampSlateRotation(normalisedSlate.rotationSeconds),
+          showClock: !!normalisedSlate.showClock,
+          clockLabel: normalisedSlate.clockLabel || '',
+          nextLabel: normalisedSlate.nextLabel || '',
+          nextTitle: normalisedSlate.nextTitle || '',
+          nextSubtitle: normalisedSlate.nextSubtitle || '',
+          sponsorLabel: normalisedSlate.sponsorLabel || '',
+          sponsorName: normalisedSlate.sponsorName || '',
+          sponsorTagline: normalisedSlate.sponsorTagline || '',
+          notesLabel: normalisedSlate.notesLabel || '',
+          notes: Array.isArray(normalisedSlate.notes) ? normalisedSlate.notes.slice(0, MAX_SLATE_NOTES) : []
+        };
+      }
+
+      let overlay = null;
+      const rawTheme = entry.overlay && typeof entry.overlay === 'object' ? entry.overlay.theme : null;
+      if (typeof rawTheme === 'string') {
+        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
+          ? sharedNormaliseTheme(rawTheme)
+          : rawTheme.trim().toLowerCase();
+        if (normalisedTheme && THEME_OPTIONS.includes(normalisedTheme)) {
+          overlay = { theme: normalisedTheme };
+        }
+      }
+
+      const id = String(entry.id || generateClientId('scene'));
+      const updatedAt = Number(entry.updatedAt) || Date.now();
+
+      return { id, name, ticker, popup, overlay, slate, updatedAt };
+    }
+
+    function applyScenesData(list) {
+      if (!Array.isArray(list)) return;
+      const mapped = [];
+      for (const entry of list) {
+        const normalised = normaliseSceneEntry(entry);
+        if (normalised) mapped.push(normalised);
+      }
+      scenes = mapped;
+      renderScenes();
+    }
+
+    async function fetchState({ silent = false } = {}) {
+      if (fetchInFlight) {
+        fetchPending = true;
+        fetchPendingSilent = fetchPendingSilent && silent;
+        return;
+      }
+      fetchInFlight = true;
+      fetchPendingSilent = true;
+      const base = serverBase();
+      try {
+        const [tickerRes, overlayRes, presetRes, sceneRes, popupRes, brbRes, slateRes] = await Promise.all([
+          fetch(`${base}/ticker/state`, { cache: 'no-store' }),
+          fetch(`${base}/ticker/overlay`, { cache: 'no-store' }),
+          fetch(`${base}/ticker/presets`, { cache: 'no-store' }),
+          fetch(`${base}/ticker/scenes`, { cache: 'no-store' }),
+          fetch(`${base}/popup/state`, { cache: 'no-store' }),
+          fetch(`${base}/brb/state`, { cache: 'no-store' }),
+          fetch(`${base}/slate/state`, { cache: 'no-store' })
+        ]);
+        if (!tickerRes.ok) throw new Error(`Ticker HTTP ${tickerRes.status}`);
+        const tickerData = await tickerRes.json();
+        applyTickerData(tickerData);
+        if (overlayRes.ok) {
+          const overlayData = await overlayRes.json();
+          applyOverlayData(overlayData);
+        }
+        if (presetRes.ok) {
+          const presetData = await presetRes.json();
+          if (Array.isArray(presetData.presets)) {
+            applyPresetsData(presetData.presets);
+          }
+        }
+        if (sceneRes && sceneRes.ok) {
+          const sceneData = await sceneRes.json();
+          if (Array.isArray(sceneData.scenes)) {
+            applyScenesData(sceneData.scenes);
+          }
+        }
+        if (popupRes && popupRes.ok) {
+          const popupData = await popupRes.json();
+          applyPopupData(popupData);
+        }
+        if (brbRes && brbRes.ok) {
+          const brbData = await brbRes.json();
+          applyBrbData(brbData);
+        }
+        if (slateRes && slateRes.ok) {
+          const slateData = await slateRes.json();
+          applySlateData(slateData);
+        }
+        el.statusServer.textContent = 'Online';
+        el.statusServer.style.color = '#9de2c2';
+        if (!silent) {
+          renderOverlayControls();
+          updateOverlayChip();
+        }
+      } catch (err) {
+        console.error('Failed to fetch state', err);
+        el.statusServer.textContent = 'Unreachable';
+        el.statusServer.style.color = '#ff9a9a';
+        if (!silent) toast('Server unreachable');
+      } finally {
+        fetchInFlight = false;
+        if (fetchPending) {
+          const shouldBeSilent = fetchPendingSilent;
+          fetchPending = false;
+          fetchPendingSilent = true;
+          void fetchState({ silent: shouldBeSilent });
+        }
+      }
+    }
+
+    async function persistState() {
+      const base = serverBase();
+      const payload = {
+        isActive: state.isActive,
+        messages: state.messages,
+        displayDuration: state.displayDuration,
+        intervalBetween: minutesToSeconds(state.intervalMinutes)
+      };
+      try {
+        const res = await fetch(`${base}/ticker/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          if (res.ok) {
+            console.warn('Ticker save returned non-JSON response', parseErr);
+          }
+        }
+        if (!res.ok) {
+          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && data.state) {
+          applyTickerData(data.state);
+        }
+        el.statusServer.textContent = 'Online';
+        el.statusServer.style.color = '#9de2c2';
+      } catch (err) {
+        console.error('Failed to save state', err);
+        toast(err.message || 'Failed to save ticker state');
+        el.statusServer.textContent = 'Error';
+        el.statusServer.style.color = '#ff9a9a';
+      }
+    }
+
+    async function persistPresets(options = {}) {
+      const { notify = true } = options;
+      const base = serverBase();
+      try {
+        const res = await fetch(`${base}/ticker/presets`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ presets })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data && Array.isArray(data.presets)) {
+          presets = data.presets.map(entry => ({
+            id: String(entry.id || generateClientId('preset')),
+            name: String(entry.name || 'Preset'),
+            messages: sanitiseMessages(entry.messages || []),
+            updatedAt: Number(entry.updatedAt) || Date.now()
+          }));
+          renderPresets();
+        }
+        if (notify) toast('Presets saved');
+      } catch (err) {
+        console.error('Failed to save presets', err);
+        if (notify) toast('Failed to save presets');
+      }
+    }
+
+    function queueSave() {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        persistState();
+      }, 250);
+    }
+
+    function queuePopupSave() {
+      clearTimeout(popupSaveTimer);
+      popupSaveTimer = setTimeout(() => {
+        popupSaveTimer = null;
+        void persistPopup();
+      }, 220);
+    }
+
+    async function persistPopup() {
+      const base = serverBase();
+      const raw = el.popupText.value || '';
+      const text = raw.trim().slice(0, 280);
+      if (raw !== text) {
+        el.popupText.value = text;
+      }
+      const isActive = el.popupActive.checked && !!text;
+      el.popupActive.checked = isActive;
+
+      let durationSeconds = popupState.durationSeconds;
+      if (el.popupDuration) {
+        const rawDuration = el.popupDuration.value.trim();
+        if (!rawDuration) {
+          durationSeconds = null;
+        } else {
+          const numeric = Number(rawDuration);
+          if (Number.isFinite(numeric)) {
+            const rounded = Math.round(numeric);
+            const clamped = Math.max(0, Math.min(MAX_POPUP_SECONDS, rounded));
+            durationSeconds = clamped > 0 ? clamped : null;
+          } else {
+            durationSeconds = null;
+          }
+        }
+        const displayValue = durationSeconds ? String(durationSeconds) : '';
+        if (el.popupDuration.value !== displayValue) {
+          el.popupDuration.value = displayValue;
+        }
+      }
+
+      let countdownEnabled = el.popupCountdownEnabled ? el.popupCountdownEnabled.checked : false;
+      if (!text) {
+        countdownEnabled = false;
+      }
+      let countdownTarget = popupState.countdownTarget;
+      if (countdownEnabled) {
+        const rawCountdown = el.popupCountdownTarget ? el.popupCountdownTarget.value : '';
+        if (rawCountdown) {
+          const parsedCountdown = parseCountdownTarget(rawCountdown);
+          if (Number.isFinite(parsedCountdown)) {
+            countdownTarget = parsedCountdown;
+            if (el.popupCountdownTarget) {
+              const formatted = formatDatetimeLocal(parsedCountdown);
+              if (formatted) {
+                el.popupCountdownTarget.value = formatted;
+              }
+            }
+          } else {
+            countdownEnabled = false;
+            countdownTarget = null;
+            toast('Enter a valid countdown target');
+          }
+        } else if (!Number.isFinite(countdownTarget)) {
+          countdownEnabled = false;
+          countdownTarget = null;
+          toast('Select a countdown target time');
+        }
+      } else {
+        countdownTarget = null;
+      }
+      if (el.popupCountdownEnabled && !countdownEnabled) {
+        el.popupCountdownEnabled.checked = false;
+      }
+
+      const nextState = {
+        ...popupState,
+        text,
+        isActive,
+        durationSeconds,
+        countdownEnabled,
+        countdownTarget
+      };
+
+      const changed =
+        popupState.text !== nextState.text ||
+        popupState.isActive !== nextState.isActive ||
+        popupState.durationSeconds !== nextState.durationSeconds ||
+        popupState.countdownEnabled !== nextState.countdownEnabled ||
+        popupState.countdownTarget !== nextState.countdownTarget;
+
+      popupState = {
+        ...nextState,
+        updatedAt: changed ? Date.now() : popupState.updatedAt
+      };
+
+      updatePopupPreview();
+      updatePopupMeta();
+      if (!changed) {
+        return;
+      }
+
+      popupSaveInFlight = true;
+      renderPopupControls();
+      try {
+        const res = await fetch(`${base}/popup/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: popupState.text,
+            isActive: popupState.isActive,
+            durationSeconds: popupState.durationSeconds,
+            countdownEnabled: popupState.countdownEnabled,
+            countdownTarget: popupState.countdownTarget
+          })
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          if (res.ok) {
+            console.warn('Popup save returned non-JSON response', parseErr);
+          }
+        }
+        if (!res.ok) {
+          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && data.popup) {
+          applyPopupData(data.popup);
+        }
+        toast(isActive ? 'Popup updated' : 'Popup cleared');
+      } catch (err) {
+        console.error('Failed to save popup state', err);
+        toast(err.message || 'Failed to update popup');
+      } finally {
+        popupSaveInFlight = false;
+        renderPopupControls();
+      }
+    }
+
+    function queueBrbSave() {
+      clearTimeout(brbSaveTimer);
+      brbSaveTimer = setTimeout(() => {
+        brbSaveTimer = null;
+        void persistBrb();
+      }, 220);
+    }
+
+    async function persistBrb() {
+      const base = serverBase();
+      const raw = el.brbText ? el.brbText.value || '' : '';
+      const text = raw.trim().slice(0, MAX_BRB_LENGTH);
+      if (el.brbText && raw !== text) {
+        el.brbText.value = text;
+      }
+      const isActive = el.brbActive && el.brbActive.checked && !!text;
+      if (el.brbActive) {
+        el.brbActive.checked = isActive;
+      }
+
+      const payload = { text, isActive };
+      brbSaveInFlight = true;
+      renderBrbControls();
+      try {
+        const res = await fetch(`${base}/brb/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          if (res.ok) {
+            console.warn('BRB save returned non-JSON response', parseErr);
+          }
+        }
+        if (!res.ok) {
+          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && data.state) {
+          applyBrbData(data.state);
+        } else {
+          brbState = { ...brbState, text, isActive, updatedAt: Date.now() };
+          renderBrbControls();
+        }
+        toast(isActive ? 'BRB updated' : 'BRB hidden');
+      } catch (err) {
+        console.error('Failed to save BRB state', err);
+        toast(err.message || 'Failed to update BRB state');
+      } finally {
+        brbSaveInFlight = false;
+        renderBrbControls();
+      }
+    }
+
+    function markStreamPrimed() {
+      if (streamPrimed) return;
+      streamPrimed = true;
+      if (streamFallbackTimer) {
+        clearTimeout(streamFallbackTimer);
+        streamFallbackTimer = null;
+      }
+    }
+
+    function disconnectStream() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+      if (streamFallbackTimer) {
+        clearTimeout(streamFallbackTimer);
+        streamFallbackTimer = null;
+      }
+    }
+
+    function connectStream() {
+      disconnectStream();
+      const base = serverBase();
+      try {
+        const url = `${base}/ticker/stream`;
+        const source = new EventSource(url);
+        eventSource = source;
+        el.statusServer.textContent = 'Connecting…';
+        el.statusServer.style.color = '#facc6b';
+        streamPrimed = false;
+        if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
+        streamFallbackTimer = setTimeout(() => {
+          streamFallbackTimer = null;
+          if (!streamPrimed) {
+            fetchState({ silent: true });
+          }
+        }, 1500);
+
+        source.addEventListener('open', () => {
+          el.statusServer.textContent = 'Online';
+          el.statusServer.style.color = '#9de2c2';
+        });
+
+        source.addEventListener('error', () => {
+          el.statusServer.textContent = 'Reconnecting…';
+          el.statusServer.style.color = '#facc6b';
+          if (!streamPrimed) {
+            fetchState({ silent: true });
+          }
+        });
+
+        source.addEventListener('ticker', event => {
+          try {
+            const data = JSON.parse(event.data);
+            applyTickerData(data);
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse ticker stream payload', err);
+          }
+        });
+
+        source.addEventListener('overlay', event => {
+          try {
+            const data = JSON.parse(event.data);
+            applyOverlayData(data);
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse overlay stream payload', err);
+          }
+        });
+
+        source.addEventListener('presets', event => {
+          try {
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data)) {
+              applyPresetsData(data);
+            }
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse presets stream payload', err);
+          }
+        });
+
+        source.addEventListener('scenes', event => {
+          try {
+            const data = JSON.parse(event.data);
+            if (Array.isArray(data)) {
+              applyScenesData(data);
+            }
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse scenes stream payload', err);
+          }
+        });
+
+        source.addEventListener('popup', event => {
+          try {
+            const data = JSON.parse(event.data);
+            applyPopupData(data);
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse popup stream payload', err);
+          }
+        });
+
+        source.addEventListener('slate', event => {
+          try {
+            const data = JSON.parse(event.data);
+            applySlateData(data);
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse slate stream payload', err);
+          }
+        });
+
+        source.addEventListener('brb', event => {
+          try {
+            const data = JSON.parse(event.data);
+            applyBrbData(data);
+            markStreamPrimed();
+          } catch (err) {
+            console.warn('Failed to parse BRB stream payload', err);
+          }
+        });
+      } catch (err) {
+        console.error('Failed to connect to event stream', err);
+        el.statusServer.textContent = 'Stream error';
+        el.statusServer.style.color = '#ff9a9a';
+        fetchState({ silent: true });
+      }
+    }
+
+    async function persistOverlay() {
+      const base = serverBase();
+      const payload = {
+        label: overlayPrefs.label,
+        accent: overlayPrefs.accent,
+        highlight: overlayPrefs.highlight,
+        scale: overlayPrefs.scale,
+        popupScale: overlayPrefs.popupScale,
+        position: overlayPrefs.position,
+        mode: overlayPrefs.mode,
+        accentAnim: overlayPrefs.accentAnim,
+        sparkle: overlayPrefs.sparkle,
+        theme: overlayPrefs.theme
+      };
+      overlaySaveInFlight = true;
+      try {
+        const res = await fetch(`${base}/ticker/overlay`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          if (res.ok) {
+            console.warn('Overlay save returned non-JSON response', parseErr);
+          }
+        }
+        if (!res.ok) {
+          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && data.overlay) {
+          overlayPrefs = normaliseOverlayData(data.overlay);
+          renderOverlayControls();
+          updateHighlightRegex();
+          renderMessages();
+          renderPopupControls();
+          updateOverlayChip();
+          saveLocal();
+        }
+      } catch (err) {
+        console.error('Failed to save overlay preferences', err);
+        toast(err.message || 'Failed to save overlay preferences');
+      } finally {
+        overlaySaveInFlight = false;
+        flushPendingOverlayPayload();
+      }
+    }
+
+    function queueOverlaySave() {
+      clearTimeout(overlaySaveTimer);
+      overlaySaveTimer = setTimeout(() => {
+        overlaySaveTimer = null;
+        persistOverlay();
+      }, 200);
+    }
+
+    async function persistSlate() {
+      const base = serverBase();
+      const payload = serialiseSlateState();
+      slateSaveInFlight = true;
+      try {
+        const res = await fetch(`${base}/slate/state`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (parseErr) {
+          if (res.ok) {
+            console.warn('Slate save returned non-JSON response', parseErr);
+          }
+        }
+        if (!res.ok) {
+          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && data.slate) {
+          applySlateData(data.slate);
+        }
+      } catch (err) {
+        console.error('Failed to save slate state', err);
+        toast(err.message || 'Failed to save slate');
+      } finally {
+        slateSaveInFlight = false;
+        flushPendingSlatePayload();
+      }
+    }
+
+    function queueSlateSave() {
+      clearTimeout(slateSaveTimer);
+      slateSaveTimer = setTimeout(() => {
+        slateSaveTimer = null;
+        persistSlate();
+      }, 220);
+    }
+
+    function beginEdit(index) {
+      if (index < 0 || index >= state.messages.length) return;
+      editingIndex = index;
+      editingDraft = state.messages[index];
+      renderMessages();
+      const editor = el.messageList.querySelector('.message-item.is-editing .message-edit-input');
+      if (editor) {
+        requestAnimationFrame(() => {
+          editor.focus();
+          editor.setSelectionRange(editor.value.length, editor.value.length);
+        });
+      }
+    }
+
+    function commitEdit(index) {
+      if (index < 0 || index >= state.messages.length) return;
+      const trimmed = editingDraft.trim();
+      if (!trimmed) {
+        toast('Message cannot be empty');
+        return;
+      }
+      let finalText = trimmed;
+      if (finalText.length > MAX_MESSAGE_LENGTH) {
+        finalText = finalText.slice(0, MAX_MESSAGE_LENGTH);
+        toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
+      }
+      const changed = state.messages[index] !== finalText;
+      state.messages[index] = finalText;
+      clearEditing();
+      renderMessages();
+      if (changed) {
+        renderTicker();
+        queueSave();
+      }
+    }
+
+    function cancelEdit() {
+      clearEditing();
+      renderMessages();
+    }
+
+    function addMessage(text) {
+      const trimmed = String(text || '').trim();
+      if (!trimmed) return;
+      if (state.messages.length >= MAX_MESSAGES) {
+        toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
+        return;
+      }
+      let finalText = trimmed;
+      if (finalText.length > MAX_MESSAGE_LENGTH) {
+        finalText = finalText.slice(0, MAX_MESSAGE_LENGTH);
+        toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
+      }
+      state.messages.push(finalText);
+      if (el.autoStart.checked) state.isActive = true;
+      clearEditing();
+      renderMessages();
+      renderTicker();
+      queueSave();
+    }
+
+    function removeMessage(index) {
+      if (index < 0 || index >= state.messages.length) return;
+      state.messages.splice(index, 1);
+      if (!state.messages.length) state.isActive = false;
+      if (editingIndex === index) {
+        clearEditing();
+      }
+      renderMessages();
+      renderTicker();
+      queueSave();
+    }
+
+    function moveMessage(index, delta) {
+      const target = index + delta;
+      if (target < 0 || target >= state.messages.length) return;
+      const [item] = state.messages.splice(index, 1);
+      state.messages.splice(target, 0, item);
+      clearEditing();
+      renderMessages();
+      queueSave();
+    }
+
+    function isPresetModalOpen() {
+      return el.presetModal && el.presetModal.classList.contains('is-visible');
+    }
+
+    function updatePresetModalError(message) {
+      const hasError = Boolean(message);
+      if (el.presetModalHint) {
+        el.presetModalHint.textContent = hasError ? message : PRESET_NAME_HINT;
+        el.presetModalHint.classList.toggle('is-error', hasError);
+      }
+      if (el.presetModalName) {
+        el.presetModalName.classList.toggle('has-error', hasError);
+      }
+    }
+
+    function openPresetModal(index, triggerButton) {
+      if (!el.presetModal || typeof index !== 'number') return;
+      const message = state.messages[index];
+      const trimmed = typeof message === 'string' ? message.trim() : '';
+      if (!trimmed) {
+        toast('Message is empty');
+        return;
+      }
+      const defaultName = trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
+      pendingPresetMessage = {
+        index,
+        message,
+        trigger: triggerButton || null
+      };
+      if (el.presetModalPreview) {
+        const previewHtml = formatMessage(message) || '<span class="small">Message will be sanitised before saving.</span>';
+        el.presetModalPreview.innerHTML = previewHtml;
+      }
+      if (el.presetModalName) {
+        el.presetModalName.value = defaultName || 'Message preset';
+        requestAnimationFrame(() => {
+          try {
+            el.presetModalName.focus();
+            el.presetModalName.select();
+          } catch (err) {
+            // ignore focus errors
+          }
+        });
+      }
+      updatePresetModalError('');
+      el.presetModal.classList.add('is-visible');
+      el.presetModal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('is-modal-open');
+    }
+
+    function closePresetModal(options = {}) {
+      const { restoreFocus = false } = options;
+      const trigger = pendingPresetMessage && pendingPresetMessage.trigger;
+      pendingPresetMessage = null;
+      if (el.presetModal) {
+        el.presetModal.classList.remove('is-visible');
+        el.presetModal.setAttribute('aria-hidden', 'true');
+      }
+      document.body.classList.remove('is-modal-open');
+      if (el.presetModalName) {
+        el.presetModalName.value = '';
+        el.presetModalName.classList.remove('has-error');
+      }
+      if (el.presetModalPreview) {
+        el.presetModalPreview.innerHTML = '<span class="small">Select a message to begin.</span>';
+      }
+      updatePresetModalError('');
+      if (restoreFocus && trigger && typeof trigger.focus === 'function') {
+        requestAnimationFrame(() => {
+          try {
+            trigger.focus();
+          } catch (err) {
+            // ignore focus errors
+          }
+        });
+      }
+    }
+
+    function confirmPresetModal() {
+      if (!pendingPresetMessage || !el.presetModalName) return;
+      const name = el.presetModalName.value.trim();
+      if (!name) {
+        updatePresetModalError('Enter a preset name');
+        el.presetModalName.focus();
+        return;
+      }
+      if (name.length > MAX_PRESET_NAME_LENGTH) {
+        updatePresetModalError(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer.`);
+        el.presetModalName.focus();
+        return;
+      }
+      const { index, message: fallback } = pendingPresetMessage;
+      let source = typeof index === 'number' && index >= 0 && index < state.messages.length
+        ? state.messages[index]
+        : fallback;
+      const sanitised = sanitiseMessages([source], { includeMeta: true });
+      if (!sanitised.messages.length) {
+        updatePresetModalError('Message is empty after sanitising');
+        return;
+      }
+      const payload = {
+        id: generateClientId('preset'),
+        name,
+        messages: sanitised.messages,
+        updatedAt: Date.now()
+      };
+      const existingIndex = presets.findIndex(item => item.name.toLowerCase() === name.toLowerCase());
+      if (existingIndex >= 0) {
+        payload.id = presets[existingIndex].id;
+        presets.splice(existingIndex, 1, payload);
+      } else {
+        presets.unshift(payload);
+      }
+      renderPresets();
+      void persistPresets({ notify: false });
+      toast(`Saved “${name}” to presets`);
+      closePresetModal({ restoreFocus: true });
+    }
+
+    function handleMessageAction(event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const row = button.closest('.message-item');
+      if (!row) return;
+      const index = Number(row.dataset.index);
+      switch (button.dataset.action) {
+        case 'delete':
+          removeMessage(index);
+          break;
+        case 'up':
+          moveMessage(index, -1);
+          break;
+        case 'down':
+          moveMessage(index, 1);
+          break;
+        case 'edit':
+          beginEdit(index);
+          break;
+        case 'save-preset':
+          openPresetModal(index, button);
+          break;
+        case 'save': {
+          const input = row.querySelector('.message-edit-input');
+          if (input) editingDraft = input.value;
+          commitEdit(index);
+          break;
+        }
+        case 'cancel':
+          cancelEdit();
+          break;
+      }
+    }
+
+    function setMode(value) {
+      const mode = typeof sharedNormaliseMode === 'function'
+        ? sharedNormaliseMode(value)
+        : (['auto', 'marquee', 'chunk'].includes(String(value).toLowerCase()) ? String(value).toLowerCase() : null);
+      if (!mode) return;
+      overlayPrefs.mode = mode;
+      renderOverlayControls();
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    }
+
+    function setPosition(value) {
+      const position = typeof sharedNormalisePosition === 'function'
+        ? sharedNormalisePosition(value)
+        : (String(value).toLowerCase() === 'top' ? 'top' : 'bottom');
+      overlayPrefs.position = position;
+      renderOverlayControls();
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    }
+
+    function setTheme(value) {
+      if (!THEME_OPTIONS.includes(value)) return;
+      overlayPrefs.theme = value;
+      renderOverlayControls();
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    }
+
+    function updateScale(value) {
+      const next = typeof clampScaleValue === 'function'
+        ? clampScaleValue(value, overlayPrefs.scale)
+        : (() => {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return overlayPrefs.scale;
+            return Math.max(0.75, Math.min(2.5, Math.round(numeric * 100) / 100));
+          })();
+      overlayPrefs.scale = next;
+      el.scaleRange.value = overlayPrefs.scale;
+      el.scaleNumber.value = overlayPrefs.scale;
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    }
+
+    function updatePopupScale(value) {
+      const next = typeof clampPopupScaleValue === 'function'
+        ? clampPopupScaleValue(value, overlayPrefs.popupScale)
+        : (() => {
+            const numeric = Number(value);
+            if (!Number.isFinite(numeric)) return overlayPrefs.popupScale;
+            return Math.max(0.6, Math.min(1.5, Math.round(numeric * 100) / 100));
+          })();
+      overlayPrefs.popupScale = next;
+      if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
+      if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
+      updateOverlayChip();
+      saveLocal();
+      renderPopupPreviewScale();
+      queueOverlaySave();
+    }
+
+    function handlePresetAction(event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const card = button.closest('.preset-card');
+      if (!card) return;
+      const id = card.dataset.id;
+      const preset = presets.find(item => item.id === id);
+      if (!preset) return;
+      switch (button.dataset.action) {
+        case 'load':
+          const loadResult = sanitiseMessages(preset.messages, { includeMeta: true });
+          state.messages = [...loadResult.messages];
+          if (state.messages.length) {
+            state.isActive = state.isActive || el.autoStart.checked;
+          } else {
+            state.isActive = false;
+          }
+          renderMessages();
+          renderTicker();
+          queueSave();
+          {
+            const notes = [];
+            if (loadResult.truncated) notes.push(`limited to ${MAX_MESSAGES}`);
+            if (loadResult.trimmed) notes.push(`trimmed to ${MAX_MESSAGE_LENGTH} chars`);
+            const summary = `Loaded preset “${preset.name}”`;
+            toast(notes.length ? `${summary} • ${notes.join('; ')}` : summary);
+          }
+          break;
+        case 'append':
+          if (state.messages.length >= MAX_MESSAGES) {
+            toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
+            return;
+          }
+          const appendResult = sanitiseMessages(preset.messages, { includeMeta: true });
+          const available = MAX_MESSAGES - state.messages.length;
+          const additions = appendResult.messages.slice(0, available);
+          if (!additions.length) {
+            toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
+            return;
+          }
+          state.messages.push(...additions);
+          if (el.autoStart.checked && state.messages.length) state.isActive = true;
+          renderMessages();
+          renderTicker();
+          queueSave();
+          {
+            const skippedForQueue = appendResult.messages.length - additions.length;
+            const notes = [];
+            if (skippedForQueue > 0) notes.push(`skipped ${skippedForQueue} (queue full)`);
+            if (appendResult.truncated) notes.push(`preset limited to ${MAX_MESSAGES}`);
+            if (appendResult.trimmed) notes.push(`trimmed to ${MAX_MESSAGE_LENGTH} chars`);
+            const summary = `Appended ${additions.length} message${additions.length === 1 ? '' : 's'}`;
+            toast(notes.length ? `${summary} • ${notes.join('; ')}` : summary);
+          }
+          break;
+        case 'delete':
+          presets = presets.filter(item => item.id !== id);
+          renderPresets();
+          persistPresets();
+          break;
+      }
+    }
+
+    function buildScenePayload(name, existingId, fallbackName = '') {
+      const baseName = String(name || fallbackName || '').trim();
+      if (!baseName) {
+        toast('Enter a scene name');
+        return null;
+      }
+      const trimmedName = baseName.slice(0, MAX_SCENE_NAME_LENGTH);
+      const tickerResult = sanitiseMessages(state.messages, { includeMeta: true });
+      const messages = tickerResult.messages;
+      const popup = normalisePopupData(popupState);
+      if (!messages.length && !popup.text) {
+        toast('Add messages or popup text before saving a scene');
+        return null;
+      }
+      if (tickerResult.trimmed || tickerResult.truncated) {
+        const notes = [];
+        if (tickerResult.trimmed) notes.push(`trimmed ${tickerResult.trimmed}`);
+        if (tickerResult.truncated) notes.push(`skipped ${tickerResult.truncated}`);
+        if (notes.length) toast(`Scene adjusted • ${notes.join('; ')}`);
+      }
+      const payload = {
+        id: existingId || generateClientId('scene'),
+        name: trimmedName,
+        ticker: {
+          messages,
+          displayDuration: state.displayDuration,
+          intervalBetween: minutesToSeconds(state.intervalMinutes),
+          isActive: state.isActive && messages.length > 0
+        },
+        popup: {
+          text: popup.text,
+          isActive: popup.isActive,
+          durationSeconds: popup.durationSeconds,
+          countdownEnabled: popup.countdownEnabled,
+          countdownTarget: popup.countdownTarget
+        },
+        slate: serialiseSlateState(),
+        overlay: {
+          theme: overlayPrefs.theme,
+          position: overlayPrefs.position,
+          mode: overlayPrefs.mode,
+          accentAnim: overlayPrefs.accentAnim,
+          sparkle: overlayPrefs.sparkle
+        },
+        updatedAt: Date.now()
+      };
+      if (!payload.overlay.theme) {
+        delete payload.overlay.theme;
+      }
+      if (!payload.overlay.position) {
+        delete payload.overlay.position;
+      }
+      if (!payload.overlay.mode) {
+        delete payload.overlay.mode;
+      }
+      if (!Object.keys(payload.overlay).length) {
+        delete payload.overlay;
+      }
+      return payload;
+    }
+
+    async function persistScenes(successMessage = 'Scene saved') {
+      if (scenesSaveInFlight) {
+        pendingSceneMessage = successMessage;
+        return;
+      }
+      const base = serverBase();
+      scenesSaveInFlight = true;
+      try {
+        const res = await fetch(`${base}/ticker/scenes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ scenes })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const message = data?.error || `Failed to save scenes (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        if (data && Array.isArray(data.scenes)) {
+          applyScenesData(data.scenes);
+        }
+        toast(successMessage);
+      } catch (err) {
+        console.error('Failed to save scenes', err);
+        toast(err.message || 'Failed to save scenes');
+      } finally {
+        scenesSaveInFlight = false;
+        if (pendingSceneMessage) {
+          const message = pendingSceneMessage;
+          pendingSceneMessage = null;
+          void persistScenes(message);
+        }
+      }
+    }
+
+    async function activateScene(scene) {
+      const base = serverBase();
+      try {
+        const res = await fetch(`${base}/ticker/scenes/apply`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sceneId: scene.id })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const message = data?.error || `Failed to activate scene (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        toast(`Activated scene “${scene.name}”`);
+      } catch (err) {
+        console.error('Failed to activate scene', err);
+        toast(err.message || 'Failed to activate scene');
+      }
+    }
+
+    function saveScenePreset(existing) {
+      const nameInput = el.sceneName ? el.sceneName.value : '';
+      const payload = buildScenePayload(nameInput, existing?.id || null, existing?.name || '');
+      if (!payload) return;
+      if (existing) {
+        scenes = scenes.map(scene => (scene.id === existing.id ? payload : scene));
+        persistScenes('Scene updated');
+      } else {
+        scenes.unshift(payload);
+        persistScenes('Scene saved');
+      }
+      renderScenes();
+      if (el.sceneName) el.sceneName.value = '';
+    }
+
+    function handleSceneAction(event) {
+      const button = event.target.closest('button[data-action]');
+      if (!button) return;
+      const card = button.closest('.scene-card');
+      if (!card) return;
+      const id = card.dataset.id;
+      const scene = scenes.find(item => item.id === id);
+      if (!scene) return;
+      switch (button.dataset.action) {
+        case 'activate':
+          void activateScene(scene);
+          break;
+        case 'replace':
+          saveScenePreset(scene);
+          break;
+        case 'delete':
+          scenes = scenes.filter(item => item.id !== id);
+          renderScenes();
+          persistScenes('Scene removed');
+          break;
+      }
+    }
+
+    el.overlayChip.addEventListener('click', async () => {
+      const url = buildOverlayUrl();
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('Overlay URL copied');
+      } catch (err) {
+        console.warn('Clipboard copy failed', err);
+        toast('Copy failed');
+      }
+    });
+
+    el.copyOverlay.addEventListener('click', async () => {
+      const url = buildOverlayUrl();
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('Overlay URL copied');
+      } catch (err) {
+        toast('Copy failed');
+      }
+    });
+
+    el.openOverlay.addEventListener('click', () => {
+      window.open(buildOverlayUrl(), '_blank');
+    });
+
+    el.reloadPreview.addEventListener('click', () => {
+      const url = buildOverlayUrl();
+      lastPreviewUrl = url;
+      schedulePreviewUpdate(url);
+    });
+
+    el.serverUrl.addEventListener('change', () => {
+      saveLocal();
+      connectStream();
+      fetchState({ silent: true });
+      updateOverlayChip();
+    });
+
+    el.autoStart.addEventListener('change', () => {
+      saveLocal();
+    });
+
+    el.duration.addEventListener('change', () => {
+      state.displayDuration = clampDuration(el.duration.value);
+      renderTicker();
+      queueSave();
+    });
+
+    el.interval.addEventListener('change', () => {
+      state.intervalMinutes = clampMinutesValue(el.interval.value);
+      renderTicker();
+      queueSave();
+    });
+
+    el.startBtn.addEventListener('click', () => {
+      if (!state.messages.length) {
+        toast('Add at least one message first');
+        return;
+      }
+      state.isActive = true;
+      renderTicker();
+      queueSave();
+    });
+
+    el.stopBtn.addEventListener('click', () => {
+      state.isActive = false;
+      renderTicker();
+      queueSave();
+    });
+
+    el.refreshBtn.addEventListener('click', () => fetchState({ silent: true }));
+
+    el.overlayLabel.addEventListener('input', () => {
+      overlayPrefs.label = el.overlayLabel.value.trim() || 'LIVE';
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    });
+
+    function commitAccentInput(nextValue) {
+      if (!el.overlayAccent) return;
+      const rawValue = typeof nextValue === 'string' ? nextValue : el.overlayAccent.value;
+      const trimmed = rawValue.trim();
+      if (!trimmed) {
+        const changed = overlayPrefs.accent !== '';
+        overlayPrefs.accent = '';
+        updateAccentInputsFromPrefs();
+        setAccentError('');
+        if (changed) {
+          updateOverlayChip();
+          saveLocal();
+          queueOverlaySave();
+        }
+        applyPreviewTheme();
+        return;
+      }
+      if (!isSafeColour(trimmed)) {
+        if (el.overlayAccent) {
+          el.overlayAccent.value = trimmed;
+        }
+        setAccentError('Enter a valid CSS colour value.');
+        if (el.overlayAccentPicker) {
+          el.overlayAccentPicker.value = parseHexForPicker(overlayPrefs.accent) || ACCENT_FALLBACK_HEX;
+        }
+        return;
+      }
+      setAccentError('');
+      const changed = trimmed !== overlayPrefs.accent;
+      overlayPrefs.accent = trimmed;
+      updateAccentInputsFromPrefs();
+      if (changed) {
+        updateOverlayChip();
+        saveLocal();
+        queueOverlaySave();
+      }
+      applyPreviewTheme();
+    }
+
+    if (el.overlayAccent) {
+      el.overlayAccent.addEventListener('input', () => {
+        const current = el.overlayAccent.value.trim();
+        if (!current) {
+          setAccentError('');
+          if (el.overlayAccentPicker) {
+            el.overlayAccentPicker.value = ACCENT_FALLBACK_HEX;
+          }
+          return;
+        }
+        setAccentError('');
+        const hex = parseHexForPicker(current);
+        if (hex && el.overlayAccentPicker) {
+          el.overlayAccentPicker.value = hex;
+        }
+      });
+      el.overlayAccent.addEventListener('change', () => commitAccentInput());
+      el.overlayAccent.addEventListener('blur', () => commitAccentInput());
+    }
+    if (el.overlayAccentPicker) {
+      el.overlayAccentPicker.addEventListener('input', event => {
+        setAccentError('');
+        commitAccentInput(event.target.value);
+      });
+    }
+
+    el.highlightWords.addEventListener('input', () => {
+      overlayPrefs.highlight = normaliseHighlightInput(el.highlightWords.value);
+      el.highlightWords.value = overlayPrefs.highlight;
+      updateHighlightRegex();
+      renderMessages();
+      renderPopupControls();
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    });
+
+    if (el.slateEnabled) {
+      el.slateEnabled.addEventListener('change', () => {
+        updateSlateBoolean('isEnabled', el.slateEnabled.checked);
+      });
+    }
+    if (el.slateShowClock) {
+      el.slateShowClock.addEventListener('change', () => {
+        updateSlateBoolean('showClock', el.slateShowClock.checked);
+      });
+    }
+    if (el.slateRotation) {
+      el.slateRotation.addEventListener('input', () => {
+        updateSlateRotationInput(el.slateRotation.value);
+      });
+      el.slateRotation.addEventListener('change', () => {
+        updateSlateRotationInput(el.slateRotation.value);
+      });
+    }
+    if (el.slateRotationNumber) {
+      const commitRotationNumber = () => {
+        updateSlateRotationInput(el.slateRotationNumber.value);
+      };
+      el.slateRotationNumber.addEventListener('input', commitRotationNumber);
+      el.slateRotationNumber.addEventListener('change', commitRotationNumber);
+      el.slateRotationNumber.addEventListener('blur', () => {
+        el.slateRotationNumber.value = String(clampSlateRotation(el.slateRotationNumber.value));
+      });
+    }
+    if (el.slateClockLabel) {
+      el.slateClockLabel.addEventListener('input', () => {
+        updateSlateTextField('clockLabel', el.slateClockLabel.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateClockLabel.addEventListener('blur', () => {
+        el.slateClockLabel.value = slateState.clockLabel || '';
+      });
+    }
+    if (el.slateNextLabel) {
+      el.slateNextLabel.addEventListener('input', () => {
+        updateSlateTextField('nextLabel', el.slateNextLabel.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateNextLabel.addEventListener('blur', () => {
+        el.slateNextLabel.value = slateState.nextLabel || '';
+      });
+    }
+    if (el.slateNextTitle) {
+      el.slateNextTitle.addEventListener('input', () => {
+        updateSlateTextField('nextTitle', el.slateNextTitle.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateNextTitle.addEventListener('blur', () => {
+        el.slateNextTitle.value = slateState.nextTitle || '';
+      });
+    }
+    if (el.slateNextSubtitle) {
+      el.slateNextSubtitle.addEventListener('input', () => {
+        updateSlateTextField('nextSubtitle', el.slateNextSubtitle.value, MAX_SLATE_TEXT_LENGTH);
+      });
+      el.slateNextSubtitle.addEventListener('blur', () => {
+        el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+      });
+    }
+    if (el.slateSponsorLabel) {
+      el.slateSponsorLabel.addEventListener('input', () => {
+        updateSlateTextField('sponsorLabel', el.slateSponsorLabel.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateSponsorLabel.addEventListener('blur', () => {
+        el.slateSponsorLabel.value = slateState.sponsorLabel || '';
+      });
+    }
+    if (el.slateSponsorName) {
+      el.slateSponsorName.addEventListener('input', () => {
+        updateSlateTextField('sponsorName', el.slateSponsorName.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateSponsorName.addEventListener('blur', () => {
+        el.slateSponsorName.value = slateState.sponsorName || '';
+      });
+    }
+    if (el.slateSponsorTagline) {
+      el.slateSponsorTagline.addEventListener('input', () => {
+        updateSlateTextField('sponsorTagline', el.slateSponsorTagline.value, MAX_SLATE_TEXT_LENGTH);
+      });
+      el.slateSponsorTagline.addEventListener('blur', () => {
+        el.slateSponsorTagline.value = slateState.sponsorTagline || '';
+      });
+    }
+    if (el.slateNotesLabel) {
+      el.slateNotesLabel.addEventListener('input', () => {
+        updateSlateTextField('notesLabel', el.slateNotesLabel.value, MAX_SLATE_TITLE_LENGTH);
+      });
+      el.slateNotesLabel.addEventListener('blur', () => {
+        el.slateNotesLabel.value = slateState.notesLabel || '';
+      });
+    }
+    if (el.slateNotes) {
+      el.slateNotes.addEventListener('input', () => {
+        updateSlateNotes(el.slateNotes.value);
+      });
+      el.slateNotes.addEventListener('blur', () => {
+        el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
+      });
+    }
+    if (el.slatePreviewDots) {
+      el.slatePreviewDots.addEventListener('click', event => {
+        const dot = event.target.closest('.slate-preview-dot');
+        if (!dot) return;
+        const index = Number(dot.dataset.index);
+        if (!Number.isFinite(index) || index < 0 || index >= slatePreviewCards.length) return;
+        slatePreviewIndex = index;
+        playSlatePreviewCard(index, { animate: true, updateDots: true });
+      });
+    }
+
+    el.popupText.addEventListener('input', () => {
+      updatePopupPreview();
+      if (!el.popupText.value.trim()) {
+        el.popupActive.checked = false;
+      }
+    });
+
+    if (el.popupDuration) {
+      el.popupDuration.addEventListener('change', () => {
+        queuePopupSave();
+      });
+    }
+
+    if (el.popupCountdownTarget) {
+      el.popupCountdownTarget.addEventListener('input', () => {
+        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+          updatePopupPreview();
+        }
+      });
+      el.popupCountdownTarget.addEventListener('change', () => {
+        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+          queuePopupSave();
+        }
+      });
+    }
+
+    if (el.popupCountdownEnabled) {
+      el.popupCountdownEnabled.addEventListener('change', () => {
+        if (el.popupCountdownEnabled.checked) {
+          if (!el.popupText.value.trim()) {
+            el.popupCountdownEnabled.checked = false;
+            toast('Enter popup text before enabling the countdown');
+            return;
+          }
+          if (!el.popupCountdownTarget || !el.popupCountdownTarget.value) {
+            toast('Select a countdown target time');
+          }
+        }
+        updatePopupPreview();
+        if (el.popupCountdownTarget) {
+          el.popupCountdownTarget.disabled = popupSaveInFlight || !el.popupCountdownEnabled.checked;
+        }
+        const hasTarget = el.popupCountdownTarget && el.popupCountdownTarget.value;
+        if (!el.popupCountdownEnabled.checked || hasTarget) {
+          queuePopupSave();
+        }
+      });
+    }
+
+    el.popupActive.addEventListener('change', () => {
+      if (el.popupActive.checked && !el.popupText.value.trim()) {
+        el.popupActive.checked = false;
+        toast('Enter popup text before enabling');
+        return;
+      }
+      queuePopupSave();
+    });
+
+    el.savePopup.addEventListener('click', () => {
+      queuePopupSave();
+    });
+
+    el.clearPopup.addEventListener('click', () => {
+      if (!el.popupText.value && !popupState.text) {
+        el.popupActive.checked = false;
+        updatePopupPreview();
+        updatePopupMeta();
+        return;
+      }
+      el.popupText.value = '';
+      el.popupActive.checked = false;
+      updatePopupPreview();
+      popupState = {
+        ...popupState,
+        text: '',
+        isActive: false,
+        durationSeconds: null,
+        countdownEnabled: false,
+        countdownTarget: null,
+        updatedAt: Date.now()
+      };
+      updatePopupMeta();
+      queuePopupSave();
+    });
+
+    if (el.brbText) {
+      el.brbText.addEventListener('input', () => {
+        if (!el.brbText.value.trim() && el.brbActive) {
+          el.brbActive.checked = false;
+        }
+      });
+    }
+
+    if (el.brbSave) {
+      el.brbSave.addEventListener('click', () => {
+        queueBrbSave();
+      });
+    }
+
+    if (el.brbClear) {
+      el.brbClear.addEventListener('click', () => {
+        if (el.brbText) el.brbText.value = '';
+        if (el.brbActive) el.brbActive.checked = false;
+        brbState = { ...brbState, text: '', isActive: false, updatedAt: Date.now() };
+        renderBrbControls();
+        queueBrbSave();
+      });
+    }
+
+    if (el.brbActive) {
+      el.brbActive.addEventListener('change', () => {
+        if (el.brbActive.checked && (!el.brbText || !el.brbText.value.trim())) {
+          el.brbActive.checked = false;
+          toast('Enter BRB text before enabling');
+          return;
+        }
+        queueBrbSave();
+      });
+    }
+
+    el.scaleRange.addEventListener('input', () => updateScale(el.scaleRange.value));
+    el.scaleNumber.addEventListener('change', () => updateScale(el.scaleNumber.value));
+    if (el.popupScaleRange) {
+      el.popupScaleRange.addEventListener('input', () => updatePopupScale(el.popupScaleRange.value));
+    }
+    if (el.popupScaleNumber) {
+      el.popupScaleNumber.addEventListener('change', () => updatePopupScale(el.popupScaleNumber.value));
+    }
+
+    el.positionButtons.addEventListener('click', event => {
+      const button = event.target.closest('button[data-position]');
+      if (!button) return;
+      setPosition(button.dataset.position);
+    });
+
+    el.modeButtons.addEventListener('click', event => {
+      const button = event.target.closest('button[data-mode]');
+      if (!button) return;
+      setMode(button.dataset.mode);
+    });
+
+    if (el.themeButtons) {
+      el.themeButtons.addEventListener('click', event => {
+        const button = event.target.closest('button[data-theme]');
+        if (!button) return;
+        setTheme(button.dataset.theme);
+      });
+    }
+
+    el.accentAnim.addEventListener('change', () => {
+      overlayPrefs.accentAnim = el.accentAnim.checked;
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    });
+
+    el.sparkle.addEventListener('change', () => {
+      overlayPrefs.sparkle = el.sparkle.checked;
+      updateOverlayChip();
+      saveLocal();
+      queueOverlaySave();
+    });
+
+    el.messageForm.addEventListener('submit', event => {
+      event.preventDefault();
+      addMessage(el.newMessage.value);
+      el.newMessage.value = '';
+      el.newMessage.focus();
+    });
+
+    el.clearMessages.addEventListener('click', () => {
+      if (!state.messages.length) return;
+      if (confirm('Clear all messages?')) {
+        state.messages = [];
+        state.isActive = false;
+        renderMessages();
+        renderTicker();
+        queueSave();
+      }
+    });
+
+    el.exportMessages.addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify({ messages: state.messages }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'ticker-messages.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    el.importMessages.addEventListener('click', () => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'application/json';
+      input.onchange = async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const data = JSON.parse(text);
+          if (Array.isArray(data.messages)) {
+            const result = sanitiseMessages(data.messages, { includeMeta: true });
+            state.messages = result.messages;
+            if (el.autoStart.checked && state.messages.length) state.isActive = true;
+            renderMessages();
+            renderTicker();
+            queueSave();
+            const notes = [];
+            if (result.truncated) notes.push(`limited to ${MAX_MESSAGES}`);
+            if (result.trimmed) notes.push(`trimmed to ${MAX_MESSAGE_LENGTH} chars`);
+            const summary = 'Messages imported';
+            toast(notes.length ? `${summary} • ${notes.join('; ')}` : summary);
+          } else {
+            toast('Invalid file format');
+          }
+        } catch (err) {
+          console.error('Failed to import messages', err);
+          toast('Import failed');
+        }
+      };
+      input.click();
+    });
+
+    el.messageList.addEventListener('click', handleMessageAction);
+    el.messageList.addEventListener('input', event => {
+      const textarea = event.target.closest('.message-edit-input');
+      if (!textarea) return;
+      editingDraft = textarea.value;
+      const row = textarea.closest('.message-item');
+      if (row) {
+        const preview = row.querySelector('.message-preview');
+        if (preview) {
+          const html = formatMessage(editingDraft);
+          preview.innerHTML = html || '<span class="small">Preview updates as you type.</span>';
+        }
+      }
+    });
+
+    el.savePreset.addEventListener('click', () => {
+      const name = el.presetName.value.trim();
+      if (!name) {
+        toast('Enter a preset name');
+        return;
+      }
+      if (name.length > MAX_PRESET_NAME_LENGTH) {
+        toast(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer`);
+        return;
+      }
+      if (!state.messages.length) {
+        toast('Nothing to save');
+        return;
+      }
+      const existing = presets.find(p => p.name.toLowerCase() === name.toLowerCase());
+      const payload = {
+        id: existing ? existing.id : generateClientId('preset'),
+        name,
+        messages: [...state.messages],
+        updatedAt: Date.now()
+      };
+      if (existing) {
+        Object.assign(existing, payload);
+      } else {
+        presets.unshift(payload);
+      }
+      el.presetName.value = '';
+      renderPresets();
+      persistPresets();
+    });
+
+    el.presetList.addEventListener('click', handlePresetAction);
+
+    if (el.presetModalCancel) {
+      el.presetModalCancel.addEventListener('click', () => closePresetModal({ restoreFocus: true }));
+    }
+    if (el.presetModalSave) {
+      el.presetModalSave.addEventListener('click', () => confirmPresetModal());
+    }
+    if (el.presetModalName) {
+      el.presetModalName.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          confirmPresetModal();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          closePresetModal({ restoreFocus: true });
+        }
+      });
+      el.presetModalName.addEventListener('input', () => updatePresetModalError(''));
+    }
+    if (el.presetModal) {
+      el.presetModal.addEventListener('click', event => {
+        if (event.target === el.presetModal) {
+          closePresetModal({ restoreFocus: true });
+        }
+      });
+    }
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && isPresetModalOpen()) {
+        event.preventDefault();
+        closePresetModal({ restoreFocus: true });
+      }
+    });
+
+    if (el.saveScene) {
+      el.saveScene.addEventListener('click', () => {
+        saveScenePreset();
+      });
+    }
+
+    if (el.sceneName) {
+      el.sceneName.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          saveScenePreset();
+        }
+      });
+    }
+
+    if (el.sceneList) {
+      el.sceneList.addEventListener('click', handleSceneAction);
+    }
+
+    function init() {
+      loadLocal();
+      renderOverlayControls();
+      updateHighlightRegex();
+      renderPopupControls();
+      renderBrbControls();
+      renderMessages();
+      renderTicker();
+      renderPresets();
+      renderScenes();
+      updateOverlayChip();
+      connectStream();
+    }
+
+    init();
+    window.addEventListener('beforeunload', disconnectStream);
+  </script>
+</body>
+</html>

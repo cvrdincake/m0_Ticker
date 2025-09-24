@@ -1,0 +1,59 @@
+{
+  "ticker": {
+    "isActive": true,
+    "messages": [
+      "We're LIVE on both YouTube & Twitch!",
+      "We're testing some new widget features. Please be aware of any weird bugs and the curse words that follow.",
+      "DISCLAIMER: 95% of anything Moose ever says is a symptom of his irony disorder and he should not be taken seriously under any circumstances.",
+      "Welcome to our Silent Hill f deep dive analysis streams! We'll be using our knowledge of Silent Hill, Shinto, Higurashi, Umineko and Ryukishi07's background to truly be able to dig into this motherfucker."
+    ],
+    "displayDuration": 45,
+    "intervalBetween": 1200,
+    "_updatedAt": 1758647900783
+  },
+  "brb": {
+    "isActive": false,
+    "text": "Be Right Back",
+    "_updatedAt": 1758556847480
+  },
+  "presets": [],
+  "scenes": [],
+  "overlay": {
+    "label": "LIVE",
+    "accent": "#ef4444",
+    "highlight": "live,breaking,alert,update,disclaimer,silent,hill",
+    "scale": 1.75,
+    "popupScale": 1.3,
+    "position": "bottom",
+    "mode": "auto",
+    "accentAnim": true,
+    "sparkle": true,
+    "theme": "quantum",
+    "_updatedAt": 1758648188427
+  },
+  "popup": {
+    "text": "Silent Hill f - Deep Dive / Analysis w/ Moose",
+    "isActive": true,
+    "durationSeconds": null,
+    "countdownEnabled": false,
+    "countdownTarget": null,
+    "_updatedAt": 1758647615533
+  },
+  "slate": {
+    "isEnabled": true,
+    "rotationSeconds": 60,
+    "showClock": true,
+    "clockLabel": "Local Time",
+    "nextLabel": "Next up",
+    "nextTitle": "",
+    "nextSubtitle": "",
+    "sponsorName": "",
+    "sponsorTagline": "",
+    "sponsorLabel": "This stream is sponsored by Patrons & Members",
+    "notesLabel": "Enjoying the stream?",
+    "notes": [
+      "Don't forget to like / follow / sub to know when we go live!"
+    ],
+    "_updatedAt": 1758643516886
+  }
+}

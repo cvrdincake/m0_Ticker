@@ -1,0 +1,2617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OBS Ticker Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <link rel="stylesheet" href="css/themes.css">
+  <style>
+    :root {
+      --ui-scale: 1.75;
+      --popup-scale: 1;
+      --bar-height: calc(38px * var(--ui-scale));
+      --label-width: calc(100px * var(--ui-scale));
+      --padding-x: var(--space-lg);
+      --divider-height: calc(var(--space-sm) * 1.75);
+      --accent: #ef4444;
+      --accent-bright: color-mix(in srgb, var(--accent) 82%, white 18%);
+      --accent-soft: color-mix(in srgb, var(--accent) 40%, transparent);
+      --accent-glow: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.45));
+      --accent-muted: color-mix(in srgb, var(--accent) 55%, rgba(10, 12, 20, 0.7));
+      --accent-duo: color-mix(in srgb, var(--accent) 68%, #5aa8ff 32%);
+      --accent-contrast: color-mix(in srgb, var(--accent) 58%, #45e6c3 42%);
+      --surface-a: rgba(18, 20, 28, 0.92);
+      --surface-b: rgba(8, 10, 16, 0.9);
+      --surface-border: rgba(255, 255, 255, 0.12);
+      --surface-outline: rgba(255, 255, 255, 0.06);
+      --text: #fefefe;
+      --shadow: 0 26px 68px rgba(3, 5, 14, 0.65);
+      --marquee-pps: 110;
+      --hide-shift: calc(12px * var(--ui-scale) / 1.75);
+      --ticker-surface-a: var(--surface-a);
+      --ticker-surface-b: var(--surface-b);
+      --ticker-border: var(--surface-outline);
+      --ticker-shadow: var(--shadow);
+      --ticker-label-width: var(--label-width);
+      --ticker-label-size: calc(12px * var(--ui-scale));
+      --ticker-label-weight: 700;
+      --ticker-label-letter: calc(1px * var(--ui-scale));
+      --ticker-label-case: uppercase;
+      --ticker-label-color: #ffffff;
+      --ticker-label-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+      --ticker-divider-color: rgba(255, 255, 255, 0.32);
+      --ticker-accent-overlay:
+        linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 62%),
+        linear-gradient(150deg, var(--accent-bright), var(--accent-muted));
+      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.35));
+      --ticker-accent-glow: 0 0 26px color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.4));
+      --ticker-accent-animation: holographicShift 20s var(--ease-premium) infinite;
+      --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
+      --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
+      --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+      --popup-shadow: var(--ticker-shadow);
+      --popup-text-color: rgba(248, 250, 255, 0.96);
+      --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
+      --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 85%, var(--accent) 15%);
+      --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 75%, var(--accent) 25%);
+      --popup-accent-strip:
+        linear-gradient(165deg, var(--accent), color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.45)));
+      --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .ticker {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--bar-height);
+      transform: translate3d(0, 100%, 0);
+      opacity: 0;
+      background:
+        var(--ticker-ambient-mask, transparent),
+        linear-gradient(150deg, var(--ticker-surface-a), var(--ticker-surface-b));
+      box-shadow: var(--ticker-shadow), var(--ticker-chromatic-shadows, 0 0 0 transparent);
+      border-top: 1px solid var(--ticker-border);
+      backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+      filter: var(--ticker-depth-filter, none);
+      mask-image: var(--ticker-depth-mask, none);
+      -webkit-mask-image: var(--ticker-depth-mask, none);
+      mask-mode: luminance;
+      mask-size: cover;
+      -webkit-mask-size: cover;
+      mask-repeat: no-repeat;
+      -webkit-mask-repeat: no-repeat;
+      transition:
+        transform 0.52s var(--ease-dramatic),
+        opacity 0.48s var(--ease-smooth),
+        filter 0.52s var(--ease-smooth);
+      overflow: hidden;
+      will-change: transform, opacity, filter;
+      contain: layout style paint;
+      z-index: 1000;
+    }
+
+    .ticker.top {
+      top: 0;
+      bottom: auto;
+      transform: translate3d(0, -100%, 0);
+      border-top: none;
+      border-bottom: 1px solid var(--ticker-border);
+    }
+
+    .ticker.show {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+      filter: none;
+      animation: var(--ticker-motion-stack, none);
+    }
+
+    .ticker.is-hiding {
+      opacity: 0;
+      filter: saturate(0.88) brightness(0.9) blur(2px);
+      animation: none;
+    }
+
+    .ticker.show.is-hiding {
+      transform: translate3d(0, var(--hide-shift), 0) scale(0.995);
+    }
+
+    .ticker.top.show.is-hiding {
+      transform: translate3d(0, calc(var(--hide-shift) * -1), 0) scale(0.995);
+    }
+
+
+    .ticker::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--ticker-label-width);
+      background: var(--ticker-accent-overlay);
+      background-size: 220% 220%, 100% 100%;
+      border-right: var(--ticker-accent-border);
+      box-shadow: var(--ticker-accent-glow);
+      z-index: 1;
+      animation: var(--ticker-accent-animation, none);
+    }
+
+    .ticker::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        var(--ticker-ambient-caustics, transparent),
+        var(--ticker-surface-noise, none);
+      mix-blend-mode: screen;
+      opacity: 0.55;
+      animation: tickerAmbientGlow 12s var(--ease-smooth) infinite;
+      z-index: 0;
+    }
+
+    .ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--ticker-label-width);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ticker-label-size);
+      font-weight: var(--ticker-label-weight);
+      letter-spacing: var(--ticker-label-letter);
+      text-transform: var(--ticker-label-case);
+      text-shadow: var(--ticker-label-shadow);
+      color: var(--ticker-label-color);
+      z-index: 2;
+    }
+
+    .ticker-label.is-breaking { animation: labelPulse 1.8s ease-in-out infinite; }
+
+    .ticker-track {
+      position: absolute;
+      left: var(--ticker-label-width);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+
+    .ticker-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      white-space: nowrap;
+      line-height: var(--bar-height);
+      font-size: calc(14px * var(--ui-scale));
+      font-weight: 500;
+      padding-left: var(--padding-x);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
+    }
+
+    .ticker-measure {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      white-space: nowrap;
+      transform: none !important;
+      left: -9999px;
+      top: -9999px;
+    }
+
+    .message-separator {
+      display: inline-block;
+      width: 1px;
+      height: var(--divider-height);
+      margin: 0 var(--space-lg);
+      background: var(--ticker-divider-color);
+      vertical-align: middle;
+    }
+
+    .fx { display: inline-flex; position: relative; color: inherit; }
+    .fx-letter { display: inline-block; --i: 0; will-change: transform, filter; }
+    .fx-rainbow .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent-contrast) 60%, rgba(8, 12, 22, 0.25) 40%),
+        color-mix(in srgb, var(--accent-duo) 55%, rgba(10, 12, 24, 0.32) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow:
+        0 0 6px color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.35)),
+        0 0 16px color-mix(in srgb, var(--accent-glow) 45%, rgba(0, 0, 0, 0.15));
+      filter: saturate(1.08) brightness(1.04);
+    }
+
+    .fx.fx-sparkle { animation: gentlePulse 6s ease-in-out infinite; }
+
+    .fx-sparkle .fx-letter {
+      background-image:
+        radial-gradient(circle at 38% 62%, color-mix(in srgb, var(--accent-bright) 75%, white 25%) 0 18%, transparent 42%),
+        radial-gradient(circle at 68% 32%, color-mix(in srgb, var(--accent-glow) 65%, rgba(255, 255, 255, 0.05)) 0 16%, transparent 40%),
+        linear-gradient(120deg, color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.08)), color-mix(in srgb, var(--accent-contrast) 50%, rgba(8, 12, 22, 0.4)));
+      background-size: 160% 160%, 220% 220%, 280% 100%;
+      background-position: 0% 0%, 100% 100%, 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: sparkleShift 4.2s linear infinite, subtleFloat 1.9s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.07s);
+      text-shadow:
+        0 0 8px color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.4)),
+        0 0 18px color-mix(in srgb, var(--accent-glow) 30%, rgba(0, 0, 0, 0.2));
+      filter: saturate(1.1) contrast(1.05);
+    }
+
+    body.no-sparkle .fx-sparkle .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent) 55%, rgba(8, 12, 22, 0.25) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.3));
+      filter: saturate(1.05) brightness(1.03);
+    }
+
+    .fx-bounce {
+      display: inline-block;
+      animation: enhancedBounce 2.2s ease-in-out infinite;
+      transform-origin: center bottom;
+      will-change: transform;
+    }
+
+    .fx-neon {
+      color: color-mix(in srgb, var(--accent-bright) 72%, white 28%);
+      text-shadow:
+        0 0 3px color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.35)),
+        0 0 12px color-mix(in srgb, var(--accent-glow) 55%, rgba(10, 14, 26, 0.5)),
+        0 0 22px color-mix(in srgb, var(--accent) 35%, rgba(0, 0, 0, 0.2));
+      animation: neonFlicker 3.4s ease-in-out infinite, gentlePulse 5.2s ease-in-out infinite;
+    }
+
+    .fx-glitch {
+      position: relative;
+      display: inline-block;
+      color: #f4f7ff;
+      animation: dataGlitch 2.4s steps(2, end) infinite;
+    }
+
+    .fx-glitch::before,
+    .fx-glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0.5;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .fx-glitch::before {
+      color: color-mix(in srgb, var(--accent-duo) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .fx-glitch::after {
+      color: color-mix(in srgb, var(--accent-contrast) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .highlight { color: #fbbf24; font-weight: 600; }
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+
+    .popup {
+      position: fixed;
+      top: calc(24px * var(--ui-scale) / 1.75);
+      left: calc(24px * var(--ui-scale) / 1.75);
+      max-width: min(calc(540px * var(--popup-scale)), 46vw);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(calc(-16px * var(--popup-scale)), calc(-16px * var(--popup-scale)));
+      transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.35s ease;
+      z-index: 1100;
+    }
+
+    .popup.show {
+      opacity: 1;
+      transform: translate(0, 0);
+    }
+
+    .popup.push-down {
+      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
+    }
+
+    .popup-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: calc(14px * var(--popup-scale));
+      padding: calc(16px * var(--popup-scale)) calc(22px * var(--popup-scale));
+      border-radius: 0;
+      background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
+      border: 1px solid var(--popup-border-color);
+      box-shadow: var(--popup-shadow);
+      backdrop-filter: blur(18px) saturate(1.05);
+      font-size: calc(16px * var(--popup-scale));
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--popup-text-color);
+      overflow: hidden;
+    }
+
+    .popup-message {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+
+    .popup-countdown {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(10px * var(--popup-scale));
+      margin-left: calc(16px * var(--popup-scale));
+      padding-left: calc(16px * var(--popup-scale));
+      border-left: 1px solid var(--popup-divider-color);
+      font-size: calc(14px * var(--popup-scale));
+      font-weight: 600;
+      color: var(--popup-countdown-color);
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+    }
+
+    .popup-countdown::before {
+      content: '•';
+      margin-right: calc(4px * var(--popup-scale));
+      color: var(--popup-countdown-dot);
+    }
+
+    .popup-inner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: calc(4px * var(--popup-scale));
+      background: var(--popup-accent-strip);
+      opacity: 0.9;
+    }
+
+    .popup-inner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--popup-sheen);
+      opacity: 0.35;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .slate {
+      position: fixed;
+      top: calc(16px * var(--ui-scale) / 1.75);
+      right: calc(16px * var(--ui-scale) / 1.75);
+      max-width: min(calc(220px * var(--ui-scale)), 24vw);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate3d(8px, -8px, 0);
+      transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+      z-index: 1080;
+    }
+
+    .slate.push-down {
+      top: calc(var(--bar-height) + (24px * var(--ui-scale) / 1.75) + (10px * var(--popup-scale)));
+    }
+
+    .slate.show {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .slate-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: calc(6px * var(--ui-scale) / 1.75);
+      padding: calc(12px * var(--ui-scale) / 1.75) calc(16px * var(--ui-scale) / 1.75);
+      padding-left: calc(18px * var(--ui-scale) / 1.75);
+      min-width: min(calc(180px * var(--ui-scale) / 1.75), 24vw);
+      max-width: min(calc(220px * var(--ui-scale) / 1.75), 24vw);
+      border: 1px solid var(--popup-border-color);
+      border-radius: 0;
+      background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
+      box-shadow: var(--popup-shadow);
+      backdrop-filter: blur(14px) saturate(1.05);
+      color: var(--popup-text-color);
+      overflow: hidden;
+    }
+
+    .slate-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: calc(3px * var(--ui-scale));
+      background: var(--popup-accent-strip);
+      opacity: 0.95;
+      pointer-events: none;
+    }
+
+    .slate-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--popup-sheen);
+      opacity: 0.25;
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .slate-pill {
+      font-size: calc(9.5px * var(--ui-scale) / 1.75);
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.6));
+    }
+
+    .slate-title {
+      font-size: calc(15px * var(--ui-scale) / 1.75);
+      font-weight: 600;
+      line-height: 1.25;
+      color: rgba(248, 250, 255, 0.96);
+      letter-spacing: 0.01em;
+    }
+
+    .slate-card[data-type='clock'] .slate-title {
+      font-size: calc(18px * var(--ui-scale) / 1.75);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+    }
+
+    .slate-subtitle {
+      font-size: calc(12px * var(--ui-scale) / 1.75);
+      color: rgba(220, 226, 238, 0.82);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .slate-subtitle.is-hidden {
+      display: none;
+    }
+
+    .slate-meta {
+      font-size: calc(11px * var(--ui-scale) / 1.75);
+      color: rgba(198, 204, 218, 0.65);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .slate-meta.is-hidden {
+      display: none;
+    }
+
+    .slate-dots {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: calc(6px * var(--ui-scale) / 1.75);
+    }
+
+    .slate-dots span {
+      width: 4px;
+      height: 4px;
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.32);
+      opacity: 0.45;
+      transition: opacity 0.25s ease;
+    }
+
+    .slate-dots span.is-active {
+      background: color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.6));
+      opacity: 1;
+    }
+
+    .popup-inner.refresh {
+      animation: popupRefresh 0.4s ease;
+    }
+
+    @keyframes popupRefresh {
+      0% { opacity: 0; transform: translateY(-8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes rainbowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    @keyframes sparkleShift {
+      0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 0%; }
+      25% { background-position: 50% 50%, 0% 0%, 100% 50%, 50% 50%; }
+      50% { background-position: 100% 100%, 50% 50%, 0% 100%, 100% 100%; }
+      75% { background-position: 50% 0%, 100% 0%, 50% 50%, 150% 50%; }
+      100% { background-position: 0% 0%, 100% 100%, 50% 0%, 200% 0%; }
+    }
+
+    @keyframes subtleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+
+    @keyframes gentlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    @keyframes enhancedBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      30% { transform: translateY(-3px) scale(1.03, 0.98); }
+      55% { transform: translateY(-4px) scale(1.05, 0.96); }
+      75% { transform: translateY(-1px) scale(1.01, 0.99); }
+    }
+
+    @keyframes neonFlicker {
+      0%, 100% {
+        text-shadow:
+          0 0 2px color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.32)),
+          0 0 8px color-mix(in srgb, var(--accent-glow) 60%, rgba(12, 16, 28, 0.5)),
+          0 0 16px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.2));
+      }
+      50% {
+        text-shadow:
+          0 0 4px color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.4)),
+          0 0 14px color-mix(in srgb, var(--accent-glow) 70%, rgba(10, 14, 26, 0.35)),
+          0 0 26px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.25));
+      }
+    }
+
+    @keyframes dataGlitch {
+      0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+      12% { transform: translate(-1px, 1px); filter: hue-rotate(-4deg); }
+      24% { transform: translate(1px, -1px); filter: hue-rotate(5deg); }
+      38% { transform: translate(-1.5px, 0); filter: hue-rotate(-6deg); }
+      52% { transform: translate(0.5px, 1px); filter: hue-rotate(4deg); }
+      68% { transform: translate(1.5px, -1px); filter: hue-rotate(-3deg); }
+      82% { transform: translate(-0.8px, 0); filter: hue-rotate(3deg); }
+      92% { transform: translate(0.8px, -0.6px); filter: hue-rotate(-2deg); }
+    }
+
+    @keyframes labelPulse {
+      0%, 100% { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
+      50% { text-shadow: 0 0 12px rgba(255, 255, 255, 0.6); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="popup" id="popup">
+    <div class="popup-inner" id="popupContent"></div>
+  </div>
+
+  <div class="slate" id="slate" aria-live="polite" aria-atomic="true">
+    <div class="slate-card" id="slateCard" data-type="">
+      <div class="slate-pill" id="slatePill">Segment slate</div>
+      <div class="slate-title" id="slateTitle"></div>
+      <div class="slate-subtitle" id="slateSubtitle"></div>
+      <div class="slate-meta" id="slateMeta"></div>
+    </div>
+    <div class="slate-dots" id="slateDots"></div>
+  </div>
+
+  <div class="ticker" id="ticker">
+    <div class="ticker-label" id="tickerLabel">LIVE</div>
+    <div class="ticker-track" id="tickerTrack">
+      <div class="ticker-content" id="tickerContent"></div>
+    </div>
+  </div>
+
+  <script src="js/shared-config.js"></script>
+  <script src="js/shared-utils.js"></script>
+  <script>
+    const {
+      OVERLAY_THEMES,
+      normaliseHighlightList,
+      normaliseMode: sharedNormaliseMode,
+      normalisePosition: sharedNormalisePosition,
+      normaliseTheme: sharedNormaliseTheme,
+      isSafeCssColor,
+      clampScaleValue,
+      clampPopupScaleValue,
+      clampSlateRotationSeconds,
+      normaliseSlateNotes
+    } = window.TickerShared || {};
+
+    const SPECIAL_MAP = {
+      '~~': 'rainbow',
+      '%%': 'sparkle',
+      '^^': 'bounce',
+      '==': 'neon',
+      '!!': 'glitch'
+    };
+
+    const sharedConfig = window.SharedConfig || {};
+    const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
+      ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
+      : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
+    const DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+      ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
+      : DEFAULT_HIGHLIGHTS.join(',');
+    const MAX_MESSAGES = 50;
+    const MAX_MESSAGE_LENGTH = 280;
+    const MAX_POPUP_SECONDS = 600;
+    const MAX_SLATE_TITLE_LENGTH = 64;
+    const MAX_SLATE_TEXT_LENGTH = 200;
+    const MAX_SLATE_NOTES = 6;
+    const HIDE_TRANSITION_FALLBACK_MS = 700;
+    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['holographic', 'neural', 'quantum', 'crystalline', 'neon-noir']).map(theme => `ticker--${theme}`);
+
+    const DEFAULT_OVERLAY = {
+      label: 'LIVE',
+      accent: '#ef4444',
+      highlight: DEFAULT_HIGHLIGHT_STRING,
+      scale: 1.75,
+      popupScale: 1,
+      position: 'bottom',
+      mode: 'auto',
+      accentAnim: true,
+      sparkle: true,
+      theme: 'holographic',
+      ...(sharedConfig.DEFAULT_OVERLAY || {})
+    };
+    if (!DEFAULT_OVERLAY.highlight) {
+      DEFAULT_OVERLAY.highlight = DEFAULT_HIGHLIGHT_STRING;
+    }
+
+    const DEFAULT_POPUP = {
+      text: '',
+      isActive: false,
+      durationSeconds: null,
+      countdownEnabled: false,
+      countdownTarget: null,
+      ...(sharedConfig.DEFAULT_POPUP || {}),
+      updatedAt: null
+    };
+
+    const DEFAULT_SLATE_SOURCE = {
+      isEnabled: true,
+      rotationSeconds: 12,
+      showClock: true,
+      clockLabel: 'UK TIME',
+      nextLabel: 'Next up',
+      nextTitle: '',
+      nextSubtitle: '',
+      sponsorLabel: 'Sponsor',
+      sponsorName: '',
+      sponsorTagline: '',
+      notesLabel: 'Spotlight',
+      notes: [],
+      ...(sharedConfig.DEFAULT_SLATE || {})
+    };
+
+    const DEFAULT_SLATE = {
+      ...DEFAULT_SLATE_SOURCE,
+      rotationSeconds: typeof clampSlateRotationSeconds === 'function'
+        ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
+        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 60),
+      notes: typeof normaliseSlateNotes === 'function'
+        ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, 6, 200)
+        : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
+            ? DEFAULT_SLATE_SOURCE.notes
+                .map(entry => String(entry || '').trim().slice(0, 200))
+                .filter(Boolean)
+                .slice(0, 6)
+            : []),
+      updatedAt: null
+    };
+
+    function normaliseHighlightString(value) {
+      return normaliseHighlightList ? normaliseHighlightList(value) : String(value || '').split(',').map(part => part.trim()).filter(Boolean).join(',');
+    }
+
+    function clampScale(value) {
+      if (typeof clampScaleValue === 'function') {
+        return clampScaleValue(value, DEFAULT_OVERLAY.scale);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_OVERLAY.scale;
+      return Math.min(Math.max(Math.round(numeric * 100) / 100, 0.75), 2.5);
+    }
+
+    function clampPopupScale(value) {
+      if (typeof clampPopupScaleValue === 'function') {
+        return clampPopupScaleValue(value, DEFAULT_OVERLAY.popupScale);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_OVERLAY.popupScale;
+      return Math.min(Math.max(Math.round(numeric * 100) / 100, 0.6), 1.5);
+    }
+
+    function normaliseMode(value) {
+      if (typeof sharedNormaliseMode === 'function') {
+        return sharedNormaliseMode(value);
+      }
+      const mode = String(value || '').toLowerCase();
+      return ['auto', 'marquee', 'chunk'].includes(mode) ? mode : 'auto';
+    }
+
+    function normalisePosition(value) {
+      if (typeof sharedNormalisePosition === 'function') {
+        return sharedNormalisePosition(value);
+      }
+      const position = String(value || '').toLowerCase();
+      return position === 'top' ? 'top' : 'bottom';
+    }
+
+    function normaliseTheme(value) {
+      if (typeof sharedNormaliseTheme === 'function') {
+        return sharedNormaliseTheme(value);
+      }
+      const theme = String(value || '').toLowerCase();
+      return THEME_CLASSNAMES.includes(`ticker--${theme}`) ? theme : null;
+    }
+
+    function normalisePopupPayload(data) {
+      const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 280) : '';
+      const isActive = !!data?.isActive && !!text;
+      const durationRaw = Number(data?.durationSeconds);
+      const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
+        ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
+        : null;
+      const countdownTargetRaw = Number(data?.countdownTarget);
+      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
+      const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
+      const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
+      return {
+        text,
+        isActive,
+        durationSeconds,
+        countdownEnabled,
+        countdownTarget,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+      };
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, match => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[match]);
+    }
+
+    function applyEmphasis(html) {
+      return html
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, (match, prefix, inner) => `${prefix}<em>${inner}</em>`);
+    }
+
+    function buildLetters(text) {
+      let index = 0;
+      let result = '';
+      for (const char of text) {
+        if (/\s/.test(char)) {
+          result += escapeHtml(char);
+        } else {
+          result += `<span class="fx-letter" style="--i:${index++}">${escapeHtml(char)}</span>`;
+        }
+      }
+      return result;
+    }
+
+    function formatMessage(raw, highlightRegex) {
+      const str = String(raw || '').trim();
+      if (!str) return '';
+      const segments = [];
+      const regex = /(%%|~~|\^\^|==|!!)([\s\S]+?)\1/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str))) {
+        if (match.index > lastIndex) {
+          segments.push({ type: 'text', text: str.slice(lastIndex, match.index) });
+        }
+        segments.push({ type: SPECIAL_MAP[match[1]] || 'text', text: match[2] });
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < str.length) {
+        segments.push({ type: 'text', text: str.slice(lastIndex) });
+      }
+      return segments.map(seg => renderSegment(seg, highlightRegex)).join('');
+    }
+
+    function renderSegment(segment, highlightRegex) {
+      const text = segment.text;
+      const escaped = escapeHtml(text);
+      switch (segment.type) {
+        case 'rainbow':
+          return `<span class="fx fx-rainbow">${buildLetters(text)}</span>`;
+        case 'sparkle':
+          return `<span class="fx fx-sparkle">${buildLetters(text)}</span>`;
+        case 'bounce':
+          return `<span class="fx fx-bounce">${escaped}</span>`;
+        case 'neon':
+          return `<span class="fx fx-neon">${escaped}</span>`;
+        case 'glitch':
+          return `<span class="fx fx-glitch" data-text="${escaped}">${escaped}</span>`;
+        default: {
+          const emphasised = applyEmphasis(escaped);
+          return highlightRegex ? emphasised.replace(highlightRegex, '<span class="highlight">$1</span>') : emphasised;
+        }
+      }
+    }
+
+    function registerTextAnimationPlugins() {
+      if (typeof window === 'undefined' || typeof gsap === 'undefined' || typeof SplitText === 'undefined') {
+        return false;
+      }
+      if (!registerTextAnimationPlugins._registered) {
+        const plugins = [SplitText];
+        if (typeof ScrambleTextPlugin !== 'undefined') {
+          plugins.push(ScrambleTextPlugin);
+        }
+        if (plugins.length) {
+          gsap.registerPlugin(...plugins);
+        }
+        registerTextAnimationPlugins._registered = true;
+      }
+      return true;
+    }
+
+    function createTextAnimator(headerEl, bodyEls = []) {
+      if (!headerEl) return null;
+      if (!registerTextAnimationPlugins()) return null;
+      const groups = Array.isArray(bodyEls) ? bodyEls : [bodyEls];
+      const activeBodies = groups.filter(el => el && typeof el.textContent === 'string' && el.textContent.trim().length);
+      let headerSplit;
+      let bodySplit;
+      try {
+        headerSplit = SplitText.create(headerEl, { type: 'chars', mask: 'chars' });
+        if (activeBodies.length) {
+          bodySplit = SplitText.create(activeBodies, { type: 'lines', mask: 'lines' });
+        }
+      } catch (err) {
+        console.warn('[ticker] text animation setup failed', err);
+        return null;
+      }
+
+      const headerChars = Array.isArray(headerSplit?.chars) ? headerSplit.chars : [];
+      const bodyLines = Array.isArray(bodySplit?.lines) ? bodySplit.lines : [];
+      const timeline = gsap.timeline({ paused: true });
+      const scrambleConfig = typeof ScrambleTextPlugin !== 'undefined' ? { text: '#', speed: 0.15 } : null;
+
+      timeline.from(headerChars, {
+        filter: 'blur(6px)',
+        y: '-15%',
+        opacity: 0,
+        scale: 0.95,
+        duration: 1.2,
+        ease: 'power2.out',
+        ...(scrambleConfig ? { scrambleText: scrambleConfig } : {}),
+        stagger: { each: 0.3, from: 'left' }
+      });
+
+      if (bodyLines.length) {
+        timeline.from(bodyLines, {
+          filter: 'blur(10px)',
+          delay: 0.55,
+          opacity: 0,
+          scale: 0.95,
+          y: '100%',
+          duration: 0.55,
+          ease: 'power1.out'
+        }, '-=0.9');
+      }
+
+      timeline.to(headerChars, {
+        opacity: 1,
+        y: '0%',
+        duration: 0.2
+      });
+
+      const playIn = () => new Promise(resolve => {
+        timeline.eventCallback('onComplete', () => {
+          timeline.eventCallback('onComplete', null);
+          resolve();
+        });
+        timeline.play(0);
+      });
+
+      const playOut = () => new Promise(resolve => {
+        const outTimeline = gsap.timeline({
+          defaults: { ease: 'power2.in', duration: 0.45 },
+          onComplete: () => {
+            resolve();
+          }
+        });
+        outTimeline.to(headerChars, {
+          filter: 'blur(6px)',
+          y: '-15%',
+          opacity: 0,
+          scale: 0.95,
+          stagger: { each: 0.12, from: 'right' }
+        });
+        if (bodyLines.length) {
+          outTimeline.to(bodyLines, {
+            filter: 'blur(10px)',
+            opacity: 0,
+            y: '100%',
+            duration: 0.4
+          }, '<');
+        }
+      });
+
+      const revert = () => {
+        try {
+          bodySplit?.revert();
+          headerSplit?.revert();
+        } catch (err) {
+          console.warn('[ticker] text animation revert failed', err);
+        }
+      };
+
+      return {
+        playIn() {
+          return playIn();
+        },
+        playOut() {
+          timeline.pause(0);
+          timeline.kill();
+          return playOut().finally(() => {
+            revert();
+          });
+        },
+        kill() {
+          timeline.kill();
+          revert();
+        }
+      };
+    }
+
+    function sanitiseMessages(list) {
+      if (!Array.isArray(list)) return [];
+      const cleaned = [];
+      for (const entry of list) {
+        if (cleaned.length >= MAX_MESSAGES) break;
+        let text = String(entry ?? '').trim();
+        if (!text) continue;
+        if (text.length > MAX_MESSAGE_LENGTH) {
+          text = text.slice(0, MAX_MESSAGE_LENGTH);
+        }
+        cleaned.push(text);
+      }
+      return cleaned;
+    }
+
+    function clampDuration(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 5;
+      return Math.min(Math.max(Math.round(numeric), 2), 90);
+    }
+
+    function clampInterval(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.min(Math.max(Math.round(numeric), 0), 3600);
+    }
+
+    function clampSlateRotation(value) {
+      if (typeof clampSlateRotationSeconds === 'function') {
+        return clampSlateRotationSeconds(value, DEFAULT_SLATE.rotationSeconds || 12);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_SLATE.rotationSeconds || 12;
+      return Math.min(Math.max(Math.round(numeric), 4), 60);
+    }
+
+    function computeSlateVisibleSeconds(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const candidate = rotation - 1;
+      const visible = Math.min(6, Math.max(2, candidate));
+      return visible;
+    }
+
+    function computeSlateGapMs(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const visibleSeconds = computeSlateVisibleSeconds(rotation);
+      const totalMs = rotation * 1000;
+      const visibleMs = visibleSeconds * 1000;
+      const gap = Math.max(1000, totalMs - visibleMs);
+      return gap;
+    }
+
+    function normaliseSlateNotesList(value) {
+      if (typeof normaliseSlateNotes === 'function') {
+        return normaliseSlateNotes(value, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH);
+      }
+      const raw = Array.isArray(value)
+        ? value
+        : String(value || '')
+            .split(/\r?\n|[,;]/)
+            .map(entry => entry.trim());
+      const notes = [];
+      for (const entry of raw) {
+        if (!entry) continue;
+        notes.push(entry.slice(0, MAX_SLATE_TEXT_LENGTH));
+        if (notes.length >= MAX_SLATE_NOTES) break;
+      }
+      return notes;
+    }
+
+    function normaliseSlateData(data) {
+      const result = {
+        ...DEFAULT_SLATE,
+        notes: Array.isArray(DEFAULT_SLATE.notes) ? [...DEFAULT_SLATE.notes] : [],
+        updatedAt: DEFAULT_SLATE.updatedAt
+      };
+      if (!data || typeof data !== 'object') return result;
+      if (typeof data.isEnabled === 'boolean') result.isEnabled = data.isEnabled;
+      if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
+      if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
+      if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (Array.isArray(data.notes) || typeof data.notes === 'string') {
+        result.notes = normaliseSlateNotesList(data.notes);
+      }
+      const updatedAt = Number(data.updatedAt ?? data._updatedAt);
+      if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
+      return result;
+    }
+
+    function deriveSlateCards(slate, _overlay) {
+      const cards = [];
+      const activeSlate = normaliseSlateData(slate);
+
+      const pushCard = (type, pill, title, subtitle = '') => {
+        const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
+        const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
+        if (!safeTitle && !safeSubtitle) return;
+        cards.push({
+          type,
+          pill: pill && typeof pill === 'string' ? pill.trim() : '',
+          title: safeTitle,
+          subtitle: safeSubtitle,
+          meta: ''
+        });
+      };
+
+      if (activeSlate.showClock) {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/London'
+        });
+        cards.push({
+          type: 'clock',
+          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
+          title: time,
+          subtitle: 'UK time',
+          meta: ''
+        });
+      }
+
+      if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
+        pushCard(
+          'next',
+          activeSlate.nextLabel || 'Next up',
+          activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
+          activeSlate.nextSubtitle || ''
+        );
+      }
+
+      if (activeSlate.sponsorName) {
+        pushCard(
+          'sponsor',
+          activeSlate.sponsorLabel || 'Sponsor',
+          activeSlate.sponsorName,
+          activeSlate.sponsorTagline || ''
+        );
+      }
+
+      if (Array.isArray(activeSlate.notes)) {
+        for (const note of activeSlate.notes) {
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
+        }
+      }
+
+      return cards;
+    }
+
+    function formatCountdownLabel(targetMs) {
+      const numeric = Number(targetMs);
+      if (!Number.isFinite(numeric)) return '';
+      const diff = Math.round(numeric - Date.now());
+      if (diff <= 0) return 'now';
+      const seconds = Math.floor(diff / 1000);
+      if (seconds >= 60) {
+        const minutes = Math.floor(seconds / 60);
+        return `${minutes} min${minutes === 1 ? '' : 's'}`;
+      }
+      const clampedSeconds = Math.max(1, seconds);
+      return `${clampedSeconds}s`;
+    }
+
+    class TickerOverlay {
+      constructor() {
+        const params = new URLSearchParams(location.search);
+        this.server = (params.get('server') || 'http://127.0.0.1:3000').replace(/\/?$/, '');
+        this.overlay = { ...DEFAULT_OVERLAY };
+        this.overrides = {
+          label: false,
+          accent: false,
+          highlight: false,
+          scale: false,
+          popupScale: false,
+          position: false,
+          mode: false,
+          accentAnim: false,
+          sparkle: false,
+          theme: false
+        };
+
+        const labelParam = params.get('label');
+        if (labelParam) {
+          this.overlay.label = labelParam;
+          this.overrides.label = true;
+        }
+
+        const accentParam = params.get('accent');
+        if (accentParam !== null) {
+          const trimmed = accentParam.trim();
+          if (!trimmed) {
+            this.overlay.accent = '';
+            this.overrides.accent = true;
+          } else if (isSafeCssColor(trimmed)) {
+            this.overlay.accent = trimmed;
+            this.overrides.accent = true;
+          } else {
+            console.warn('[ticker] ignoring unsafe accent override', trimmed);
+          }
+        }
+
+        const highlightParam = params.get('hl');
+        if (highlightParam) {
+          this.overlay.highlight = normaliseHighlightString(highlightParam);
+          this.overrides.highlight = true;
+        }
+
+        const scaleParam = parseFloat(params.get('scale'));
+        if (Number.isFinite(scaleParam)) {
+          this.overlay.scale = clampScale(scaleParam);
+          this.overrides.scale = true;
+        }
+
+        const popupScaleParam = parseFloat(params.get('popupScale'));
+        if (Number.isFinite(popupScaleParam)) {
+          this.overlay.popupScale = clampPopupScale(popupScaleParam);
+          this.overrides.popupScale = true;
+        }
+
+        const modeParam = params.get('mode');
+        if (modeParam) {
+          this.overlay.mode = normaliseMode(modeParam);
+          this.overrides.mode = true;
+        }
+
+        const positionParam = params.get('position');
+        if (positionParam) {
+          this.overlay.position = normalisePosition(positionParam);
+          this.overrides.position = true;
+        }
+
+        const themeParam = params.get('theme');
+        if (themeParam) {
+          const theme = normaliseTheme(themeParam);
+          if (theme) {
+            this.overlay.theme = theme;
+            this.overrides.theme = true;
+          }
+        }
+
+        const speed = parseFloat(params.get('speed'));
+        if (Number.isFinite(speed) && speed >= 40 && speed <= 400) {
+          document.documentElement.style.setProperty('--marquee-pps', String(speed));
+        }
+        const accentAnimParam = params.get('accentAnim');
+        if (accentAnimParam) {
+          this.overlay.accentAnim = !['0', 'false', 'off', 'no'].includes(accentAnimParam.toLowerCase());
+          this.overrides.accentAnim = true;
+        }
+        const sparkleParam = params.get('sparkle');
+        if (sparkleParam) {
+          this.overlay.sparkle = !['0', 'false', 'off', 'no'].includes(sparkleParam.toLowerCase());
+          this.overrides.sparkle = true;
+        }
+
+        this.debugEnabled = params.has('debug');
+        this.debugNodes = null;
+
+        this.container =
+          document.getElementById('ticker') ||
+          document.querySelector('.ticker');
+        this.labelNode = document.getElementById('tickerLabel');
+        this.contentNode = document.getElementById('tickerContent');
+        this.trackNode = document.getElementById('tickerTrack');
+        this.popupNode = document.getElementById('popup');
+        this.popupInner = document.getElementById('popupContent');
+        this.slateNode = document.getElementById('slate');
+        this.slateCard = document.getElementById('slateCard');
+        this.slatePill = document.getElementById('slatePill');
+        this.slateTitleNode = document.getElementById('slateTitle');
+        this.slateSubtitleNode = document.getElementById('slateSubtitle');
+        this.slateMetaNode = document.getElementById('slateMeta');
+        this.slateDotsNode = document.getElementById('slateDots');
+
+        this.customHighlights = [];
+        this.setCustomHighlights(this.overlay.highlight);
+        this.applyOverlayStyles();
+
+        this.messages = [];
+        this.isActive = false;
+        this.displayDuration = 5;
+        this.intervalSeconds = 0;
+        this.tickerUpdatedAt = null;
+        this.popup = { ...DEFAULT_POPUP };
+        this.popupVisible = false;
+        this.popupRefreshTimer = null;
+        this.popupAutoHideTimer = null;
+        this.popupCountdownTimer = null;
+        this.popupAnimator = null;
+        this.slate = { ...DEFAULT_SLATE };
+        this.slateCards = [];
+        this.slateIndex = 0;
+        this.slateRotationTimer = null;
+        this.slateClockTimer = null;
+        this.slateDisplayTimer = null;
+        this.slateRefreshTimer = null;
+        this.slateUpdatedAt = null;
+        this.slateVisible = false;
+        this.slateAnimator = null;
+        this.measureNode = null;
+        this.cachedLongestMessageWidth = null;
+
+        this.phase = 'idle';
+        this.stopTimer = null;
+        this.cooldownTimer = null;
+        this.chunkTimer = null;
+        this.fetchInFlight = false;
+        this.eventSource = null;
+        this.streamFallbackTimer = null;
+        this.streamPrimed = false;
+        this.awaitingInitialStream = true;
+        this.lastStreamFallbackAt = 0;
+        this.rafId = null;
+        this.distance = 0;
+        this.marqueeOffset = 0;
+        this.marqueeLoopWidth = 0;
+        this.marqueeNeedsReset = true;
+        this.marqueePrepared = false;
+        this.lastMarqueeMarkup = '';
+
+        if (!this.container) {
+          console.error('[ticker] missing ticker container element');
+        }
+
+        if (document && document.body) {
+          this.measureNode = document.createElement('div');
+          this.measureNode.className = 'ticker-content ticker-measure';
+          this.measureNode.setAttribute('aria-hidden', 'true');
+          document.body.appendChild(this.measureNode);
+        }
+
+        this.refreshSlateCards({ animate: false });
+        this.connectStream();
+        this.triggerStreamFallback('manual');
+        window.addEventListener('beforeunload', () => this.dispose());
+      }
+
+      debugSet(key, value) {
+        if (!this.debugEnabled) return;
+        if (!this.debugNodes) {
+          this.debugNodes = {
+            Phase: document.getElementById('debugPhase') || null,
+            Status: document.getElementById('debugStatus') || null,
+            Msgs: document.getElementById('debugMsgs') || null,
+            Anim: document.getElementById('debugAnim') || null,
+            PX: document.getElementById('debugPx') || null
+          };
+        }
+        const node = this.debugNodes[key];
+        if (node) {
+          node.textContent = String(value);
+        }
+      }
+
+      dispose() {
+        this.disconnectStream();
+        this.clearTimers();
+        if (this.measureNode && this.measureNode.parentNode) {
+          this.measureNode.parentNode.removeChild(this.measureNode);
+          this.measureNode = null;
+        }
+        if (document.body) {
+          document.body.classList.remove(...THEME_CLASSNAMES);
+          document.body.classList.remove('no-sparkle');
+        }
+        document.documentElement.style.removeProperty('--accent');
+      }
+
+      clearTimers() {
+        clearTimeout(this.stopTimer);
+        clearTimeout(this.cooldownTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+        if (this.popupRefreshTimer) {
+          clearTimeout(this.popupRefreshTimer);
+          this.popupRefreshTimer = null;
+        }
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        this.destroyPopupAnimator();
+        this.clearSlateTimers();
+        this.destroySlateAnimator();
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+      }
+
+      updateTickerState(data) {
+        if (!data || typeof data !== 'object') {
+          return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
+        }
+        const nextStampRaw = Number(data?._updatedAt ?? data?.updatedAt);
+        const hasStamp = Number.isFinite(nextStampRaw);
+        if (hasStamp && this.tickerUpdatedAt !== null && this.tickerUpdatedAt === nextStampRaw) {
+          return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
+        }
+
+        const newMessages = sanitiseMessages(data.messages || []);
+        const newActive = !!data.isActive;
+        const newDuration = clampDuration(data.displayDuration ?? this.displayDuration);
+        const newInterval = clampInterval(data.intervalBetween ?? this.intervalSeconds);
+
+        const messagesChanged = JSON.stringify(this.messages) !== JSON.stringify(newMessages);
+        const activeChanged = this.isActive !== newActive;
+        const durationChanged = this.displayDuration !== newDuration;
+        const intervalChanged = this.intervalSeconds !== newInterval;
+
+        this.messages = newMessages;
+        this.isActive = newActive && this.messages.length > 0;
+        this.displayDuration = newDuration;
+        this.intervalSeconds = newInterval;
+        if (hasStamp) {
+          this.tickerUpdatedAt = nextStampRaw;
+        } else if (this.tickerUpdatedAt === null) {
+          this.tickerUpdatedAt = Date.now();
+        }
+        if (!this.messages.length) this.isActive = false;
+        if (messagesChanged) {
+          this.marqueeNeedsReset = true;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          this.marqueeOffset = 0;
+          this.cachedLongestMessageWidth = null;
+        }
+
+        this.debugSet('Msgs', this.messages.length);
+        this.updateLabel();
+
+        return { messagesChanged, activeChanged, durationChanged, intervalChanged };
+      }
+
+      handleTickerPayload(data) {
+        const changes = this.updateTickerState(data);
+        this.evaluate(changes);
+        this.debugSet('Status', 'OK');
+      }
+
+      handlePopupPayload(data) {
+        if (!this.popupNode) return;
+        const next = normalisePopupPayload(data);
+        const textChanged = this.popup.text !== next.text;
+        const visibilityChanged = this.popup.isActive !== next.isActive;
+        this.popup = next;
+
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        if (next.isActive) {
+          this.updatePopupContent(next.text, textChanged || visibilityChanged);
+          this.showPopup();
+          if (next.countdownEnabled && Number.isFinite(next.countdownTarget)) {
+            this.startPopupCountdown();
+          }
+          this.schedulePopupAutoHide(next.durationSeconds);
+        } else {
+          this.hidePopup();
+        }
+      }
+
+      buildHighlightRegex() {
+        const merged = new Set(DEFAULT_HIGHLIGHTS);
+        for (const word of this.customHighlights) {
+          const trimmed = word.trim();
+          if (trimmed) merged.add(trimmed.toLowerCase());
+        }
+        if (!merged.size) return null;
+        const escaped = Array.from(merged)
+          .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('|');
+        return escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+      }
+
+      setCustomHighlights(list) {
+        const normalised = normaliseHighlightString(list);
+        this.overlay.highlight = normalised;
+        this.customHighlights = normalised ? normalised.split(',') : [];
+        this.highlightRegex = this.buildHighlightRegex();
+        this.cachedLongestMessageWidth = null;
+        if (this.popupVisible && this.popup.text) {
+          this.updatePopupContent(this.popup.text);
+        }
+      }
+
+      updatePopupContent(text, animate = false) {
+        if (!this.popupInner) return;
+        this.destroyPopupAnimator();
+        const html = formatMessage(text, this.highlightRegex);
+        this.popupInner.innerHTML = '';
+        let messageNode = null;
+        if (html) {
+          messageNode = document.createElement('div');
+          messageNode.className = 'popup-message';
+          messageNode.innerHTML = html;
+          this.popupInner.appendChild(messageNode);
+        }
+        if (this.popup.countdownEnabled && Number.isFinite(this.popup.countdownTarget)) {
+          const countdown = document.createElement('span');
+          countdown.className = 'popup-countdown';
+          countdown.dataset.popupCountdown = 'true';
+          this.popupInner.appendChild(countdown);
+        }
+        if (animate) {
+          this.popupInner.classList.remove('refresh');
+          // force reflow
+          void this.popupInner.offsetWidth;
+          this.popupInner.classList.add('refresh');
+          if (this.popupRefreshTimer) clearTimeout(this.popupRefreshTimer);
+          this.popupRefreshTimer = setTimeout(() => {
+            this.popupInner.classList.remove('refresh');
+            this.popupRefreshTimer = null;
+          }, 400);
+        }
+        this.updatePopupCountdownDisplay();
+        if (animate && messageNode) {
+          const animator = createTextAnimator(messageNode);
+          if (animator) {
+            this.popupAnimator = animator;
+            animator.playIn().catch(() => this.destroyPopupAnimator());
+          }
+        }
+      }
+
+    clearPopupAutoTimer() {
+      if (this.popupAutoHideTimer) {
+        clearTimeout(this.popupAutoHideTimer);
+        this.popupAutoHideTimer = null;
+      }
+    }
+
+    clearPopupCountdownTimer() {
+      if (this.popupCountdownTimer) {
+        clearInterval(this.popupCountdownTimer);
+        this.popupCountdownTimer = null;
+      }
+    }
+
+    destroyPopupAnimator() {
+      if (this.popupAnimator && typeof this.popupAnimator.kill === 'function') {
+        try {
+          this.popupAnimator.kill();
+        } catch (err) {
+          console.warn('[ticker] popup text animation cleanup failed', err);
+        }
+      }
+      this.popupAnimator = null;
+    }
+
+    updatePopupCountdownDisplay() {
+      if (!this.popupInner) return;
+      const countdownEl = this.popupInner.querySelector('[data-popup-countdown]');
+      if (!countdownEl) return;
+      if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) {
+        countdownEl.textContent = '';
+        return;
+      }
+      const label = formatCountdownLabel(this.popup.countdownTarget);
+      countdownEl.textContent = label;
+      if (label === 'now') {
+        this.clearPopupCountdownTimer();
+      }
+    }
+
+    startPopupCountdown() {
+      this.clearPopupCountdownTimer();
+      if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) return;
+      this.updatePopupCountdownDisplay();
+      this.popupCountdownTimer = setInterval(() => {
+        if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) {
+          this.clearPopupCountdownTimer();
+          return;
+        }
+        this.updatePopupCountdownDisplay();
+      }, 1000);
+    }
+
+    clearSlateTimers() {
+      if (this.slateRotationTimer) {
+        clearTimeout(this.slateRotationTimer);
+        this.slateRotationTimer = null;
+      }
+      if (this.slateDisplayTimer) {
+        clearTimeout(this.slateDisplayTimer);
+        this.slateDisplayTimer = null;
+      }
+      this.stopSlateClock();
+      if (this.slateRefreshTimer) {
+        clearTimeout(this.slateRefreshTimer);
+        this.slateRefreshTimer = null;
+      }
+    }
+
+    destroySlateAnimator() {
+      if (this.slateAnimator && typeof this.slateAnimator.kill === 'function') {
+        try {
+          this.slateAnimator.kill();
+        } catch (err) {
+          console.warn('[ticker] slate text animation cleanup failed', err);
+        }
+      }
+      this.slateAnimator = null;
+    }
+
+    showSlate() {
+      if (!this.slateNode) return;
+      this.slateNode.classList.toggle('push-down', this.overlay.position === 'top');
+      this.slateNode.classList.add('show');
+      this.slateVisible = true;
+    }
+
+    concealSlate() {
+      if (!this.slateNode) return;
+      this.slateNode.classList.remove('show');
+      this.slateVisible = false;
+    }
+
+    hideSlate() {
+      if (!this.slateNode) return;
+      this.clearSlateTimers();
+      const finalize = () => {
+        this.concealSlate();
+        this.slateNode.classList.remove('push-down');
+        this.slateCurrentCard = null;
+        this.slateIndex = 0;
+        if (this.slateDotsNode) {
+          this.slateDotsNode.innerHTML = '';
+        }
+        this.destroySlateAnimator();
+      };
+      if (this.slateVisible && this.slateAnimator) {
+        this.slateAnimator.playOut().catch(() => {}).finally(finalize);
+      } else {
+        finalize();
+      }
+    }
+
+    updateSlateDots() {
+      if (!this.slateDotsNode) return;
+      if (!this.slate.isEnabled || this.slateCards.length <= 1) {
+        this.slateDotsNode.innerHTML = '';
+        return;
+      }
+      const dots = this.slateCards
+        .map((_, index) => `<span class="${index === this.slateIndex ? 'is-active' : ''}"></span>`)
+        .join('');
+      this.slateDotsNode.innerHTML = dots;
+    }
+
+    updateSlateClockDisplay(card = this.slateCurrentCard) {
+      if (!card) return;
+      const now = new Date();
+      if (this.slateTitleNode) {
+        const time = now.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/London'
+        });
+        this.slateTitleNode.textContent = time;
+      }
+      if (this.slateSubtitleNode) {
+        const subtitle = card.subtitle && typeof card.subtitle === 'string'
+          ? card.subtitle
+          : 'UK time';
+        if (subtitle) {
+          this.slateSubtitleNode.textContent = subtitle;
+          this.slateSubtitleNode.classList.remove('is-hidden');
+        } else {
+          this.slateSubtitleNode.textContent = '';
+          this.slateSubtitleNode.classList.add('is-hidden');
+        }
+      }
+      if (this.slateMetaNode) {
+        const meta = card.meta && typeof card.meta === 'string' ? card.meta : '';
+        if (meta) {
+          this.slateMetaNode.textContent = meta;
+          this.slateMetaNode.classList.remove('is-hidden');
+        } else {
+          this.slateMetaNode.textContent = '';
+          this.slateMetaNode.classList.add('is-hidden');
+        }
+      }
+    }
+
+    startSlateClock(card) {
+      this.stopSlateClock();
+      this.updateSlateClockDisplay(card);
+      this.slateClockTimer = setInterval(() => {
+        this.updateSlateClockDisplay(card);
+      }, 1000);
+    }
+
+    stopSlateClock() {
+      if (this.slateClockTimer) {
+        clearInterval(this.slateClockTimer);
+        this.slateClockTimer = null;
+      }
+    }
+
+    applySlateCard(card, { animate = true } = {}) {
+      if (!this.slateNode || !this.slateCard) return;
+      this.destroySlateAnimator();
+      this.slateCurrentCard = card;
+      if (this.slateCard) {
+        this.slateCard.dataset.type = card.type || '';
+      }
+      if (this.slatePill) {
+        this.slatePill.textContent = card.pill || 'Segment';
+      }
+      if (this.slateTitleNode) {
+        this.slateTitleNode.textContent = card.title || '';
+      }
+      if (this.slateSubtitleNode) {
+        if (card.subtitle) {
+          this.slateSubtitleNode.textContent = card.subtitle;
+          this.slateSubtitleNode.classList.remove('is-hidden');
+        } else {
+          this.slateSubtitleNode.textContent = '';
+          this.slateSubtitleNode.classList.add('is-hidden');
+        }
+      }
+      if (this.slateMetaNode) {
+        if (card.meta) {
+          this.slateMetaNode.textContent = card.meta;
+          this.slateMetaNode.classList.remove('is-hidden');
+        } else {
+          this.slateMetaNode.textContent = '';
+          this.slateMetaNode.classList.add('is-hidden');
+        }
+      }
+      if (animate && this.slateCard) {
+        this.slateCard.classList.remove('refresh');
+        void this.slateCard.offsetWidth;
+        this.slateCard.classList.add('refresh');
+        if (this.slateRefreshTimer) clearTimeout(this.slateRefreshTimer);
+        this.slateRefreshTimer = setTimeout(() => {
+          if (this.slateCard) {
+            this.slateCard.classList.remove('refresh');
+          }
+          this.slateRefreshTimer = null;
+        }, 420);
+      }
+      if (card.type === 'clock') {
+        this.startSlateClock(card);
+      }
+      this.updateSlateDots();
+      if (animate && card.type !== 'clock') {
+        const headerEl = this.slateTitleNode && this.slateTitleNode.textContent.trim() ? this.slateTitleNode : null;
+        const bodyTargets = [];
+        if (this.slateSubtitleNode && !this.slateSubtitleNode.classList.contains('is-hidden') && this.slateSubtitleNode.textContent.trim()) {
+          bodyTargets.push(this.slateSubtitleNode);
+        }
+        if (this.slateMetaNode && !this.slateMetaNode.classList.contains('is-hidden') && this.slateMetaNode.textContent.trim()) {
+          bodyTargets.push(this.slateMetaNode);
+        }
+        if (headerEl) {
+          const animator = createTextAnimator(headerEl, bodyTargets);
+          if (animator) {
+            this.slateAnimator = animator;
+            animator.playIn().catch(() => this.destroySlateAnimator());
+          }
+        }
+      }
+    }
+
+    playSlateCard(index = this.slateIndex, { animate = true } = {}) {
+      if (!this.slateCards.length) return;
+      const rotationSeconds = clampSlateRotation(this.slate.rotationSeconds);
+      this.clearSlateTimers();
+      const nextIndex = index % this.slateCards.length;
+      this.slateIndex = nextIndex < 0 ? this.slateCards.length - 1 : nextIndex;
+      const card = this.slateCards[this.slateIndex];
+      this.applySlateCard(card, { animate });
+      this.showSlate();
+      const visibleSeconds = computeSlateVisibleSeconds(rotationSeconds);
+      if (visibleSeconds <= 0) {
+        this.scheduleNextSlateCard(rotationSeconds);
+        return;
+      }
+      this.slateDisplayTimer = setTimeout(() => {
+        this.slateDisplayTimer = null;
+        this.stopSlateClock();
+        const continueRotation = () => {
+          this.destroySlateAnimator();
+          this.concealSlate();
+          this.scheduleNextSlateCard(rotationSeconds);
+        };
+        if (this.slateAnimator) {
+          this.slateAnimator.playOut().catch(() => {}).finally(continueRotation);
+        } else {
+          continueRotation();
+        }
+      }, visibleSeconds * 1000);
+    }
+
+    scheduleNextSlateCard(rotationSeconds = clampSlateRotation(this.slate.rotationSeconds)) {
+      if (!this.slate.isEnabled || !this.slateCards.length) return;
+      const gapMs = computeSlateGapMs(rotationSeconds);
+      this.slateRotationTimer = setTimeout(() => {
+        this.slateRotationTimer = null;
+        if (!this.slate.isEnabled || !this.slateCards.length) return;
+        this.slateIndex = (this.slateIndex + 1) % this.slateCards.length;
+        this.playSlateCard(this.slateIndex, { animate: true });
+      }, gapMs > 0 ? gapMs : 1000);
+    }
+
+    refreshSlateCards({ animate = true } = {}) {
+      if (!this.slateNode) return;
+      this.clearSlateTimers();
+      const previousType = this.slateCards[this.slateIndex]?.type;
+      const cards = deriveSlateCards(this.slate, this.overlay);
+      this.slateCards = cards;
+      if (!this.slate.isEnabled || !cards.length) {
+        this.hideSlate();
+        return;
+      }
+      let nextIndex = 0;
+      if (previousType) {
+        const matchIndex = cards.findIndex(card => card.type === previousType);
+        if (matchIndex !== -1) {
+          nextIndex = matchIndex;
+        }
+      }
+      this.playSlateCard(nextIndex, { animate });
+    }
+
+    schedulePopupAutoHide(durationSeconds) {
+      this.clearPopupAutoTimer();
+      const numeric = Number(durationSeconds);
+      if (!Number.isFinite(numeric) || numeric <= 0) return;
+      const clamped = Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(numeric)));
+      this.popupAutoHideTimer = setTimeout(() => {
+        this.popupAutoHideTimer = null;
+        this.hidePopup();
+      }, clamped * 1000);
+    }
+
+    showPopup() {
+      if (!this.popupNode) return;
+      if (!this.popupVisible) {
+        this.popupNode.classList.add('show');
+        this.popupVisible = true;
+        }
+      }
+
+      hidePopup() {
+        if (!this.popupNode) return;
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        const finalize = () => {
+          if (this.popupNode) {
+            this.popupNode.classList.remove('show');
+          }
+          this.popupVisible = false;
+          if (this.popupInner) {
+            this.popupInner.classList.remove('refresh');
+          }
+          this.destroyPopupAnimator();
+        };
+        if (this.popupVisible && this.popupAnimator) {
+          this.popupAnimator.playOut().catch(() => {}).finally(finalize);
+        } else {
+          finalize();
+        }
+      }
+
+      applyOverlayStyles({ refreshContent = false } = {}) {
+        const theme = normaliseTheme(this.overlay.theme) || DEFAULT_OVERLAY.theme;
+        this.overlay.theme = theme;
+        if (this.container) {
+          this.container.classList.remove(...THEME_CLASSNAMES);
+          this.container.classList.add(`ticker--${theme}`);
+          this.container.classList.toggle('top', this.overlay.position === 'top');
+          this.container.classList.toggle('no-accent-anim', !this.overlay.accentAnim);
+        }
+        if (document.body) {
+          document.body.classList.remove(...THEME_CLASSNAMES);
+          document.body.classList.add(`ticker--${theme}`);
+          document.body.classList.toggle('no-sparkle', !this.overlay.sparkle);
+        }
+        this.labelNode.textContent = this.overlay.label;
+        if (this.overlay.accent && isSafeCssColor(this.overlay.accent)) {
+          document.documentElement.style.setProperty('--accent', this.overlay.accent);
+        } else {
+          document.documentElement.style.removeProperty('--accent');
+        }
+        document.documentElement.style.setProperty('--ui-scale', String(this.overlay.scale));
+        document.documentElement.style.setProperty('--popup-scale', String(this.overlay.popupScale));
+        this.cachedLongestMessageWidth = null;
+        if (this.popupNode) {
+          this.popupNode.classList.toggle('push-down', this.overlay.position === 'top');
+        }
+        if (refreshContent && this.phase === 'visible') {
+          this.refreshVisible(true);
+        }
+      }
+
+    applyOverlayData(data) {
+      if (!data || typeof data !== 'object') return;
+      let refresh = false;
+      let slateNeedsRefresh = false;
+
+      if (!this.overrides.label && typeof data.label === 'string' && data.label.trim()) {
+        const trimmed = data.label.trim();
+        if (trimmed !== this.overlay.label) {
+          this.overlay.label = trimmed;
+          slateNeedsRefresh = true;
+        }
+      }
+
+        if (!this.overrides.accent && typeof data.accent === 'string') {
+          const accent = data.accent.trim();
+          if (!accent) {
+            if (this.overlay.accent) {
+              this.overlay.accent = '';
+            }
+          } else if (isSafeCssColor(accent)) {
+            if (accent !== this.overlay.accent) {
+              this.overlay.accent = accent;
+            }
+          } else {
+            console.warn('[ticker] ignoring unsafe accent update', accent);
+          }
+        }
+
+        if (!this.overrides.highlight && typeof data.highlight === 'string') {
+          const normalised = normaliseHighlightString(data.highlight);
+          if (normalised !== this.overlay.highlight) {
+            this.setCustomHighlights(normalised);
+            refresh = true;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        if (!this.overrides.scale && Number.isFinite(data.scale)) {
+          const clamped = clampScale(data.scale);
+          if (clamped !== this.overlay.scale) {
+            this.overlay.scale = clamped;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.popupScale && Number.isFinite(data.popupScale)) {
+          const clampedPopup = clampPopupScale(data.popupScale);
+          if (clampedPopup !== this.overlay.popupScale) {
+            this.overlay.popupScale = clampedPopup;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.position && typeof data.position === 'string') {
+          const position = normalisePosition(data.position);
+          if (position !== this.overlay.position) {
+            this.overlay.position = position;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        if (!this.overrides.mode && typeof data.mode === 'string') {
+          const mode = normaliseMode(data.mode);
+          if (mode !== this.overlay.mode) {
+            this.overlay.mode = mode;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.accentAnim && typeof data.accentAnim === 'boolean') {
+          if (data.accentAnim !== this.overlay.accentAnim) {
+            this.overlay.accentAnim = data.accentAnim;
+          }
+        }
+
+        if (!this.overrides.sparkle && typeof data.sparkle === 'boolean') {
+          if (data.sparkle !== this.overlay.sparkle) {
+            this.overlay.sparkle = data.sparkle;
+          }
+        }
+
+        if (!this.overrides.theme && typeof data.theme === 'string') {
+          const theme = normaliseTheme(data.theme);
+          if (theme && theme !== this.overlay.theme) {
+            this.overlay.theme = theme;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        this.applyOverlayStyles({ refreshContent: refresh });
+        this.slateNode?.classList.toggle('push-down', this.overlay.position === 'top');
+        if (slateNeedsRefresh) {
+          this.refreshSlateCards({ animate: false });
+        }
+        this.updateLabel();
+      }
+
+    handleSlatePayload(data) {
+      if (!data || typeof data !== 'object') return;
+      const next = normaliseSlateData(data);
+      const stamp = Number(data._updatedAt ?? data.updatedAt ?? next.updatedAt);
+      if (Number.isFinite(stamp) && Number.isFinite(this.slateUpdatedAt) && this.slateUpdatedAt === stamp) {
+        return;
+      }
+      this.slate = next;
+      this.slateUpdatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      this.refreshSlateCards();
+    }
+
+      async fetchState() {
+        if (this.fetchInFlight) return;
+        this.fetchInFlight = true;
+        this.debugSet('Status', 'fetching state');
+        try {
+          let tickerPayload;
+          try {
+            const tickerRes = await fetch(`${this.server}/ticker/state`, { cache: 'no-store' });
+            if (!tickerRes.ok) {
+              throw new Error(`HTTP ${tickerRes.status}`);
+            }
+            tickerPayload = await tickerRes.json();
+          } catch (err) {
+            console.error('[ticker] failed to fetch ticker state', err);
+            this.debugSet('Status', 'ticker fetch failed');
+            if (this.awaitingInitialStream && !this.streamPrimed) {
+              this.scheduleStreamFallback();
+            }
+            return;
+          }
+
+          this.handleTickerPayload(tickerPayload);
+
+          if (!this.streamPrimed && this.awaitingInitialStream) {
+            this.awaitingInitialStream = false;
+            if (this.streamFallbackTimer) {
+              clearTimeout(this.streamFallbackTimer);
+              this.streamFallbackTimer = null;
+            }
+          }
+
+          const optionalFetches = [
+            {
+              name: 'overlay',
+              url: `${this.server}/ticker/overlay`,
+              handler: data => this.applyOverlayData(data),
+            },
+            {
+              name: 'popup',
+              url: `${this.server}/popup/state`,
+              handler: data => this.handlePopupPayload(data),
+            },
+            {
+              name: 'slate',
+              url: `${this.server}/slate/state`,
+              handler: data => this.handleSlatePayload(data),
+            },
+          ];
+
+          let optionalFailed = false;
+          await Promise.all(
+            optionalFetches.map(async ({ name, url, handler }) => {
+              try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}`);
+                }
+                const payload = await response.json();
+                handler(payload);
+              } catch (err) {
+                console.warn(`[ticker] optional ${name} fetch failed`, err);
+                optionalFailed = true;
+              }
+            })
+          );
+
+          this.debugSet('Status', optionalFailed ? 'state synced (partial)' : 'state synced');
+        } finally {
+          this.fetchInFlight = false;
+        }
+      }
+
+      scheduleStreamFallback() {
+        if (this.streamPrimed || !this.awaitingInitialStream) return;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+        }
+        this.streamFallbackTimer = setTimeout(() => {
+          this.streamFallbackTimer = null;
+          this.triggerStreamFallback('timeout');
+        }, 2000);
+      }
+
+      markStreamPrimed() {
+        if (this.streamPrimed) return;
+        this.streamPrimed = true;
+        this.awaitingInitialStream = false;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+      }
+
+      triggerStreamFallback(reason) {
+        if (this.streamPrimed || !this.awaitingInitialStream) return;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+        if (this.fetchInFlight) return;
+        const now = Date.now();
+        if (this.lastStreamFallbackAt && now - this.lastStreamFallbackAt < 1000) {
+          return;
+        }
+        this.lastStreamFallbackAt = now;
+        const status =
+          reason === 'timeout'
+            ? 'stream timeout; fetching'
+            : reason === 'manual'
+            ? 'initialising; fetching state'
+            : 'stream error; fetching';
+        this.debugSet('Status', status);
+        this.fetchState();
+      }
+
+      disconnectStream() {
+        if (this.eventSource) {
+          this.eventSource.close();
+          this.eventSource = null;
+        }
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+        this.awaitingInitialStream = false;
+      }
+
+      connectStream() {
+        this.disconnectStream();
+        try {
+          const source = new EventSource(`${this.server}/ticker/stream`);
+          this.eventSource = source;
+          this.streamPrimed = false;
+          this.awaitingInitialStream = true;
+          this.scheduleStreamFallback();
+
+          source.addEventListener('open', () => {
+            this.debugSet('Status', 'stream online');
+          });
+
+          source.addEventListener('error', () => {
+            this.debugSet('Status', 'stream reconnecting');
+            this.scheduleStreamFallback();
+            this.triggerStreamFallback('error');
+          });
+
+          source.addEventListener('ticker', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              this.handleTickerPayload(payload);
+              this.markStreamPrimed();
+            } catch (err) {
+              console.warn('[ticker] stream ticker parse failed', err);
+            }
+          });
+
+          source.addEventListener('overlay', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              this.applyOverlayData(payload);
+              this.markStreamPrimed();
+            } catch (err) {
+              console.warn('[ticker] stream overlay parse failed', err);
+            }
+          });
+
+          source.addEventListener('popup', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              this.handlePopupPayload(payload);
+              this.markStreamPrimed();
+            } catch (err) {
+              console.warn('[ticker] stream popup parse failed', err);
+            }
+          });
+
+          source.addEventListener('slate', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              this.handleSlatePayload(payload);
+              this.markStreamPrimed();
+            } catch (err) {
+              console.warn('[ticker] stream slate parse failed', err);
+            }
+          });
+        } catch (err) {
+          console.error('[ticker] failed to connect to stream', err);
+          this.debugSet('Status', 'stream error');
+          this.streamPrimed = false;
+          this.triggerStreamFallback('error');
+        }
+      }
+
+      shouldUseMarquee() {
+        if (this.overlay.mode === 'marquee') return true;
+        if (this.overlay.mode === 'chunk') return false;
+
+        const messageCount = this.messages.length;
+        if (messageCount === 0) return false;
+
+        const trackWidth = this.trackNode ? this.trackNode.clientWidth : 0;
+        if (trackWidth > 0) {
+          const longestWidth = this.getLongestMessageWidth();
+          if (Number.isFinite(longestWidth) && longestWidth > 0) {
+            const limit = trackWidth * 0.9;
+            if (longestWidth <= limit && messageCount <= 6) {
+              return false;
+            }
+          }
+        }
+
+        const totalLength = this.messages.reduce((sum, message) => {
+          const cleaned = String(message || '').replace(/\s+/g, ' ').trim();
+          return sum + cleaned.length;
+        }, 0);
+        const averageLength = messageCount ? totalLength / messageCount : 0;
+
+        if (messageCount <= 2 && averageLength <= 48) return false;
+        if (totalLength <= 120 && messageCount <= 3) return false;
+
+        return true;
+      }
+
+      evaluate({ messagesChanged = false, activeChanged = false, durationChanged = false, intervalChanged = false } = {}) {
+        if (!this.isActive) {
+          this.hideTicker(true);
+          return;
+        }
+
+        if (this.phase === 'idle') {
+          this.showTicker();
+          return;
+        }
+
+        if (this.phase === 'visible') {
+          if (messagesChanged) {
+            this.refreshVisible();
+          }
+          if (durationChanged) {
+            this.startVisibleTimer();
+          }
+        }
+
+        if (intervalChanged && this.phase === 'cooldown') {
+          this.scheduleCooldown(true);
+        }
+      }
+
+      showTicker() {
+        if (!this.container || !this.messages.length) return;
+        const marquee = this.shouldUseMarquee();
+        this.container.classList.remove('is-hiding');
+        this.phase = 'visible';
+        this.refreshVisible();
+        this.container.classList.add('show');
+        if (marquee) {
+          this.debugSet('Status', 'marquee');
+        } else {
+          this.startVisibleTimer();
+        }
+      }
+
+      refreshVisible(force = false) {
+        const marquee = this.shouldUseMarquee();
+        if (marquee) {
+          clearInterval(this.chunkTimer);
+          this.chunkTimer = null;
+          const shouldReset = force || this.marqueeNeedsReset;
+          this.prepareMarquee(shouldReset);
+          this.marqueeNeedsReset = false;
+          if (this.phase === 'visible') {
+            this.debugSet('Status', 'marquee');
+          }
+        } else {
+          this.stopMarquee(true);
+          this.marqueeNeedsReset = true;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          this.marqueeOffset = 0;
+          this.marqueeLoopWidth = 0;
+          this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+          this.startChunkCycle(force);
+        }
+      }
+
+      startVisibleTimer() {
+        if (this.shouldUseMarquee()) {
+          this.debugSet('Status', 'marquee');
+          clearTimeout(this.stopTimer);
+          this.stopTimer = null;
+          return;
+        }
+        clearTimeout(this.stopTimer);
+        const durationMs = Math.max(1000, this.displayDuration * 1000);
+        this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
+        this.debugSet('Status', `visible ${this.displayDuration}s`);
+      }
+
+      completeRun() {
+        if (this.shouldUseMarquee()) {
+          this.debugSet('Status', 'marquee');
+          return;
+        }
+        this.hideTicker().then(() => {
+          this.scheduleCooldown();
+        });
+      }
+
+      scheduleCooldown(reset = false) {
+        if (reset) clearTimeout(this.cooldownTimer);
+        const gap = Math.max(0, this.intervalSeconds) * 1000;
+        if (gap === 0) {
+          this.phase = 'idle';
+          this.evaluate();
+          return;
+        }
+        this.phase = 'cooldown';
+        this.debugSet('Status', `cooldown ${this.intervalSeconds}s`);
+        this.cooldownTimer = setTimeout(() => {
+          this.phase = 'idle';
+          this.evaluate();
+        }, gap);
+      }
+
+      hideTicker(immediate = false) {
+        clearTimeout(this.stopTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+        if (!this.container || !this.container.classList.contains('show')) {
+          if (this.container) this.container.classList.remove('is-hiding');
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+
+        this.phase = 'hiding';
+        this.container.classList.add('is-hiding');
+
+        if (immediate) {
+          this.container.classList.remove('show');
+          this.container.classList.remove('is-hiding');
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+
+        return new Promise(resolve => {
+          const element = this.container;
+          if (!element) {
+            this.phase = 'idle';
+            resolve();
+            return;
+          }
+
+          let triggered = false;
+
+          const finalize = () => {
+            if (element) {
+              element.classList.remove('is-hiding');
+            }
+            this.phase = 'idle';
+            resolve();
+          };
+
+          const proceed = () => {
+            if (triggered) return;
+            triggered = true;
+            if (!element) {
+              finalize();
+              return;
+            }
+            element.classList.remove('show');
+            this.waitForTransition(element, HIDE_TRANSITION_FALLBACK_MS).then(finalize);
+          };
+
+          const onFirstTransition = event => {
+            if (!element || event.target !== element) return;
+            element.removeEventListener('transitionend', onFirstTransition);
+            clearTimeout(fallbackTimer);
+            proceed();
+          };
+
+          const fallbackTimer = setTimeout(() => {
+            if (element) {
+              element.removeEventListener('transitionend', onFirstTransition);
+            }
+            proceed();
+          }, HIDE_TRANSITION_FALLBACK_MS);
+
+          element.addEventListener('transitionend', onFirstTransition, { once: true });
+        });
+      }
+
+      waitForTransition(element, timeout = 500) {
+        return new Promise(resolve => {
+          let resolved = false;
+          const finish = () => {
+            if (!resolved) {
+              resolved = true;
+              element.removeEventListener('transitionend', onEnd);
+              resolve();
+            }
+          };
+          const onEnd = (event) => {
+            if (event.target === element) finish();
+          };
+          element.addEventListener('transitionend', onEnd);
+          setTimeout(finish, timeout);
+        });
+      }
+
+      prepareMarquee(options = {}) {
+        const params = typeof options === 'boolean' ? { resetOffset: options } : options || {};
+        const resetOffset = !!params.resetOffset;
+        const restart = !!params.restart;
+
+        const html = this.buildMarqueeHtml();
+        if (!html) {
+          this.stopMarquee(true);
+          this.distance = 0;
+          this.marqueeLoopWidth = 0;
+          this.marqueeOffset = 0;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          if (this.contentNode) {
+            this.contentNode.innerHTML = '';
+            this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+          }
+          return false;
+        }
+
+        if (resetOffset) {
+          this.marqueeOffset = 0;
+        }
+
+        const needsMarkupRefresh =
+          restart ||
+          !this.marqueePrepared ||
+          this.lastMarqueeMarkup !== html;
+
+        this.stopMarquee();
+
+        if (needsMarkupRefresh && this.contentNode) {
+          this.contentNode.style.transition = 'none';
+          this.contentNode.innerHTML = html;
+          this.lastMarqueeMarkup = html;
+          void this.contentNode.offsetWidth;
+        }
+
+        if (this.contentNode) {
+          this.distance = Math.max(1, this.contentNode.scrollWidth / 2);
+          this.marqueeLoopWidth = this.distance;
+        } else {
+          this.distance = 0;
+          this.marqueeLoopWidth = 0;
+        }
+
+        this.marqueeOffset = this.normaliseMarqueeOffset(this.marqueeOffset);
+        this.applyMarqueeTransform();
+        this.startMarquee();
+        this.marqueePrepared = true;
+        this.marqueeNeedsReset = false;
+        return true;
+      }
+
+      normaliseMarqueeOffset(value) {
+        const loop = this.marqueeLoopWidth || this.distance || 0;
+        if (!loop) return 0;
+        let offset = Number(value);
+        if (!Number.isFinite(offset)) offset = 0;
+        offset %= loop;
+        if (offset < 0) offset += loop;
+        return offset;
+      }
+
+      applyMarqueeTransform() {
+        if (!this.contentNode) return;
+        const offset = this.normaliseMarqueeOffset(this.marqueeOffset);
+        this.marqueeOffset = offset;
+        this.contentNode.style.transform = `translate3d(${-offset}px, 0, 0)`;
+      }
+
+      startMarquee() {
+        if (!this.contentNode) return;
+        const distance = this.distance;
+        if (!distance) return;
+
+        cancelAnimationFrame(this.rafId);
+
+        const speed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marquee-pps')) || 110;
+        let offsetBase = this.normaliseMarqueeOffset(this.marqueeOffset);
+        let last = performance.now();
+
+        const step = now => {
+          const delta = (now - last) / 1000;
+          last = now;
+
+          if (this.phase !== 'visible' && this.phase !== 'showing') {
+            offsetBase = this.normaliseMarqueeOffset(offsetBase);
+            this.marqueeOffset = offsetBase;
+            this.rafId = requestAnimationFrame(step);
+            return;
+          }
+
+          if (delta > 0) {
+            offsetBase = this.normaliseMarqueeOffset(offsetBase + delta * speed);
+          }
+          this.marqueeOffset = offsetBase;
+          this.contentNode.style.transform = `translate3d(${-offsetBase}px, 0, 0)`;
+          this.rafId = requestAnimationFrame(step);
+        };
+
+        this.marqueeOffset = offsetBase;
+        this.contentNode.style.transform = `translate3d(${-offsetBase}px, 0, 0)`;
+        this.rafId = requestAnimationFrame(step);
+      }
+
+      stopMarquee(resetTransform = false) {
+        if (this.rafId) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+        if (resetTransform && this.contentNode) {
+          this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+        }
+      }
+
+      startChunkCycle(reset = false) {
+        const items = this.messages.map(msg => formatMessage(msg, this.highlightRegex));
+        if (!items.length) {
+          this.contentNode.innerHTML = '';
+          return;
+        }
+        let index = 0;
+        const show = () => {
+          if (this.phase !== 'visible') return;
+          this.contentNode.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+          this.contentNode.style.opacity = '0';
+          this.contentNode.style.transform = 'translate3d(12px,0,0)';
+          setTimeout(() => {
+            this.contentNode.innerHTML = `${items[index]}<span class="message-separator"></span>`;
+            this.contentNode.style.opacity = '1';
+            this.contentNode.style.transform = 'translate3d(0,0,0)';
+          }, 120);
+          index = (index + 1) % items.length;
+        };
+        show();
+        clearInterval(this.chunkTimer);
+        const interval = Math.max(1600, Math.min(6000, this.displayDuration * 1000 / Math.max(1, items.length)));
+        this.chunkTimer = setInterval(() => {
+          if (this.phase !== 'visible') return;
+          show();
+        }, interval);
+      }
+
+      getLongestMessageWidth() {
+        if (this.cachedLongestMessageWidth !== null) {
+          return this.cachedLongestMessageWidth;
+        }
+        if (!this.measureNode || !this.messages.length) {
+          this.cachedLongestMessageWidth = 0;
+          return 0;
+        }
+
+        let maxWidth = 0;
+        for (const message of this.messages) {
+          const html = formatMessage(message, this.highlightRegex);
+          if (!html) continue;
+          this.measureNode.innerHTML = html;
+          const rect = this.measureNode.getBoundingClientRect();
+          if (rect && rect.width > maxWidth) {
+            maxWidth = rect.width;
+          }
+        }
+        this.measureNode.innerHTML = '';
+        this.cachedLongestMessageWidth = maxWidth;
+        return maxWidth;
+      }
+
+      buildMarqueeHtml() {
+        if (!this.messages.length) return '';
+        const separator = '<span class="message-separator"></span>';
+        const formatted = this.messages.map(msg => formatMessage(msg, this.highlightRegex)).join(separator);
+        return `${formatted}${separator}${formatted}`;
+      }
+
+      updateLabel() {
+        this.labelNode.textContent = this.overlay.label;
+        const combined = this.messages.join(' ').toLowerCase();
+        const isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
+        this.labelNode.classList.toggle('is-breaking', isBreaking);
+      }
+    }
+
+    new TickerOverlay();
+  </script>
+</body>
+</html>

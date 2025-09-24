@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en" class="ticker--glass"> <!-- borrow variables from your themes.css -->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Silent Hill f x Ryukishi Tropes Bingo</title>
+
+  <!-- Optional: Google Font -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- Your style tokens / motion presets (place this file next to bingo.html) -->
+  <link rel="stylesheet" href="themes.css">
+
+  <!-- Anime.js for tiny, silky animations -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js" defer></script>
+
+  <style>
+    :root{
+      --ui-scale: 1;
+      --accent: #8a7fff;               /* tweakable */
+      --bg: #0b0f1b;
+      --ink: #eaf1ff;
+      --muted: #9fb1d6;
+      --grid-gap: 10px;
+      --radius: 16px;
+      --tile: clamp(86px, 16.2vmin, 160px);
+      --shadow-xl: var(--ticker-shadow, 0 48px 100px rgba(0,0,0,.5));
+      --ease-out: var(--ease-dramatic, cubic-bezier(.19,1,.22,1));
+      --ease-bounce: var(--ease-bounce, cubic-bezier(.68,-.55,.265,1.55));
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol";
+      color: var(--ink);
+      background:
+        radial-gradient(140% 120% at 10% 0%, rgba(120,190,255,.08), transparent 55%),
+        radial-gradient(160% 160% at 90% 10%, rgba(86,130,220,.06), transparent 70%),
+        linear-gradient(180deg,#0a0f1a 0%, #070b14 100%);
+      min-height:100%;
+    }
+
+    .wrap{
+      max-width: min(1200px, 96vw);
+      margin: clamp(16px,4vmin,32px) auto;
+      padding: clamp(12px,2.5vmin,22px);
+      border-radius: calc(var(--radius) * 1.25);
+      background:
+        linear-gradient(145deg, rgba(22,34,66,.6), rgba(8,18,44,.5)),
+        var(--ticker-ambient-mask, transparent);
+      border: 1px solid var(--ticker-border, rgba(148,188,255,.22));
+      box-shadow: var(--shadow-xl);
+      backdrop-filter: var(--ticker-backdrop-filter, blur(20px) saturate(1.15));
+      position: relative;
+      overflow: hidden;
+      animation: var(--ticker-motion-stack);
+    }
+
+    .hdr{
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
+      padding: clamp(10px,2vmin,16px) 0;
+      border-bottom: 1px solid var(--ticker-divider-color, rgba(184,220,255,.2));
+    }
+    .title{
+      display:flex; align-items:center; gap:12px;
+    }
+    .badge{
+      display:inline-grid; place-items:center;
+      width:44px; height:44px;
+      border-radius:12px;
+      background:
+        radial-gradient(120% 200% at 50% 0%, color-mix(in srgb, var(--accent) 55%, rgba(255,255,255,.4)) 0 45%, transparent 70%),
+        linear-gradient(165deg, rgba(255,255,255,.2), rgba(255,255,255,.04) 45%),
+        linear-gradient(145deg, color-mix(in srgb, var(--accent) 75%, rgba(180,220,255,.25)), rgba(8,16,48,.85));
+      border: 1px solid color-mix(in srgb, var(--accent) 68%, rgba(200,230,255,.5));
+      box-shadow: 0 0 32px color-mix(in srgb, var(--accent) 45%, rgba(160,200,255,.35));
+      font-weight:800;
+    }
+    h1{
+      margin:0;
+      font-size: clamp(16px, 2.6vmin, 28px);
+      line-height:1.2;
+      letter-spacing:.3px;
+    }
+    .sub{ color: var(--muted); font-size: clamp(12px,1.75vmin,14px); }
+
+    .controls{
+      display:flex; gap:8px; flex-wrap:wrap;
+    }
+    button, .chip{
+      appearance:none;
+      border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(200,230,255,.35));
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, color-mix(in srgb, var(--accent) 35%, rgba(255,255,255,.18)), rgba(12,18,42,.6));
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight:700;
+      letter-spacing:.2px;
+      cursor:pointer;
+      transition: transform .12s var(--ease-out), filter .2s ease;
+    }
+    button:hover{ transform: translateY(-1px); filter: brightness(1.08); }
+    button:active{ transform: translateY(0) scale(.99); }
+
+    .grid{
+      --g: 5;
+      display:grid; grid-template-columns: repeat(var(--g), 1fr);
+      gap: var(--grid-gap);
+      margin: clamp(14px,3vmin,24px) 0 8px;
+    }
+
+    .card{
+      position:relative;
+      isolation:isolate;
+      width: 100%;
+      min-height: var(--tile);
+      padding: clamp(10px, 1.8vmin, 16px);
+      border-radius: var(--radius);
+      border: 1px solid rgba(168,200,255,.18);
+      background:
+        radial-gradient(120% 200% at 50% 0%, rgba(255,255,255,.06) 0 45%, transparent 70%),
+        linear-gradient(160deg, rgba(28,42,78,.66), rgba(8,18,44,.56));
+      box-shadow:
+        0 14px 40px rgba(6,12,40,.35),
+        inset 0 1px 0 rgba(255,255,255,.14);
+      display:flex; align-items:center; justify-content:center;
+      text-align:center;
+      color: var(--ink);
+      font-weight: 600;
+      line-height: 1.25;
+      user-select:none;
+      cursor:pointer;
+      overflow:hidden;
+      transform: translateZ(0);
+    }
+    .card:hover { box-shadow: 0 18px 50px rgba(6,12,40,.45); }
+    .card span{
+      position:relative; z-index:2;
+      font-size: clamp(12px, 1.9vmin, 16px);
+    }
+    .card.free{
+      background:
+        radial-gradient(120% 200% at 50% 0%, color-mix(in srgb, var(--accent) 65%, rgba(255,255,255,.38)) 0 45%, transparent 75%),
+        linear-gradient(160deg, rgba(28,42,78,.7), rgba(8,18,44,.6));
+      border: 1px solid color-mix(in srgb, var(--accent) 60%, rgba(200,230,255,.55));
+      box-shadow: 0 20px 60px color-mix(in srgb, var(--accent) 25%, rgba(86,130,220,.45));
+    }
+
+    .ink{
+      position:absolute; inset:-2px;
+      background:
+        conic-gradient(from 180deg at 50% 50%, color-mix(in srgb, var(--accent) 65%, rgba(120,190,255,.4)) 0 25%, transparent 25% 50%, color-mix(in srgb, var(--accent) 25%, rgba(255,255,255,.2)) 50% 75%, transparent 75% 100%),
+        radial-gradient(120% 120% at 120% -10%, rgba(255,255,255,.16), transparent 60%);
+      opacity:0;
+      filter: blur(18px) saturate(1.15);
+      z-index:1;
+      transition: opacity .35s var(--ease-out);
+    }
+
+    .card.active{
+      border-color: color-mix(in srgb, var(--accent) 62%, rgba(200,230,255,.65));
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 45%, rgba(200,230,255,.6)) inset,
+        0 26px 70px color-mix(in srgb, var(--accent) 22%, rgba(86,130,220,.55));
+    }
+    .card.active .ink{ opacity: 1; }
+
+    .footer{
+      display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+      padding-top: 10px;
+      border-top: 1px solid var(--ticker-divider-color, rgba(184,220,255,.2));
+    }
+    .stat{ color: var(--muted); font-weight:600; }
+
+    .lineFlash{
+      position: absolute; inset: -2px;
+      border-radius: inherit;
+      pointer-events:none;
+      background:
+        linear-gradient(120deg, color-mix(in srgb, var(--accent) 50%, rgba(255,255,255,.2)), transparent 45%),
+        radial-gradient(140% 120% at 10% 0%, rgba(120,190,255,.08), transparent 65%);
+      opacity:0;
+    }
+
+    /* Confetti */
+    .confetti{
+      position: fixed; inset:0; pointer-events:none; overflow:hidden; z-index: 9999;
+    }
+    .confetti i{
+      position:absolute; width:10px; height:14px; border-radius:2px;
+      background: currentColor;
+      opacity:.95;
+    }
+
+    @media (max-width: 768px){
+      :root{ --grid-gap: 8px; --radius: 14px; }
+      .card span{ font-size: clamp(12px, 2.25vmin, 15px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" id="app">
+    <header class="hdr">
+      <div class="title">
+        <div class="badge">B</div>
+        <div>
+          <h1>Silent Hill f × Ryukishi Tropes Bingo</h1>
+          <div class="sub">Click tiles to mark. Five in a row for BINGO. Free centre: “Spider Lily”.</div>
+        </div>
+      </div>
+      <div class="controls">
+        <button id="shuffleBtn" title="Shuffle the board">Shuffle</button>
+        <button id="resetBtn" title="Clear marks">Clear</button>
+        <button id="shareBtn" title="Copy sharable link">Share</button>
+        <label class="chip" title="Accent colour">
+          <input id="accentPick" type="color" value="#8a7fff" style="vertical-align:middle; margin-right:6px; accent-color:var(--accent);">
+          Accent
+        </label>
+      </div>
+    </header>
+
+    <main class="grid" id="grid" aria-live="polite"></main>
+
+    <footer class="footer">
+      <div class="stat" id="progress">Lines: 0 / 12</div>
+      <div class="stat" id="status">No bingo yet…</div>
+    </footer>
+  </div>
+
+  <div class="confetti" id="confetti"></div>
+
+  <script>
+    // ————— Data —————
+    const ALL_TROPES = [
+      "On-the-Nose Doll Symbolism",
+      "Monsters = Hinako’s Issues",
+      "Junko = Hinako",
+      "Mum is a Snake Creature",
+      "Ryukishi07 Signature Time Loop",
+      "It’s the Same, But Different",
+      "Mr Fox is Probably a Diddler",
+      "Junko Never Shows Her Face",
+      "Sister = Mum",
+      "Hinako is a Player Hater",
+      "Dollmother Womb Horror",
+      "Junko = Dead",
+      "Hinako Accidentally Joins the Cult",
+      "“Actually the Bad Ending is Canon”",
+      "“This Doll is Literally Me” Moment",
+      "Hinako Drowns (Symbolically)",
+      "Friend Betrayal Speedrun",
+      "Flowers Bloom = Someone Dies",
+      "Hinako Loses It in a Mirror",
+      "“We’ll All Be Friends Forever!”",
+      "Family Trauma is the Real Monster",
+      "Traditional Ritual = Mass Gaslighting",
+      "Overly Detailed Meal Description",
+      "Moe Character Suddenly Talks Like a 50-Year-Old Man",
+      "Insect or Animal SFX at Max Volume",
+      "Character Laughs in Paragraphs",
+      "Gaslighting as Group Activity",
+      "“Tradition” = Excuse for Atrocity",
+      "The Adults Are Definitely Lying",
+      "Paranoia Spiral Because Someone Looked Funny",
+      "You Thought It Was X, But It’s Also Y",
+      "Spider Lily = Free Space",
+      "Mask = Persona (ritual mask = identity)",
+      "Hinako Refuses a Ritual (non-compliance mechanic)"
+    ];
+
+    const FREE_LABEL = "Spider Lily = Free Space";
+    const SIZE = 5;
+
+    // ————— State & helpers —————
+    const $grid = document.getElementById('grid');
+    const $progress = document.getElementById('progress');
+    const $status = document.getElementById('status');
+    const $accent = document.getElementById('accentPick');
+    const $confetti = document.getElementById('confetti');
+
+    const LSK = 'bingo-silenthillf-v1';
+    const query = new URLSearchParams(location.search);
+
+    function shuffle(arr){
+      for(let i = arr.length - 1; i > 0; i--){
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function sampleBoard(){
+      // Build 24 random tiles (excluding the free space), then insert free space in centre
+      const pool = ALL_TROPES.filter(t => t !== FREE_LABEL);
+      shuffle(pool);
+      const picked = pool.slice(0, SIZE*SIZE - 1);
+      const mid = Math.floor((SIZE*SIZE)/2);
+      picked.splice(mid, 0, FREE_LABEL);
+      return picked;
+    }
+
+    function saveState(state){
+      localStorage.setItem(LSK, JSON.stringify(state));
+      history.replaceState(null,"", `?d=${btoa(unescape(encodeURIComponent(JSON.stringify(state)))).replace(/=+$/,'')}`);
+    }
+
+    function readState(){
+      try{
+        if(query.get('d')){
+          // state from URL
+          const decoded = JSON.parse(decodeURIComponent(escape(atob(query.get('d')))));
+          return decoded;
+        }
+      }catch(e){}
+      try{
+        const s = localStorage.getItem(LSK);
+        if(s) return JSON.parse(s);
+      }catch(e){}
+      return null;
+    }
+
+    // ————— Render —————
+    let state = readState() || { tiles: sampleBoard(), active: [], accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#8a7fff' };
+
+    function mount(){
+      document.documentElement.style.setProperty('--accent', state.accent || '#8a7fff');
+      $accent.value = state.accent || '#8a7fff';
+
+      $grid.innerHTML = '';
+      state.tiles.forEach((label, idx) => {
+        const card = document.createElement('button');
+        card.className = 'card';
+        if(label === FREE_LABEL) card.classList.add('free');
+        card.setAttribute('data-idx', idx);
+        card.innerHTML = `<span>${label}</span><div class="ink"></div><div class="lineFlash"></div>`;
+        if(state.active.includes(idx) || label === FREE_LABEL){
+          card.classList.add('active');
+        }
+        $grid.appendChild(card);
+      });
+
+      // click handlers
+      $grid.querySelectorAll('.card').forEach(card=>{
+        card.addEventListener('click', () => toggle(+card.dataset.idx));
+      });
+
+      updateProgress(true);
+      // entrance flourish
+      anime.stagger;
+      anime({
+        targets: '.card',
+        translateY: [16, 0],
+        opacity: [0, 1],
+        scale: [{value:.98, duration:0}, {value:1, duration:600}],
+        delay: anime.stagger(28),
+        duration: 600,
+        easing: 'easeOutQuad'
+      });
+    }
+
+    function toggle(idx){
+      // Free space always active
+      if(state.tiles[idx] === FREE_LABEL) return;
+      const i = state.active.indexOf(idx);
+      if(i >= 0) state.active.splice(i,1);
+      else state.active.push(idx);
+      // mark animation
+      const card = $grid.querySelector(`.card[data-idx="${idx}"]`);
+      card.classList.toggle('active');
+      anime({
+        targets: card,
+        scale: [1, 1.035, 1],
+        duration: 360,
+        easing: 'easeOutBack'
+      });
+      const ink = card.querySelector('.ink');
+      anime({
+        targets: ink,
+        opacity: [{value:0, duration:0},{value:1, duration:200},{value:.9, duration:140}],
+        duration: 340,
+        easing: 'easeOutQuad'
+      });
+      updateProgress();
+      saveState(state);
+    }
+
+    // ————— Bingo logic —————
+    function linesFromActive(){
+      // compute boolean grid
+      const act = new Set(state.active);
+      // ensure free centre is always true
+      const mid = Math.floor((SIZE*SIZE)/2);
+
+      const isOn = i => i === mid || act.has(i);
+
+      const lines = [];
+      // rows
+      for(let r=0;r<SIZE;r++){
+        lines.push([...Array(SIZE)].map((_,c)=> r*SIZE+c));
+      }
+      // cols
+      for(let c=0;c<SIZE;c++){
+        lines.push([...Array(SIZE)].map((_,r)=> r*SIZE+c));
+      }
+      // diagonals
+      lines.push([...Array(SIZE)].map((_,i)=> i*SIZE+i));
+      lines.push([...Array(SIZE)].map((_,i)=> (i+1)*SIZE-(i+1)));
+
+      const completed = lines.filter(line => line.every(isOn));
+      return {lines, completed};
+    }
+
+    function flashLine(line){
+      line.forEach(idx=>{
+        const card = $grid.querySelector(`.card[data-idx="${idx}"]`);
+        if(!card) return;
+        const glow = card.querySelector('.lineFlash');
+        glow.style.opacity = 0;
+        anime({
+          targets: glow,
+          opacity: [{value:0, duration:0}, {value:1, duration:120}, {value:0, duration:420}],
+          duration: 540,
+          easing: 'easeOutQuad'
+        });
+      });
+    }
+
+    let lastCount = 0;
+    function updateProgress(skipFlash=false){
+      const {completed} = linesFromActive();
+      $progress.textContent = `Lines: ${completed.length} / 12`;
+
+      if(completed.length > lastCount && !skipFlash){
+        // flash newest line(s)
+        completed.slice(lastCount).forEach(flashLine);
+      }
+      lastCount = completed.length;
+
+      if(completed.length >= 1){
+        $status.textContent = completed.length >= 5 ? "BLACKOUT ENERGY. You're on a tear." :
+                              completed.length >= 3 ? "Triple bingo! The rot is spreading." :
+                              "Bingo! Tradition was the monster all along.";
+        if(completed.length === 1) confettiBurst();
+      } else {
+        $status.textContent = "No bingo yet…";
+      }
+    }
+
+    // ————— Confetti (tiny, dependency-free) —————
+    function confettiBurst(){
+      const N = 40;
+      const colors = ['#8a7fff','#5cc8ff','#ffd166','#38f1c7','#ff6b88'];
+      for(let i=0;i<N;i++){
+        const p = document.createElement('i');
+        p.style.color = colors[i % colors.length];
+        p.style.left = (50 + (Math.random()*30-15)) + 'vw';
+        p.style.top = '45vh';
+        $confetti.appendChild(p);
+        anime({
+          targets: p,
+          translateX: (Math.random()*2-1) * (120 + Math.random()*160),
+          translateY: - (220 + Math.random()*380),
+          rotate: Math.random()*720,
+          opacity: [{value:1,duration:0},{value:0,duration:800, delay:400}],
+          duration: 1200 + Math.random()*600,
+          easing: 'easeOutCubic',
+          complete: () => p.remove()
+        });
+      }
+    }
+
+    // ————— Controls —————
+    document.getElementById('shuffleBtn').addEventListener('click', () => {
+      state.tiles = sampleBoard();
+      state.active = [];
+      lastCount = 0;
+      saveState(state);
+      mount();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      state.active = [];
+      lastCount = 0;
+      saveState(state);
+      mount();
+    });
+
+    document.getElementById('shareBtn').addEventListener('click', async () => {
+      try{
+        await navigator.clipboard.writeText(location.href);
+        toast("Link copied to clipboard");
+      }catch(e){
+        prompt("Copy this link:", location.href);
+      }
+    });
+
+    $accent.addEventListener('input', (e)=>{
+      state.accent = e.target.value;
+      document.documentElement.style.setProperty('--accent', state.accent);
+      saveState(state);
+    });
+
+    function toast(msg){
+      const t = document.createElement('div');
+      t.textContent = msg;
+      Object.assign(t.style, {
+        position:'fixed', left:'50%', bottom:'24px', transform:'translateX(-50%)',
+        padding:'10px 14px', borderRadius:'12px', fontWeight:'700',
+        color:'white', background:'rgba(20,28,48,.9)', border:'1px solid rgba(200,230,255,.25)',
+        boxShadow:'0 12px 40px rgba(0,0,0,.45)', zIndex:99999
+      });
+      document.body.appendChild(t);
+      anime({ targets:t, translateY:[12,0], opacity:[0,1], duration:300, easing:'easeOutCubic' });
+      setTimeout(()=>{
+        anime({ targets:t, translateY:[0,10], opacity:[1,0], duration:280, easing:'easeInCubic', complete:()=>t.remove() });
+      }, 1200);
+    }
+
+    // ————— Boot —————
+    // Ensure centre tile always marked active (free)
+    (()=> {
+      const mid = Math.floor((SIZE*SIZE)/2);
+      if(!state.active.includes(mid)) state.active.push(mid);
+      saveState(state);
+      mount();
+    })();
+  </script>
+</body>
+</html>

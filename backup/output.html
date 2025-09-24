@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OBS Ticker Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ui-scale: 1.75;
+      --bar-height: calc(38px * var(--ui-scale));
+      --label-width: calc(100px * var(--ui-scale));
+      --padding-x: calc(18px * var(--ui-scale));
+      --divider-height: calc(14px * var(--ui-scale));
+      --accent: #ef4444;
+      --background-a: rgba(12, 15, 25, 0.92);
+      --background-b: rgba(6, 8, 16, 0.94);
+      --text: #fefefe;
+      --shadow: 0 -2px 20px rgba(0, 0, 0, 0.6), 0 -8px 40px rgba(0, 0, 0, 0.3);
+      --marquee-pps: 110;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body.no-sparkle .fx-sparkle .fx-letter {
+      background-image: linear-gradient(90deg, #ff007a, #ff4d00, #ffe600, #2dff7a, #00f0ff, #7f66ff, #ff4ef0, #ff007a);
+      background-size: 320% 100%;
+      background-position: 0% 50%;
+      animation: rainbowShift 3.4s linear infinite, subtleFloat 1.8s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.07s);
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.12);
+      filter: saturate(1.2) brightness(1.05);
+    }
+
+    .ticker {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--bar-height);
+      background:
+        radial-gradient(900px 120px at 0% 50%, rgba(255,255,255,0.05), transparent),
+        radial-gradient(900px 120px at 100% 50%, rgba(255,255,255,0.04), transparent),
+        linear-gradient(135deg, var(--background-a), var(--background-b));
+      box-shadow: var(--shadow);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      transform: translateY(100%);
+      transition: transform 0.45s cubic-bezier(0.22, 0.61, 0.36, 1);
+      overflow: hidden;
+      will-change: transform;
+      z-index: 1000;
+    }
+
+    .ticker.top {
+      top: 0;
+      bottom: auto;
+      transform: translateY(-100%);
+      border-top: none;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .ticker.show { transform: translateY(0); }
+
+    .ticker::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--label-width);
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0) 48%),
+        linear-gradient(135deg, var(--accent), var(--accent));
+      background-size: 260% 260%, 100% 100%;
+      animation: accentShimmer 10s ease-in-out infinite;
+      border-right: 2px solid rgba(255, 255, 255, 0.22);
+      z-index: 1;
+    }
+
+    .ticker.no-accent-anim::before { animation: none; }
+
+    .ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--label-width);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: calc(12px * var(--ui-scale));
+      font-weight: 700;
+      letter-spacing: calc(1px * var(--ui-scale));
+      text-transform: uppercase;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+      z-index: 2;
+    }
+
+    .ticker-label.is-breaking { animation: labelPulse 1.8s ease-in-out infinite; }
+
+    .ticker-track {
+      position: absolute;
+      left: var(--label-width);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+
+    .ticker-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      white-space: nowrap;
+      line-height: var(--bar-height);
+      font-size: calc(14px * var(--ui-scale));
+      font-weight: 500;
+      padding-left: var(--padding-x);
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
+    }
+
+    .message-separator {
+      display: inline-block;
+      width: 1px;
+      height: var(--divider-height);
+      margin: 0 calc(18px * var(--ui-scale));
+      background: rgba(255, 255, 255, 0.32);
+      vertical-align: middle;
+    }
+
+    .fx { display: inline-flex; position: relative; }
+    .fx-letter { display: inline-block; --i: 0; will-change: transform, filter; }
+    .fx-rainbow .fx-letter {
+      background-image: linear-gradient(90deg, #ff007a, #ff4d00, #ffe600, #2dff7a, #00f0ff, #7f66ff, #ff4ef0, #ff007a);
+      background-size: 320% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: rainbowShift 3.4s linear infinite, subtleFloat 1.8s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.07s);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.16);
+      filter: saturate(1.25) brightness(1.08);
+    }
+    .fx.fx-sparkle {
+      animation: gentlePulse 5.6s ease-in-out infinite;
+    }
+    .fx-sparkle .fx-letter {
+      background-image:
+        radial-gradient(circle at 30% 60%, rgba(255, 255, 255, 0.95) 0 12%, transparent 28%),
+        radial-gradient(circle at 70% 40%, rgba(255, 255, 255, 0.65) 0 10%, transparent 30%),
+        radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.45) 0 8%, transparent 26%),
+        linear-gradient(90deg, #ff007a, #ff4d00, #ffe600, #2dff7a, #00f0ff, #7f66ff, #ff4ef0, #ff007a);
+      background-size: 180% 180%, 220% 220%, 200% 200%, 360% 100%;
+      background-position: 0% 0%, 100% 100%, 50% 0%, 0% 0%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: sparkleShift 3.6s linear infinite, subtleFloat 1.9s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.08s);
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.22);
+      filter: saturate(1.35) contrast(1.08);
+    }
+    .fx-bounce {
+      display: inline-block;
+      animation: enhancedBounce 1.9s ease-in-out infinite;
+      transform-origin: center bottom;
+      will-change: transform;
+    }
+    .fx-neon {
+      color: #bfe2ff;
+      text-shadow:
+        0 0 3px rgba(100, 181, 246, 0.8),
+        0 0 10px rgba(100, 181, 246, 0.65),
+        0 0 18px rgba(100, 181, 246, 0.4);
+      animation: neonFlicker 2.8s ease-in-out infinite, gentlePulse 4.6s ease-in-out infinite;
+    }
+    .fx-glitch {
+      color: #f4f7ff;
+      position: relative;
+      text-shadow: -1px 0 rgba(255, 0, 128, 0.6), 1px 0 rgba(0, 255, 255, 0.55);
+      animation: dataGlitch 1.9s steps(2, end) infinite;
+    }
+
+    .highlight { color: #fbbf24; font-weight: 600; }
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+
+    @keyframes accentShimmer {
+      0%, 100% { background-position: 0% 50%, 0 0; }
+      50% { background-position: 120% 50%, 0 0; }
+    }
+
+    @keyframes rainbowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    @keyframes sparkleShift {
+      0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 0%; }
+      25% { background-position: 50% 50%, 0% 0%, 100% 50%, 50% 50%; }
+      50% { background-position: 100% 100%, 50% 50%, 0% 100%, 100% 100%; }
+      75% { background-position: 50% 0%, 100% 0%, 50% 50%, 150% 50%; }
+      100% { background-position: 0% 0%, 100% 100%, 50% 0%, 200% 0%; }
+    }
+
+    @keyframes subtleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+
+    @keyframes gentlePulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.02); }
+    }
+
+    @keyframes enhancedBounce {
+      0%, 100% { transform: translateY(0) scale(1); }
+      30% { transform: translateY(-4px) scale(1.05, 0.95); }
+      50% { transform: translateY(-6px) scale(1.08, 0.92); }
+      70% { transform: translateY(-2px) scale(1.02, 0.98); }
+    }
+
+    @keyframes neonFlicker {
+      0%, 100% {
+        text-shadow:
+          0 0 2px rgba(100, 181, 246, 0.8),
+          0 0 8px rgba(100, 181, 246, 0.6),
+          0 0 16px rgba(100, 181, 246, 0.4),
+          0 0 24px rgba(100, 181, 246, 0.2);
+      }
+      50% {
+        text-shadow:
+          0 0 4px rgba(100, 181, 246, 1),
+          0 0 12px rgba(100, 181, 246, 0.8),
+          0 0 20px rgba(100, 181, 246, 0.6),
+          0 0 32px rgba(100, 181, 246, 0.3);
+      }
+    }
+
+    @keyframes dataGlitch {
+      0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+      10% { transform: translate(-1px, 1px); filter: hue-rotate(-6deg); }
+      20% { transform: translate(1px, -1px); filter: hue-rotate(8deg); }
+      35% { transform: translate(-2px, 0); filter: hue-rotate(-12deg); }
+      50% { transform: translate(0, 1px); filter: hue-rotate(6deg); }
+      65% { transform: translate(2px, -1px); filter: hue-rotate(-4deg); }
+      80% { transform: translate(-1px, 0); filter: hue-rotate(10deg); }
+      90% { transform: translate(1px, -1px); filter: hue-rotate(-8deg); }
+    }
+
+    @keyframes labelPulse {
+      0%, 100% { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
+      50% { text-shadow: 0 0 12px rgba(255, 255, 255, 0.6); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="ticker" id="ticker">
+    <div class="ticker-label" id="tickerLabel">LIVE</div>
+    <div class="ticker-track" id="tickerTrack">
+      <div class="ticker-content" id="tickerContent"></div>
+    </div>
+  </div>
+
+  <script>
+    const SPECIAL_MAP = {
+      '~~': 'rainbow',
+      '%%': 'sparkle',
+      '^^': 'bounce',
+      '==': 'neon',
+      '!!': 'glitch'
+    };
+
+    const DEFAULT_HIGHLIGHTS = ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
+
+    const DEFAULT_OVERLAY = {
+      label: 'LIVE',
+      accent: '#ef4444',
+      highlight: 'YouTube,Twitch,Discord,Patreon,breaking,update,tonight,today',
+      scale: 1.75,
+      position: 'bottom',
+      mode: 'auto',
+      accentAnim: true,
+      sparkle: true
+    };
+
+    function normaliseHighlightString(value) {
+      return String(value || '')
+        .split(',')
+        .map(part => part.trim())
+        .filter(Boolean)
+        .join(',');
+    }
+
+    function clampScale(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_OVERLAY.scale;
+      return Math.min(Math.max(Math.round(numeric * 100) / 100, 0.75), 2.5);
+    }
+
+    function normaliseMode(value) {
+      const mode = String(value || '').toLowerCase();
+      return ['auto', 'marquee', 'chunk'].includes(mode) ? mode : 'auto';
+    }
+
+    function normalisePosition(value) {
+      const position = String(value || '').toLowerCase();
+      return position === 'top' ? 'top' : 'bottom';
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, match => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[match]);
+    }
+
+    function applyEmphasis(html) {
+      return html
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, (match, prefix, inner) => `${prefix}<em>${inner}</em>`);
+    }
+
+    function buildLetters(text) {
+      let index = 0;
+      let result = '';
+      for (const char of text) {
+        if (/\s/.test(char)) {
+          result += escapeHtml(char);
+        } else {
+          result += `<span class="fx-letter" style="--i:${index++}">${escapeHtml(char)}</span>`;
+        }
+      }
+      return result;
+    }
+
+    function formatMessage(raw, highlightRegex) {
+      const str = String(raw || '').trim();
+      if (!str) return '';
+      const segments = [];
+      const regex = /(%%|~~|\^\^|==|!!)([\s\S]+?)\1/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str))) {
+        if (match.index > lastIndex) {
+          segments.push({ type: 'text', text: str.slice(lastIndex, match.index) });
+        }
+        segments.push({ type: SPECIAL_MAP[match[1]] || 'text', text: match[2] });
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < str.length) {
+        segments.push({ type: 'text', text: str.slice(lastIndex) });
+      }
+      return segments.map(seg => renderSegment(seg, highlightRegex)).join('');
+    }
+
+    function renderSegment(segment, highlightRegex) {
+      const text = segment.text;
+      const escaped = escapeHtml(text);
+      switch (segment.type) {
+        case 'rainbow':
+          return `<span class="fx fx-rainbow">${buildLetters(text)}</span>`;
+        case 'sparkle':
+          return `<span class="fx fx-sparkle">${buildLetters(text)}</span>`;
+        case 'bounce':
+          return `<span class="fx fx-bounce">${escaped}</span>`;
+        case 'neon':
+          return `<span class="fx fx-neon">${escaped}</span>`;
+        case 'glitch':
+          return `<span class="fx fx-glitch">${escaped}</span>`;
+        default: {
+          const emphasised = applyEmphasis(escaped);
+          return highlightRegex ? emphasised.replace(highlightRegex, '<span class="highlight">$1</span>') : emphasised;
+        }
+      }
+    }
+
+    function sanitiseMessages(list) {
+      if (!Array.isArray(list)) return [];
+      const cleaned = [];
+      for (const entry of list) {
+        const trimmed = String(entry).trim();
+        if (trimmed) cleaned.push(trimmed);
+      }
+      return cleaned;
+    }
+
+    function clampDuration(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 5;
+      return Math.min(Math.max(Math.round(numeric), 2), 90);
+    }
+
+    function clampInterval(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.min(Math.max(Math.round(numeric), 0), 3600);
+    }
+
+    class TickerOverlay {
+      constructor() {
+        const params = new URLSearchParams(location.search);
+        this.server = (params.get('server') || 'http://127.0.0.1:3000').replace(/\/?$/, '');
+        this.overlay = { ...DEFAULT_OVERLAY };
+        this.overrides = {
+          label: false,
+          accent: false,
+          highlight: false,
+          scale: false,
+          position: false,
+          mode: false,
+          accentAnim: false,
+          sparkle: false
+        };
+
+        const labelParam = params.get('label');
+        if (labelParam) {
+          this.overlay.label = labelParam;
+          this.overrides.label = true;
+        }
+
+        const accentParam = params.get('accent');
+        if (accentParam !== null) {
+          this.overlay.accent = accentParam.trim();
+          this.overrides.accent = true;
+        }
+
+        const highlightParam = params.get('hl');
+        if (highlightParam) {
+          this.overlay.highlight = normaliseHighlightString(highlightParam);
+          this.overrides.highlight = true;
+        }
+
+        const scaleParam = parseFloat(params.get('scale'));
+        if (Number.isFinite(scaleParam)) {
+          this.overlay.scale = clampScale(scaleParam);
+          this.overrides.scale = true;
+        }
+
+        const modeParam = params.get('mode');
+        if (modeParam) {
+          this.overlay.mode = normaliseMode(modeParam);
+          this.overrides.mode = true;
+        }
+
+        const positionParam = params.get('position');
+        if (positionParam) {
+          this.overlay.position = normalisePosition(positionParam);
+          this.overrides.position = true;
+        }
+
+        const speed = parseFloat(params.get('speed'));
+        if (Number.isFinite(speed) && speed >= 40 && speed <= 400) {
+          document.documentElement.style.setProperty('--marquee-pps', String(speed));
+        }
+        const accentAnimParam = params.get('accentAnim');
+        if (accentAnimParam) {
+          this.overlay.accentAnim = !['0', 'false', 'off', 'no'].includes(accentAnimParam.toLowerCase());
+          this.overrides.accentAnim = true;
+        }
+        const sparkleParam = params.get('sparkle');
+        if (sparkleParam) {
+          this.overlay.sparkle = !['0', 'false', 'off', 'no'].includes(sparkleParam.toLowerCase());
+          this.overrides.sparkle = true;
+        }
+
+        this.container = document.getElementById('ticker');
+        this.labelNode = document.getElementById('tickerLabel');
+        this.contentNode = document.getElementById('tickerContent');
+
+        this.customHighlights = [];
+        this.setCustomHighlights(this.overlay.highlight);
+        this.applyOverlayStyles();
+
+        this.messages = [];
+        this.isActive = false;
+        this.displayDuration = 5;
+        this.intervalSeconds = 0;
+
+        this.phase = 'idle';
+        this.stopTimer = null;
+        this.cooldownTimer = null;
+        this.chunkTimer = null;
+        this.fetchTimer = null;
+        this.fetchInFlight = false;
+        this.rafId = null;
+        this.distance = 0;
+
+        this.fetchState();
+        this.fetchTimer = setInterval(() => this.fetchState(), 2000);
+        window.addEventListener('beforeunload', () => this.dispose());
+      }
+
+      dispose() {
+        clearInterval(this.fetchTimer);
+        this.clearTimers();
+      }
+
+      clearTimers() {
+        clearTimeout(this.stopTimer);
+        clearTimeout(this.cooldownTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+      }
+
+      buildHighlightRegex() {
+        const merged = new Set(DEFAULT_HIGHLIGHTS);
+        for (const word of this.customHighlights) {
+          const trimmed = word.trim();
+          if (trimmed) merged.add(trimmed.toLowerCase());
+        }
+        if (!merged.size) return null;
+        const escaped = Array.from(merged)
+          .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('|');
+        return escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+      }
+
+      setCustomHighlights(list) {
+        const normalised = normaliseHighlightString(list);
+        this.overlay.highlight = normalised;
+        this.customHighlights = normalised ? normalised.split(',') : [];
+        this.highlightRegex = this.buildHighlightRegex();
+      }
+
+      applyOverlayStyles({ refreshContent = false } = {}) {
+        this.labelNode.textContent = this.overlay.label;
+        this.container.classList.toggle('top', this.overlay.position === 'top');
+        this.container.classList.toggle('no-accent-anim', !this.overlay.accentAnim);
+        document.body.classList.toggle('no-sparkle', !this.overlay.sparkle);
+        if (this.overlay.accent) {
+          document.documentElement.style.setProperty('--accent', this.overlay.accent);
+        } else {
+          document.documentElement.style.removeProperty('--accent');
+        }
+        document.documentElement.style.setProperty('--ui-scale', String(this.overlay.scale));
+        if (refreshContent && this.phase === 'visible') {
+          this.refreshVisible(true);
+        }
+      }
+
+      applyOverlayData(data) {
+        if (!data || typeof data !== 'object') return;
+        let refresh = false;
+
+        if (!this.overrides.label && typeof data.label === 'string' && data.label.trim()) {
+          const trimmed = data.label.trim();
+          if (trimmed !== this.overlay.label) {
+            this.overlay.label = trimmed;
+          }
+        }
+
+        if (!this.overrides.accent && typeof data.accent === 'string') {
+          const accent = data.accent.trim();
+          if (accent !== this.overlay.accent) {
+            this.overlay.accent = accent;
+          }
+        }
+
+        if (!this.overrides.highlight && typeof data.highlight === 'string') {
+          const normalised = normaliseHighlightString(data.highlight);
+          if (normalised !== this.overlay.highlight) {
+            this.setCustomHighlights(normalised);
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.scale && Number.isFinite(data.scale)) {
+          const clamped = clampScale(data.scale);
+          if (clamped !== this.overlay.scale) {
+            this.overlay.scale = clamped;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.position && typeof data.position === 'string') {
+          const position = normalisePosition(data.position);
+          if (position !== this.overlay.position) {
+            this.overlay.position = position;
+          }
+        }
+
+        if (!this.overrides.mode && typeof data.mode === 'string') {
+          const mode = normaliseMode(data.mode);
+          if (mode !== this.overlay.mode) {
+            this.overlay.mode = mode;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.accentAnim && typeof data.accentAnim === 'boolean') {
+          if (data.accentAnim !== this.overlay.accentAnim) {
+            this.overlay.accentAnim = data.accentAnim;
+          }
+        }
+
+        if (!this.overrides.sparkle && typeof data.sparkle === 'boolean') {
+          if (data.sparkle !== this.overlay.sparkle) {
+            this.overlay.sparkle = data.sparkle;
+          }
+        }
+
+        this.applyOverlayStyles({ refreshContent: refresh });
+        this.updateLabel();
+      }
+
+      async fetchState() {
+        if (this.fetchInFlight) return;
+        this.fetchInFlight = true;
+        try {
+          const [tickerRes, overlayRes] = await Promise.all([
+            fetch(`${this.server}/ticker/state`, { cache: 'no-store' }),
+            fetch(`${this.server}/ticker/overlay`, { cache: 'no-store' })
+          ]);
+          if (!tickerRes.ok) throw new Error(`HTTP ${tickerRes.status}`);
+          const data = await tickerRes.json();
+          if (overlayRes.ok) {
+            const overlayData = await overlayRes.json();
+            this.applyOverlayData(overlayData);
+          }
+          const newMessages = sanitiseMessages(data.messages || []);
+          const newActive = !!data.isActive;
+          const newDuration = clampDuration(data.displayDuration || 5);
+          const newInterval = clampInterval(data.intervalBetween || 0);
+
+          const messagesChanged = JSON.stringify(this.messages) !== JSON.stringify(newMessages);
+          const activeChanged = this.isActive !== newActive;
+          const durationChanged = this.displayDuration !== newDuration;
+          const intervalChanged = this.intervalSeconds !== newInterval;
+
+          this.messages = newMessages;
+          this.isActive = newActive && this.messages.length > 0;
+          this.displayDuration = newDuration;
+          this.intervalSeconds = newInterval;
+
+          if (!this.messages.length) this.isActive = false;
+
+          this.updateLabel();
+          this.evaluate({ messagesChanged, activeChanged, durationChanged, intervalChanged });
+        } catch (err) {
+          console.error('[ticker] failed to fetch state', err);
+        } finally {
+          this.fetchInFlight = false;
+        }
+      }
+
+      shouldUseMarquee() {
+        if (this.overlay.mode === 'marquee') return true;
+        if (this.overlay.mode === 'chunk') return false;
+        if (!this.messages.length) return true;
+        const avgLength = this.messages.reduce((acc, msg) => acc + msg.length, 0) / this.messages.length;
+        return avgLength > 42 || this.messages.some(msg => msg.length > 80);
+      }
+
+      evaluate({ messagesChanged = false, activeChanged = false, durationChanged = false, intervalChanged = false } = {}) {
+        if (!this.isActive) {
+          this.hideTicker(true);
+          return;
+        }
+
+        if (this.phase === 'idle') {
+          this.showTicker();
+          return;
+        }
+
+        if (this.phase === 'visible') {
+          if (messagesChanged) {
+            this.refreshVisible();
+          }
+          if (durationChanged) {
+            this.startVisibleTimer();
+          }
+        }
+
+        if (intervalChanged && this.phase === 'cooldown') {
+          this.scheduleCooldown(true);
+        }
+      }
+
+      showTicker() {
+        if (!this.messages.length) return;
+        this.refreshVisible(true);
+        this.container.classList.add('show');
+        this.phase = 'visible';
+        this.startVisibleTimer();
+      }
+
+      refreshVisible(force = false) {
+        const marquee = this.shouldUseMarquee();
+        if (marquee) {
+          clearInterval(this.chunkTimer);
+          this.chunkTimer = null;
+          this.prepareMarquee(force);
+        } else {
+          this.stopMarquee();
+          this.startChunkCycle(force);
+        }
+      }
+
+      startVisibleTimer() {
+        clearTimeout(this.stopTimer);
+        const durationMs = Math.max(1000, this.displayDuration * 1000);
+        this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
+      }
+
+      completeRun() {
+        this.hideTicker().then(() => {
+          this.scheduleCooldown();
+        });
+      }
+
+      scheduleCooldown(reset = false) {
+        if (reset) clearTimeout(this.cooldownTimer);
+        const gap = Math.max(0, this.intervalSeconds) * 1000;
+        if (gap === 0) {
+          this.phase = 'idle';
+          this.evaluate();
+          return;
+        }
+        this.phase = 'cooldown';
+        this.cooldownTimer = setTimeout(() => {
+          this.phase = 'idle';
+          this.evaluate();
+        }, gap);
+      }
+
+      hideTicker(immediate = false) {
+        clearTimeout(this.stopTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+        if (!this.container.classList.contains('show')) {
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+        if (immediate) {
+          this.container.classList.remove('show');
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+        this.container.classList.remove('show');
+        this.phase = 'hiding';
+        return this.waitForTransition(this.container, 500).then(() => {
+          this.phase = 'idle';
+        });
+      }
+
+      waitForTransition(element, timeout = 500) {
+        return new Promise(resolve => {
+          let resolved = false;
+          const finish = () => {
+            if (!resolved) {
+              resolved = true;
+              element.removeEventListener('transitionend', onEnd);
+              resolve();
+            }
+          };
+          const onEnd = (event) => {
+            if (event.target === element) finish();
+          };
+          element.addEventListener('transitionend', onEnd);
+          setTimeout(finish, timeout);
+        });
+      }
+
+      prepareMarquee(reset = false) {
+        const html = this.buildMarqueeHtml();
+        this.stopMarquee();
+        this.contentNode.style.transition = 'none';
+        if (reset) void this.contentNode.offsetWidth;
+        this.contentNode.innerHTML = html;
+        void this.contentNode.offsetWidth;
+        this.distance = Math.max(1, this.contentNode.scrollWidth / 2);
+        this.startMarquee();
+      }
+
+      startMarquee() {
+        const node = this.contentNode;
+        const distance = this.distance;
+        const speed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marquee-pps')) || 110;
+        let start = performance.now();
+        const step = now => {
+          if (this.phase !== 'visible') {
+            start = now;
+          }
+          const elapsed = (now - start) / 1000;
+          const offset = -((elapsed * speed) % distance);
+          node.style.transform = `translate3d(${offset}px, 0, 0)`;
+          this.rafId = requestAnimationFrame(step);
+        };
+        cancelAnimationFrame(this.rafId);
+        this.rafId = requestAnimationFrame(step);
+      }
+
+      stopMarquee() {
+        if (this.rafId) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+        this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+      }
+
+      startChunkCycle(reset = false) {
+        const items = this.messages.map(msg => formatMessage(msg, this.highlightRegex));
+        if (!items.length) {
+          this.contentNode.innerHTML = '';
+          return;
+        }
+        let index = 0;
+        const show = () => {
+          if (this.phase !== 'visible') return;
+          this.contentNode.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+          this.contentNode.style.opacity = '0';
+          this.contentNode.style.transform = 'translate3d(12px,0,0)';
+          setTimeout(() => {
+            this.contentNode.innerHTML = `${items[index]}<span class="message-separator"></span>`;
+            this.contentNode.style.opacity = '1';
+            this.contentNode.style.transform = 'translate3d(0,0,0)';
+          }, 120);
+          index = (index + 1) % items.length;
+        };
+        show();
+        clearInterval(this.chunkTimer);
+        const interval = Math.max(1600, Math.min(6000, this.displayDuration * 1000 / Math.max(1, items.length)));
+        this.chunkTimer = setInterval(() => {
+          if (this.phase !== 'visible') return;
+          show();
+        }, interval);
+      }
+
+      buildMarqueeHtml() {
+        if (!this.messages.length) return '';
+        const separator = '<span class="message-separator"></span>';
+        const formatted = this.messages.map(msg => formatMessage(msg, this.highlightRegex)).join(separator);
+        return `${formatted}${separator}${formatted}`;
+      }
+
+      updateLabel() {
+        this.labelNode.textContent = this.overlay.label;
+        const combined = this.messages.join(' ').toLowerCase();
+        const isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
+        this.labelNode.classList.toggle('is-breaking', isBreaking);
+      }
+    }
+
+    new TickerOverlay();
+  </script>
+</body>
+</html>
