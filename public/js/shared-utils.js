@@ -20,6 +20,7 @@
   ]);
 
   const OVERLAY_THEMES = [
+    'monotone',
     'holographic',
     'neural',
     'quantum',

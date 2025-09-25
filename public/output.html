@@ -20,48 +20,48 @@
       --divider-height: calc(var(--space-sm) * 1.75);
       --accent: #ef4444;
       --accent-bright: color-mix(in srgb, var(--accent) 82%, white 18%);
-      --accent-soft: color-mix(in srgb, var(--accent) 40%, transparent);
-      --accent-glow: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.45));
-      --accent-muted: color-mix(in srgb, var(--accent) 55%, rgba(10, 12, 20, 0.7));
-      --accent-duo: color-mix(in srgb, var(--accent) 68%, #5aa8ff 32%);
-      --accent-contrast: color-mix(in srgb, var(--accent) 58%, #45e6c3 42%);
-      --surface-a: rgba(18, 20, 28, 0.92);
-      --surface-b: rgba(8, 10, 16, 0.9);
-      --surface-border: rgba(255, 255, 255, 0.12);
-      --surface-outline: rgba(255, 255, 255, 0.06);
-      --text: #fefefe;
-      --shadow: 0 18px 52px rgba(3, 5, 14, 0.5);
+      --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
+      --accent-glow: color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.38));
+      --accent-muted: color-mix(in srgb, var(--accent) 50%, rgba(6, 7, 12, 0.78));
+      --accent-duo: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.14));
+      --accent-contrast: color-mix(in srgb, var(--accent) 58%, rgba(0, 0, 0, 0.45));
+      --surface-a: rgba(12, 13, 18, 0.94);
+      --surface-b: rgba(8, 9, 14, 0.96);
+      --surface-border: rgba(110, 114, 126, 0.32);
+      --surface-outline: rgba(110, 114, 126, 0.18);
+      --text: #f6f7f9;
+      --shadow: 0 18px 52px rgba(3, 4, 10, 0.5);
       --marquee-pps: 110;
       --hide-shift: calc(12px * var(--ui-scale) / 1.75);
       --ticker-surface-a: var(--surface-a);
       --ticker-surface-b: var(--surface-b);
-      --ticker-border: var(--surface-outline);
-      --ticker-shadow: 0 14px 38px rgba(3, 5, 14, 0.42);
+      --ticker-border: color-mix(in srgb, var(--surface-outline) 80%, var(--accent-soft) 20%);
+      --ticker-shadow: 0 14px 38px rgba(3, 4, 10, 0.45);
       --ticker-label-width: var(--label-width);
       --ticker-label-size: calc(12px * var(--ui-scale));
       --ticker-label-weight: 700;
       --ticker-label-letter: calc(1px * var(--ui-scale));
       --ticker-label-case: uppercase;
       --ticker-label-color: #ffffff;
-      --ticker-label-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
-      --ticker-divider-color: rgba(255, 255, 255, 0.32);
+      --ticker-label-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+      --ticker-divider-color: rgba(255, 255, 255, 0.22);
       --ticker-accent-overlay:
-        linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 62%),
+        linear-gradient(155deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 62%),
         linear-gradient(150deg, var(--accent-bright), var(--accent-muted));
-      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.35));
-      --ticker-accent-glow: 0 0 12px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.25));
-      --ticker-accent-animation: holographicShift 20s var(--ease-premium) infinite;
-      --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
-      --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
-      --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.2));
+      --ticker-accent-glow: 0 0 14px color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.2));
+      --ticker-accent-animation: monotoneSweep 18s var(--ease-premium) infinite;
+      --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 94%, rgba(255, 255, 255, 0.03));
+      --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 94%, rgba(0, 0, 0, 0.08));
+      --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.08));
       --popup-shadow: var(--ticker-shadow);
       --popup-text-color: rgba(248, 250, 255, 0.96);
       --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
       --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 85%, var(--accent) 15%);
       --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 75%, var(--accent) 25%);
       --popup-accent-strip:
-        linear-gradient(165deg, var(--accent), color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.45)));
-      --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
+        linear-gradient(165deg, var(--accent), color-mix(in srgb, var(--accent) 30%, rgba(255, 255, 255, 0.35)));
+      --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 65%);
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -327,7 +327,7 @@
       color: color-mix(in srgb, var(--accent-contrast) 70%, rgba(255, 255, 255, 0.2));
     }
 
-    .highlight { color: #fbbf24; font-weight: 600; }
+    .highlight { color: var(--accent-bright); font-weight: 600; }
     strong { font-weight: 700; }
     em { font-style: italic; }
 
@@ -677,7 +677,7 @@
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
     const HIDE_TRANSITION_FALLBACK_MS = 700;
-    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['holographic', 'neural', 'quantum', 'crystalline', 'neon-noir']).map(theme => `ticker--${theme}`);
+    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['monotone', 'holographic', 'neural', 'quantum', 'crystalline', 'neon-noir']).map(theme => `ticker--${theme}`);
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',
@@ -689,7 +689,7 @@
       mode: 'auto',
       accentAnim: true,
       sparkle: true,
-      theme: 'holographic',
+      theme: 'monotone',
       ...(sharedConfig.DEFAULT_OVERLAY || {})
     };
     if (!DEFAULT_OVERLAY.highlight) {
