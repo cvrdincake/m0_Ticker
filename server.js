@@ -97,18 +97,13 @@ const BASE_DEFAULT_SLATE_SOURCE = CONFIG_DEFAULT_SLATE
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
-      clockSubtitle: 'UK time',
-      clockMeta: '',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
-      nextMeta: '',
       sponsorName: '',
       sponsorTagline: '',
       sponsorLabel: 'Sponsor',
-      sponsorMeta: '',
       notesLabel: 'Spotlight',
-      notesMeta: '',
       notes: []
     };
 
@@ -768,14 +763,6 @@ function sanitiseSlateInput(input, options = {}) {
     result.clockLabel = input.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
   }
 
-  if (typeof input.clockSubtitle === 'string') {
-    result.clockSubtitle = input.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-  }
-
-  if (typeof input.clockMeta === 'string') {
-    result.clockMeta = input.clockMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-  }
-
   if (typeof input.nextLabel === 'string') {
     result.nextLabel = input.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
   }
@@ -786,10 +773,6 @@ function sanitiseSlateInput(input, options = {}) {
 
   if (typeof input.nextSubtitle === 'string') {
     result.nextSubtitle = input.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-  }
-
-  if (typeof input.nextMeta === 'string') {
-    result.nextMeta = input.nextMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
   }
 
   if (typeof input.sponsorName === 'string') {
@@ -804,16 +787,8 @@ function sanitiseSlateInput(input, options = {}) {
     result.sponsorLabel = input.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
   }
 
-  if (typeof input.sponsorMeta === 'string') {
-    result.sponsorMeta = input.sponsorMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-  }
-
   if (typeof input.notesLabel === 'string') {
     result.notesLabel = input.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-  }
-
-  if (typeof input.notesMeta === 'string') {
-    result.notesMeta = input.notesMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
   }
 
   if (Array.isArray(input.notes) || typeof input.notes === 'string') {

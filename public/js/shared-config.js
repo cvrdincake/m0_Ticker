@@ -44,18 +44,13 @@
     rotationSeconds: 12,
     showClock: true,
     clockLabel: 'UK TIME',
-    clockSubtitle: 'UK time',
-    clockMeta: '',
     nextLabel: 'Next up',
     nextTitle: '',
     nextSubtitle: '',
-    nextMeta: '',
     sponsorName: '',
     sponsorTagline: '',
     sponsorLabel: 'Sponsor',
-    sponsorMeta: '',
     notesLabel: 'Spotlight',
-    notesMeta: '',
     notes: Object.freeze([])
   });
 

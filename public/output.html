@@ -30,26 +30,26 @@
       --surface-border: rgba(255, 255, 255, 0.12);
       --surface-outline: rgba(255, 255, 255, 0.06);
       --text: #fefefe;
-      --shadow: 0 26px 68px rgba(3, 5, 14, 0.65);
+      --shadow: 0 18px 52px rgba(3, 5, 14, 0.5);
       --marquee-pps: 110;
       --hide-shift: calc(12px * var(--ui-scale) / 1.75);
       --ticker-surface-a: var(--surface-a);
       --ticker-surface-b: var(--surface-b);
       --ticker-border: var(--surface-outline);
-      --ticker-shadow: var(--shadow);
+      --ticker-shadow: 0 14px 38px rgba(3, 5, 14, 0.42);
       --ticker-label-width: var(--label-width);
       --ticker-label-size: calc(12px * var(--ui-scale));
       --ticker-label-weight: 700;
       --ticker-label-letter: calc(1px * var(--ui-scale));
       --ticker-label-case: uppercase;
       --ticker-label-color: #ffffff;
-      --ticker-label-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+      --ticker-label-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       --ticker-divider-color: rgba(255, 255, 255, 0.32);
       --ticker-accent-overlay:
         linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 62%),
         linear-gradient(150deg, var(--accent-bright), var(--accent-muted));
       --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.35));
-      --ticker-accent-glow: 0 0 26px color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.4));
+      --ticker-accent-glow: 0 0 12px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.25));
       --ticker-accent-animation: holographicShift 20s var(--ease-premium) infinite;
       --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
       --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
@@ -129,11 +129,11 @@
     }
 
     .ticker.show.is-hiding {
-      transform: translate3d(0, var(--hide-shift), 0);
+      transform: translate3d(0, var(--hide-shift), 0) scale(0.995);
     }
 
     .ticker.top.show.is-hiding {
-      transform: translate3d(0, calc(var(--hide-shift) * -1), 0);
+      transform: translate3d(0, calc(var(--hide-shift) * -1), 0) scale(0.995);
     }
 
 
@@ -161,7 +161,7 @@
         var(--ticker-ambient-caustics, transparent),
         var(--ticker-surface-noise, none);
       mix-blend-mode: screen;
-      opacity: 0.55;
+      opacity: 0.22;
       animation: tickerAmbientGlow 12s var(--ease-smooth) infinite;
       z-index: 0;
     }
@@ -205,7 +205,7 @@
       font-size: calc(14px * var(--ui-scale));
       font-weight: 500;
       padding-left: var(--padding-x);
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
       transform: translate3d(0, 0, 0);
       will-change: transform;
     }
@@ -246,8 +246,8 @@
       animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
       animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
       text-shadow:
-        0 0 6px color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.35)),
-        0 0 16px color-mix(in srgb, var(--accent-glow) 45%, rgba(0, 0, 0, 0.15));
+        0 0 3px color-mix(in srgb, var(--accent) 26%, rgba(255, 255, 255, 0.25)),
+        0 0 8px color-mix(in srgb, var(--accent-glow) 35%, rgba(0, 0, 0, 0.12));
       filter: saturate(1.08) brightness(1.04);
     }
 
@@ -266,8 +266,8 @@
       animation: sparkleShift 4.2s linear infinite, subtleFloat 1.9s ease-in-out infinite;
       animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.07s);
       text-shadow:
-        0 0 8px color-mix(in srgb, var(--accent) 35%, rgba(255, 255, 255, 0.4)),
-        0 0 18px color-mix(in srgb, var(--accent-glow) 30%, rgba(0, 0, 0, 0.2));
+        0 0 4px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.3)),
+        0 0 10px color-mix(in srgb, var(--accent-glow) 24%, rgba(0, 0, 0, 0.16));
       filter: saturate(1.1) contrast(1.05);
     }
 
@@ -281,7 +281,7 @@
       background-position: 0% 50%;
       animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
       animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
-      text-shadow: 0 0 6px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.3));
+      text-shadow: 0 0 3px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.25));
       filter: saturate(1.05) brightness(1.03);
     }
 
@@ -295,9 +295,9 @@
     .fx-neon {
       color: color-mix(in srgb, var(--accent-bright) 72%, white 28%);
       text-shadow:
-        0 0 3px color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.35)),
-        0 0 12px color-mix(in srgb, var(--accent-glow) 55%, rgba(10, 14, 26, 0.5)),
-        0 0 22px color-mix(in srgb, var(--accent) 35%, rgba(0, 0, 0, 0.2));
+        0 0 2px color-mix(in srgb, var(--accent) 50%, rgba(255, 255, 255, 0.32)),
+        0 0 6px color-mix(in srgb, var(--accent-glow) 40%, rgba(10, 14, 26, 0.4)),
+        0 0 12px color-mix(in srgb, var(--accent) 28%, rgba(0, 0, 0, 0.18));
       animation: neonFlicker 3.4s ease-in-out infinite, gentlePulse 5.2s ease-in-out infinite;
     }
 
@@ -411,25 +411,25 @@
       position: absolute;
       inset: 0;
       background: var(--popup-sheen);
-      opacity: 0.35;
+      opacity: 0.18;
       pointer-events: none;
       mix-blend-mode: screen;
     }
 
     .slate {
       position: fixed;
-      top: calc(24px * var(--ui-scale) / 1.75);
-      right: calc(24px * var(--ui-scale) / 1.75);
-      max-width: min(calc(320px * var(--popup-scale)), 32vw);
+      top: calc(16px * var(--ui-scale) / 1.75);
+      right: calc(16px * var(--ui-scale) / 1.75);
+      max-width: min(calc(220px * var(--ui-scale)), 24vw);
       pointer-events: none;
       opacity: 0;
-      transform: translate3d(calc(16px * var(--popup-scale)), calc(-16px * var(--popup-scale)), 0);
+      transform: translate3d(8px, -8px, 0);
       transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
       z-index: 1080;
     }
 
     .slate.push-down {
-      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
+      top: calc(var(--bar-height) + (24px * var(--ui-scale) / 1.75) + (10px * var(--popup-scale)));
     }
 
     .slate.show {
@@ -441,11 +441,11 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: calc(8px * var(--popup-scale));
-      padding: calc(16px * var(--popup-scale)) calc(20px * var(--popup-scale));
-      padding-left: calc(24px * var(--popup-scale));
-      min-width: min(calc(220px * var(--popup-scale)), 30vw);
-      max-width: min(calc(300px * var(--popup-scale)), 30vw);
+      gap: calc(6px * var(--ui-scale) / 1.75);
+      padding: calc(12px * var(--ui-scale) / 1.75) calc(16px * var(--ui-scale) / 1.75);
+      padding-left: calc(18px * var(--ui-scale) / 1.75);
+      min-width: min(calc(180px * var(--ui-scale) / 1.75), 24vw);
+      max-width: min(calc(220px * var(--ui-scale) / 1.75), 24vw);
       border: 1px solid var(--popup-border-color);
       border-radius: 0;
       background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
@@ -461,7 +461,7 @@
       top: 0;
       bottom: 0;
       left: 0;
-      width: calc(5px * var(--popup-scale));
+      width: calc(3px * var(--ui-scale));
       background: var(--popup-accent-strip);
       opacity: 0.95;
       pointer-events: none;
@@ -472,13 +472,13 @@
       position: absolute;
       inset: 0;
       background: var(--popup-sheen);
-      opacity: 0.25;
+      opacity: 0.14;
       mix-blend-mode: screen;
       pointer-events: none;
     }
 
     .slate-pill {
-      font-size: calc(11px * var(--popup-scale));
+      font-size: calc(9.5px * var(--ui-scale) / 1.75);
       font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -486,7 +486,7 @@
     }
 
     .slate-title {
-      font-size: calc(18px * var(--popup-scale));
+      font-size: calc(15px * var(--ui-scale) / 1.75);
       font-weight: 600;
       line-height: 1.25;
       color: rgba(248, 250, 255, 0.96);
@@ -494,13 +494,13 @@
     }
 
     .slate-card[data-type='clock'] .slate-title {
-      font-size: calc(22px * var(--popup-scale));
+      font-size: calc(18px * var(--ui-scale) / 1.75);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.06em;
     }
 
     .slate-subtitle {
-      font-size: calc(13px * var(--popup-scale));
+      font-size: calc(12px * var(--ui-scale) / 1.75);
       color: rgba(220, 226, 238, 0.82);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -511,7 +511,7 @@
     }
 
     .slate-meta {
-      font-size: calc(12px * var(--popup-scale));
+      font-size: calc(11px * var(--ui-scale) / 1.75);
       color: rgba(198, 204, 218, 0.65);
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -524,13 +524,13 @@
     .slate-dots {
       display: flex;
       justify-content: flex-end;
-      gap: calc(4px * var(--popup-scale));
-      margin-top: calc(10px * var(--popup-scale));
+      gap: 4px;
+      margin-top: calc(6px * var(--ui-scale) / 1.75);
     }
 
     .slate-dots span {
-      width: calc(6px * var(--popup-scale));
-      height: calc(6px * var(--popup-scale));
+      width: 4px;
+      height: 4px;
       border-radius: 0;
       background: rgba(255, 255, 255, 0.32);
       opacity: 0.45;
@@ -584,15 +584,15 @@
     @keyframes neonFlicker {
       0%, 100% {
         text-shadow:
-          0 0 2px color-mix(in srgb, var(--accent) 65%, rgba(255, 255, 255, 0.32)),
-          0 0 8px color-mix(in srgb, var(--accent-glow) 60%, rgba(12, 16, 28, 0.5)),
-          0 0 16px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.2));
+          0 0 1px color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.28)),
+          0 0 4px color-mix(in srgb, var(--accent-glow) 48%, rgba(12, 16, 28, 0.4)),
+          0 0 8px color-mix(in srgb, var(--accent) 36%, rgba(0, 0, 0, 0.18));
       }
       50% {
         text-shadow:
-          0 0 4px color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.4)),
-          0 0 14px color-mix(in srgb, var(--accent-glow) 70%, rgba(10, 14, 26, 0.35)),
-          0 0 26px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.25));
+          0 0 2px color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.36)),
+          0 0 6px color-mix(in srgb, var(--accent-glow) 60%, rgba(10, 14, 26, 0.3)),
+          0 0 12px color-mix(in srgb, var(--accent) 40%, rgba(0, 0, 0, 0.2));
       }
     }
 
@@ -608,8 +608,8 @@
     }
 
     @keyframes labelPulse {
-      0%, 100% { text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6); }
-      50% { text-shadow: 0 0 12px rgba(255, 255, 255, 0.6); }
+      0%, 100% { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+      50% { text-shadow: 0 0 6px rgba(255, 255, 255, 0.48); }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -711,18 +711,13 @@
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
-      clockSubtitle: 'UK time',
-      clockMeta: '',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
-      nextMeta: '',
       sponsorLabel: 'Sponsor',
       sponsorName: '',
       sponsorTagline: '',
-      sponsorMeta: '',
       notesLabel: 'Spotlight',
-      notesMeta: '',
       notes: [],
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
@@ -1090,18 +1085,13 @@
       if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
       if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
       if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.clockSubtitle === 'string') result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      if (typeof data.clockMeta === 'string') result.clockMeta = data.clockMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      if (typeof data.nextMeta === 'string') result.nextMeta = data.nextMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      if (typeof data.sponsorMeta === 'string') result.sponsorMeta = data.sponsorMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.notesMeta === 'string') result.notesMeta = data.notesMeta.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
       if (Array.isArray(data.notes) || typeof data.notes === 'string') {
         result.notes = normaliseSlateNotesList(data.notes);
       }
@@ -1114,17 +1104,16 @@
       const cards = [];
       const activeSlate = normaliseSlateData(slate);
 
-      const pushCard = (type, pill, title, subtitle = '', meta = '') => {
+      const pushCard = (type, pill, title, subtitle = '') => {
         const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
         const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
-        const safeMeta = typeof meta === 'string' ? meta.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
         if (!safeTitle && !safeSubtitle) return;
         cards.push({
           type,
           pill: pill && typeof pill === 'string' ? pill.trim() : '',
           title: safeTitle,
           subtitle: safeSubtitle,
-          meta: safeMeta
+          meta: ''
         });
       };
 
@@ -1137,13 +1126,13 @@
           hour12: false,
           timeZone: 'Europe/London'
         });
-        pushCard(
-          'clock',
-          activeSlate.clockLabel || 'UK TIME',
-          time,
-          activeSlate.clockSubtitle,
-          activeSlate.clockMeta
-        );
+        cards.push({
+          type: 'clock',
+          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
+          title: time,
+          subtitle: 'UK time',
+          meta: ''
+        });
       }
 
       if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
@@ -1151,8 +1140,7 @@
           'next',
           activeSlate.nextLabel || 'Next up',
           activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
-          activeSlate.nextSubtitle || '',
-          activeSlate.nextMeta || ''
+          activeSlate.nextSubtitle || ''
         );
       }
 
@@ -1161,14 +1149,13 @@
           'sponsor',
           activeSlate.sponsorLabel || 'Sponsor',
           activeSlate.sponsorName,
-          activeSlate.sponsorTagline || '',
-          activeSlate.sponsorMeta || ''
+          activeSlate.sponsorTagline || ''
         );
       }
 
       if (Array.isArray(activeSlate.notes)) {
         for (const note of activeSlate.notes) {
-          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '', activeSlate.notesMeta || '');
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
         }
       }
 
@@ -2270,7 +2257,7 @@
           if (messagesChanged) {
             this.refreshVisible();
           }
-          if (durationChanged || intervalChanged) {
+          if (durationChanged) {
             this.startVisibleTimer();
           }
         }
@@ -2282,11 +2269,16 @@
 
       showTicker() {
         if (!this.container || !this.messages.length) return;
+        const marquee = this.shouldUseMarquee();
         this.container.classList.remove('is-hiding');
         this.phase = 'visible';
         this.refreshVisible();
         this.container.classList.add('show');
-        this.startVisibleTimer();
+        if (marquee) {
+          this.debugSet('Status', 'marquee');
+        } else {
+          this.startVisibleTimer();
+        }
       }
 
       refreshVisible(force = false) {
@@ -2313,16 +2305,23 @@
       }
 
       startVisibleTimer() {
-        const marquee = this.shouldUseMarquee();
+        if (this.shouldUseMarquee()) {
+          this.debugSet('Status', 'marquee');
+          clearTimeout(this.stopTimer);
+          this.stopTimer = null;
+          return;
+        }
         clearTimeout(this.stopTimer);
-        this.stopTimer = null;
-
         const durationMs = Math.max(1000, this.displayDuration * 1000);
         this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
-        this.debugSet('Status', marquee ? `marquee ${this.displayDuration}s` : `visible ${this.displayDuration}s`);
+        this.debugSet('Status', `visible ${this.displayDuration}s`);
       }
 
       completeRun() {
+        if (this.shouldUseMarquee()) {
+          this.debugSet('Status', 'marquee');
+          return;
+        }
         this.hideTicker().then(() => {
           this.scheduleCooldown();
         });
