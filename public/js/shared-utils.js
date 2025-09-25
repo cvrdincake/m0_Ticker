@@ -21,6 +21,7 @@
 
   const OVERLAY_THEMES = [
     'holographic',
+    'liquid-glass',
     'neural',
     'quantum',
     'crystalline',

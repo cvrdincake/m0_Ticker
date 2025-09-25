@@ -175,6 +175,133 @@ body.ticker--glass {
   --popup-glow-anim: holographicPulse 8s var(--ease-premium) infinite;
 }
 
+/* LIQUID GLASS THEME - Polished glass with luminous refractions */
+.ticker--liquid-glass,
+body.ticker--liquid-glass {
+  --ticker-surface-a:
+    linear-gradient(135deg,
+      rgba(255, 255, 255, 0.18),
+      rgba(210, 226, 255, 0.12),
+      rgba(120, 170, 255, 0.08)
+    ),
+    linear-gradient(180deg,
+      rgba(18, 24, 40, 0.82),
+      rgba(14, 18, 32, 0.88)
+    );
+  --ticker-surface-b:
+    linear-gradient(315deg,
+      rgba(255, 255, 255, 0.16),
+      rgba(18, 24, 40, 0.84),
+      rgba(12, 16, 30, 0.9)
+    );
+  --ticker-border: rgba(210, 224, 255, 0.48);
+  --ticker-shadow:
+    0 42px 110px rgba(8, 12, 24, 0.7),
+    0 0 90px rgba(160, 210, 255, 0.22),
+    0 0 140px rgba(90, 200, 255, 0.18);
+  --ticker-backdrop-filter: blur(28px) saturate(1.35);
+  --ticker-depth-filter: saturate(1.08) brightness(1.06);
+  --ticker-surface-noise: var(--noise-subtle);
+  --ticker-ambient-mask:
+    linear-gradient(140deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      transparent 55%,
+      rgba(150, 200, 255, 0.16) 100%
+    ),
+    radial-gradient(ellipse 180% 140% at 20% 10%,
+      rgba(180, 220, 255, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(ellipse 140% 120% at 80% 90%,
+      rgba(120, 200, 255, 0.14),
+      transparent 55%
+    );
+  --ticker-ambient-caustics:
+    repeating-linear-gradient(45deg,
+      transparent 0px,
+      rgba(255, 255, 255, 0.08) 3px,
+      transparent 6px,
+      rgba(150, 200, 255, 0.06) 9px,
+      transparent 22px
+    );
+  --ticker-motion-stack:
+    tickerMaterialize 1.2s var(--ease-premium) both,
+    liquidGlassDrift 26s linear infinite,
+    liquidGlassGleam 5.2s var(--ease-back) infinite 1.6s;
+  --ticker-label-width: calc(130px * var(--ui-scale));
+  --ticker-label-size: calc(13px * var(--ui-scale));
+  --ticker-label-weight: 750;
+  --ticker-label-letter: calc(2.2px * var(--ui-scale));
+  --ticker-label-color: rgba(242, 248, 255, 0.98);
+  --ticker-label-shadow:
+    0 0 18px rgba(160, 210, 255, 0.55),
+    0 0 30px rgba(120, 200, 255, 0.4),
+    0 2px 10px rgba(0, 0, 0, 0.65);
+  --ticker-divider-color:
+    linear-gradient(90deg,
+      rgba(200, 220, 255, 0.45),
+      rgba(150, 200, 255, 0.35),
+      rgba(255, 255, 255, 0.5)
+    );
+  --ticker-accent-overlay:
+    linear-gradient(120deg,
+      rgba(255, 255, 255, 0.35) 0%,
+      rgba(180, 220, 255, 0.22) 40%,
+      transparent 72%
+    ),
+    radial-gradient(ellipse 120% 200% at 20% -20%,
+      rgba(255, 255, 255, 0.25),
+      transparent 60%
+    ),
+    linear-gradient(160deg,
+      rgba(120, 200, 255, 0.25),
+      rgba(200, 240, 255, 0.15)
+    );
+  --ticker-accent-border: 2px solid rgba(255, 255, 255, 0.55);
+  --ticker-accent-glow:
+    0 0 55px rgba(160, 210, 255, 0.38),
+    0 0 110px rgba(120, 200, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --ticker-accent-animation: liquidGlassSweep 22s linear infinite;
+  --popup-surface-a:
+    linear-gradient(140deg,
+      rgba(255, 255, 255, 0.24),
+      rgba(180, 210, 255, 0.18),
+      rgba(40, 60, 90, 0.55)
+    ),
+    linear-gradient(200deg,
+      rgba(18, 24, 40, 0.82),
+      rgba(12, 16, 30, 0.9)
+    );
+  --popup-surface-b:
+    linear-gradient(320deg,
+      rgba(255, 255, 255, 0.18),
+      rgba(18, 24, 40, 0.84),
+      rgba(10, 14, 26, 0.92)
+    );
+  --popup-border-color: rgba(210, 224, 255, 0.5);
+  --popup-shadow:
+    0 48px 120px rgba(6, 10, 26, 0.7),
+    0 0 110px rgba(160, 210, 255, 0.28);
+  --popup-text-color: rgba(244, 248, 255, 0.99);
+  --popup-divider-color: rgba(200, 220, 255, 0.45);
+  --popup-countdown-color: rgba(236, 244, 255, 0.96);
+  --popup-countdown-dot: rgba(140, 210, 255, 0.85);
+  --popup-accent-strip:
+    linear-gradient(180deg,
+      rgba(255, 255, 255, 0.75),
+      rgba(150, 210, 255, 0.55),
+      rgba(255, 255, 255, 0.7)
+    );
+  --popup-sheen:
+    linear-gradient(125deg,
+      rgba(255, 255, 255, 0.38) 0%,
+      rgba(180, 220, 255, 0.16) 32%,
+      transparent 68%
+    );
+  --popup-glow-anim: liquidGlassGlow 14s var(--ease-premium) infinite;
+}
+
 /* NEURAL THEME - AI-inspired organic networks */
 .ticker--neural,
 body.ticker--neural,
@@ -586,6 +713,60 @@ body.ticker--contrast {
 }
 
 /* Motion library */
+@keyframes liquidGlassDrift {
+  0% {
+    background-position: 0% 50%, 0% 0%;
+    filter: saturate(1) brightness(1);
+  }
+  50% {
+    background-position: 120% 60%, 80% 40%;
+    filter: saturate(1.12) brightness(1.07);
+  }
+  100% {
+    background-position: 240% 90%, 160% 80%;
+    filter: saturate(1) brightness(1);
+  }
+}
+
+@keyframes liquidGlassGleam {
+  0%, 100% {
+    opacity: 0.9;
+    filter: saturate(1) brightness(1);
+  }
+  45% {
+    opacity: 1;
+    filter: saturate(1.15) brightness(1.08);
+  }
+  70% {
+    opacity: 0.95;
+    filter: saturate(1.05) brightness(1.03);
+  }
+}
+
+@keyframes liquidGlassSweep {
+  0% {
+    background-position: 0% 50%, 0% 0%;
+    filter: hue-rotate(0deg) saturate(1);
+  }
+  50% {
+    background-position: 120% 40%, 60% 80%;
+    filter: hue-rotate(6deg) saturate(1.12);
+  }
+  100% {
+    background-position: 240% 90%, 120% 120%;
+    filter: hue-rotate(0deg) saturate(1.02);
+  }
+}
+
+@keyframes liquidGlassGlow {
+  0%, 100% {
+    box-shadow: 0 0 40px rgba(160, 210, 255, 0.25), 0 0 90px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 65px rgba(160, 210, 255, 0.32), 0 0 120px rgba(255, 255, 255, 0.28);
+  }
+}
+
 @keyframes tickerMaterialize {
   0% {
     transform: translate3d(0, 40%, 0);
