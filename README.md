@@ -1,4 +1,4 @@
-# void
+# Ticker Marquee Widget (+ More) For OBS
 
 This project exposes a lightweight dashboard and overlay for managing the ticker, popup, slate, and related widgets over HTTP.
 
