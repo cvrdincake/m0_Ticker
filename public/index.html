@@ -1342,13 +1342,18 @@
               <div class="control-group">
                 <label for="slateRotation">Rotation Interval (seconds)</label>
                 <div class="segment-row" style="gap: 12px; align-items: center;">
-                  <input type="range" id="slateRotation" min="4" max="60" step="1" value="12" />
-                  <input type="number" id="slateRotationNumber" min="4" max="60" step="1" value="12" style="max-width: 80px;" />
+                  <input type="range" id="slateRotation" min="4" max="900" step="1" value="12" />
+                  <input type="number" id="slateRotationNumber" min="4" max="900" step="1" value="12" style="max-width: 90px;" />
                 </div>
+                <p class="control-hint">Supports gaps of up to 900 seconds (15 minutes).</p>
               </div>
               <div class="control-group">
                 <label for="slateClockLabel">Clock label</label>
                 <input type="text" id="slateClockLabel" maxlength="48" placeholder="UK TIME" />
+              </div>
+              <div class="control-group">
+                <label for="slateClockSubtitle">Clock subtitle</label>
+                <input type="text" id="slateClockSubtitle" maxlength="200" placeholder="UK time" />
               </div>
               <div class="control-group">
                 <label for="slateNextLabel">Next-up label</label>
@@ -1549,6 +1554,7 @@
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
@@ -1564,7 +1570,10 @@
       ...DEFAULT_SLATE_SOURCE,
       rotationSeconds: typeof clampSlateRotationSeconds === 'function'
         ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
-        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 60),
+        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 900),
+      clockSubtitle: typeof DEFAULT_SLATE_SOURCE.clockSubtitle === 'string'
+        ? DEFAULT_SLATE_SOURCE.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH)
+        : 'UK time',
       notes: typeof normaliseSlateNotes === 'function'
         ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH)
         : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
@@ -1675,6 +1684,7 @@
       slateRotation: document.getElementById('slateRotation'),
       slateRotationNumber: document.getElementById('slateRotationNumber'),
       slateClockLabel: document.getElementById('slateClockLabel'),
+      slateClockSubtitle: document.getElementById('slateClockSubtitle'),
       slateNextLabel: document.getElementById('slateNextLabel'),
       slateNextTitle: document.getElementById('slateNextTitle'),
       slateNextSubtitle: document.getElementById('slateNextSubtitle'),
@@ -1857,7 +1867,7 @@
       }
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) return DEFAULT_SLATE.rotationSeconds || 12;
-      return Math.min(Math.max(Math.round(numeric), 4), 60);
+      return Math.min(Math.max(Math.round(numeric), 4), 900);
     }
 
     function computeSlateVisibleSeconds(rotationSeconds) {
@@ -1904,6 +1914,9 @@
       if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
       if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
       if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.clockSubtitle === 'string') {
+        result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      }
       if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
@@ -1924,6 +1937,7 @@
         rotationSeconds: clampSlateRotation(normalised.rotationSeconds),
         showClock: !!normalised.showClock,
         clockLabel: normalised.clockLabel || '',
+        clockSubtitle: normalised.clockSubtitle || '',
         nextLabel: normalised.nextLabel || '',
         nextTitle: normalised.nextTitle || '',
         nextSubtitle: normalised.nextSubtitle || '',
@@ -1965,7 +1979,7 @@
           type: 'clock',
           pill: (activeSlate.clockLabel || 'UK TIME').trim(),
           title: time,
-          subtitle: 'UK time',
+          subtitle: (activeSlate.clockSubtitle || 'UK time').trim(),
           meta: ''
         });
       }
@@ -2208,6 +2222,7 @@
       if (el.slateRotation) el.slateRotation.value = rotation;
       if (el.slateRotationNumber) el.slateRotationNumber.value = rotation;
       if (el.slateClockLabel) el.slateClockLabel.value = slateState.clockLabel || '';
+      if (el.slateClockSubtitle) el.slateClockSubtitle.value = slateState.clockSubtitle || '';
       if (el.slateNextLabel) el.slateNextLabel.value = slateState.nextLabel || '';
       if (el.slateNextTitle) el.slateNextTitle.value = slateState.nextTitle || '';
       if (el.slateNextSubtitle) el.slateNextSubtitle.value = slateState.nextSubtitle || '';
@@ -2320,14 +2335,18 @@ function normalisePopupData(data) {
         .map(s => s.trim())
         .filter(Boolean);
       const merged = Array.from(new Set([...DEFAULT_HIGHLIGHTS, ...custom]));
-      if (!merged.length) {
+      const tokens = merged
+        .map(entry => entry.trim())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+      if (!tokens.length) {
         highlightRegex = null;
         return;
       }
-      const escaped = merged
+      const escaped = tokens
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
-      highlightRegex = new RegExp(`\\b(${escaped})\\b`, 'gi');
+      highlightRegex = escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
     }
 
     function escapeHtml(str) {
@@ -4556,14 +4575,21 @@ function normalisePopupData(data) {
     }
 
     el.highlightWords.addEventListener('input', () => {
-      overlayPrefs.highlight = normaliseHighlightInput(el.highlightWords.value);
+      const raw = el.highlightWords.value;
+      const normalised = normaliseHighlightInput(raw);
+      const changed = overlayPrefs.highlight !== normalised;
+      overlayPrefs.highlight = normalised;
+      if (changed) {
+        updateHighlightRegex();
+        renderMessages();
+        renderPopupControls();
+        updateOverlayChip();
+        saveLocal();
+        queueOverlaySave();
+      }
+    });
+    el.highlightWords.addEventListener('blur', () => {
       el.highlightWords.value = overlayPrefs.highlight;
-      updateHighlightRegex();
-      renderMessages();
-      renderPopupControls();
-      updateOverlayChip();
-      saveLocal();
-      queueOverlaySave();
     });
 
     if (el.slateEnabled) {
@@ -4600,6 +4626,14 @@ function normalisePopupData(data) {
       });
       el.slateClockLabel.addEventListener('blur', () => {
         el.slateClockLabel.value = slateState.clockLabel || '';
+      });
+    }
+    if (el.slateClockSubtitle) {
+      el.slateClockSubtitle.addEventListener('input', () => {
+        updateSlateTextField('clockSubtitle', el.slateClockSubtitle.value, MAX_SLATE_TEXT_LENGTH);
+      });
+      el.slateClockSubtitle.addEventListener('blur', () => {
+        el.slateClockSubtitle.value = slateState.clockSubtitle || '';
       });
     }
     if (el.slateNextLabel) {

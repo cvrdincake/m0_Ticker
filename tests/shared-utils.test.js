@@ -51,7 +51,8 @@ test('isSafeCssColor rejects malformed or unsafe input', () => {
 });
 
 test('normaliseHighlightList trims whitespace and drops empty entries', () => {
-  assert.equal(normaliseHighlightList(' one, two , ,three '), 'one,two,three');
-  assert.equal(normaliseHighlightList(['alpha', ' beta ', ' '].join(',')), 'alpha,beta');
+  assert.equal(normaliseHighlightList(' one, two , ,three '), 'one, two, three');
+  assert.equal(normaliseHighlightList(['alpha', ' beta ', ' '].join(',')), 'alpha, beta');
+  assert.equal(normaliseHighlightList('Silent Hill f'), 'Silent Hill f', 'internal spaces are preserved');
   assert.equal(normaliseHighlightList(null), '', 'null input normalises to empty string');
 });

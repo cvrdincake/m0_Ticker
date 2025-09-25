@@ -97,6 +97,7 @@ const BASE_DEFAULT_SLATE_SOURCE = CONFIG_DEFAULT_SLATE
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
@@ -761,6 +762,10 @@ function sanitiseSlateInput(input, options = {}) {
 
   if (typeof input.clockLabel === 'string') {
     result.clockLabel = input.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+  }
+
+  if (typeof input.clockSubtitle === 'string') {
+    result.clockSubtitle = input.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
   }
 
   if (typeof input.nextLabel === 'string') {

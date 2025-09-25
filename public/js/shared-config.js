@@ -16,7 +16,7 @@
     'today'
   ]);
 
-  const DEFAULT_HIGHLIGHT_STRING = DEFAULT_HIGHLIGHTS.join(',');
+  const DEFAULT_HIGHLIGHT_STRING = DEFAULT_HIGHLIGHTS.join(', ');
 
   const DEFAULT_OVERLAY = Object.freeze({
     label: 'LIVE',
@@ -44,6 +44,7 @@
     rotationSeconds: 12,
     showClock: true,
     clockLabel: 'UK TIME',
+    clockSubtitle: 'UK time',
     nextLabel: 'Next up',
     nextTitle: '',
     nextSubtitle: '',
