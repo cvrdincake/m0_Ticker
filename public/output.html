@@ -19,18 +19,18 @@
       --padding-x: var(--space-lg);
       --divider-height: calc(var(--space-sm) * 1.75);
       --accent: #ef4444;
-      --accent-bright: color-mix(in srgb, var(--accent) 82%, white 18%);
-      --accent-soft: color-mix(in srgb, var(--accent) 40%, transparent);
-      --accent-glow: color-mix(in srgb, var(--accent) 62%, rgba(255, 255, 255, 0.45));
-      --accent-muted: color-mix(in srgb, var(--accent) 55%, rgba(10, 12, 20, 0.7));
-      --accent-duo: color-mix(in srgb, var(--accent) 68%, #5aa8ff 32%);
-      --accent-contrast: color-mix(in srgb, var(--accent) 58%, #45e6c3 42%);
-      --surface-a: rgba(18, 20, 28, 0.92);
-      --surface-b: rgba(8, 10, 16, 0.9);
+      --accent-bright: color-mix(in srgb, var(--accent) 80%, #f8f9ff 20%);
+      --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+      --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.4));
+      --accent-muted: color-mix(in srgb, var(--accent) 55%, rgba(14, 16, 24, 0.7));
+      --accent-duo: color-mix(in srgb, var(--accent) 60%, #1c1e27 40%);
+      --accent-contrast: color-mix(in srgb, var(--accent) 56%, #0d0f16 44%);
+      --surface-a: rgba(14, 16, 24, 0.94);
+      --surface-b: rgba(6, 8, 14, 0.92);
       --surface-border: rgba(255, 255, 255, 0.12);
       --surface-outline: rgba(255, 255, 255, 0.06);
-      --text: #fefefe;
-      --shadow: 0 18px 52px rgba(3, 5, 14, 0.5);
+      --text: #f5f7fb;
+      --shadow: 0 18px 52px rgba(3, 5, 14, 0.52);
       --marquee-pps: 110;
       --hide-shift: calc(12px * var(--ui-scale) / 1.75);
       --ticker-surface-a: var(--surface-a);
@@ -46,10 +46,10 @@
       --ticker-label-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
       --ticker-divider-color: rgba(255, 255, 255, 0.32);
       --ticker-accent-overlay:
-        linear-gradient(155deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0) 62%),
+        linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
         linear-gradient(150deg, var(--accent-bright), var(--accent-muted));
-      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.35));
-      --ticker-accent-glow: 0 0 12px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.25));
+      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.3));
+      --ticker-accent-glow: 0 0 12px color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.22));
       --ticker-accent-animation: holographicShift 20s var(--ease-premium) infinite;
       --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
       --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
@@ -677,7 +677,7 @@
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
     const HIDE_TRANSITION_FALLBACK_MS = 700;
-    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir']).map(theme => `ticker--${theme}`);
+    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir', 'monotone']).map(theme => `ticker--${theme}`);
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',
@@ -689,7 +689,7 @@
       mode: 'auto',
       accentAnim: true,
       sparkle: true,
-      theme: 'holographic',
+      theme: 'monotone',
       ...(sharedConfig.DEFAULT_OVERLAY || {})
     };
     if (!DEFAULT_OVERLAY.highlight) {

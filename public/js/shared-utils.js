@@ -25,7 +25,8 @@
     'neural',
     'quantum',
     'crystalline',
-    'neon-noir'
+    'neon-noir',
+    'monotone'
   ];
 
   function clampNumber(value, min, max, fallback, precision) {
