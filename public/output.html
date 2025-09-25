@@ -417,6 +417,11 @@
     }
 
     .slate {
+      --slate-pill-size: calc(var(--text-xs, calc(10px * var(--ui-scale))) * 0.542857);
+      --slate-title-size: calc(var(--text-base, calc(14px * var(--ui-scale))) * 0.612245);
+      --slate-clock-size: calc(var(--text-base, calc(14px * var(--ui-scale))) * 0.734694);
+      --slate-subtitle-size: calc(var(--text-sm, calc(12px * var(--ui-scale))) * 0.571429);
+      --slate-meta-size: calc(var(--text-sm, calc(12px * var(--ui-scale))) * 0.52381);
       position: fixed;
       top: calc(24px * var(--ui-scale) / 1.75);
       right: calc(24px * var(--ui-scale) / 1.75);
@@ -478,7 +483,7 @@
     }
 
     .slate-pill {
-      font-size: calc(9.5px * var(--ui-scale) / 1.75);
+      font-size: var(--slate-pill-size);
       font-weight: 600;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -486,7 +491,7 @@
     }
 
     .slate-title {
-      font-size: calc(15px * var(--ui-scale) / 1.75);
+      font-size: var(--slate-title-size);
       font-weight: 600;
       line-height: 1.25;
       color: rgba(248, 250, 255, 0.96);
@@ -494,13 +499,13 @@
     }
 
     .slate-card[data-type='clock'] .slate-title {
-      font-size: calc(18px * var(--ui-scale) / 1.75);
+      font-size: var(--slate-clock-size);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.06em;
     }
 
     .slate-subtitle {
-      font-size: calc(12px * var(--ui-scale) / 1.75);
+      font-size: var(--slate-subtitle-size);
       color: rgba(220, 226, 238, 0.82);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -511,7 +516,7 @@
     }
 
     .slate-meta {
-      font-size: calc(11px * var(--ui-scale) / 1.75);
+      font-size: var(--slate-meta-size);
       color: rgba(198, 204, 218, 0.65);
       letter-spacing: 0.12em;
       text-transform: uppercase;
@@ -2334,28 +2339,19 @@
 
         const durationSeconds = Math.max(1, Math.round(Number(this.displayDuration) || 0));
         const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
-
-        if (marquee && intervalSeconds === 0) {
-          this.debugSet('Status', 'marquee');
-          return;
-        }
-
         const durationMs = Math.max(1000, durationSeconds * 1000);
         this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
         if (marquee) {
-          this.debugSet('Status', `marquee ${durationSeconds}s`);
+          const status = intervalSeconds > 0
+            ? `marquee ${durationSeconds}s`
+            : `marquee ${durationSeconds}s (loop)`;
+          this.debugSet('Status', status);
         } else {
           this.debugSet('Status', `visible ${durationSeconds}s`);
         }
       }
 
       completeRun() {
-        const marquee = this.shouldUseMarquee();
-        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
-        if (marquee && intervalSeconds === 0) {
-          this.debugSet('Status', 'marquee');
-          return;
-        }
         this.hideTicker().then(() => {
           this.scheduleCooldown();
         });
@@ -2363,14 +2359,16 @@
 
       scheduleCooldown(reset = false) {
         if (reset) clearTimeout(this.cooldownTimer);
-        const gap = Math.max(0, this.intervalSeconds) * 1000;
-        if (gap === 0) {
+        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
+        if (intervalSeconds === 0) {
           this.phase = 'idle';
+          this.debugSet('Status', 'cooldown 0s');
           this.evaluate();
           return;
         }
         this.phase = 'cooldown';
-        this.debugSet('Status', `cooldown ${this.intervalSeconds}s`);
+        this.debugSet('Status', `cooldown ${intervalSeconds}s`);
+        const gap = intervalSeconds * 1000;
         this.cooldownTimer = setTimeout(() => {
           this.phase = 'idle';
           this.evaluate();
