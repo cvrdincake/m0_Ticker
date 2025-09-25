@@ -1210,6 +1210,7 @@
           <label>Theme</label>
             <div class="segment-row" id="themeButtons">
               <button type="button" class="segment-button" data-theme="holographic">Holographic</button>
+              <button type="button" class="segment-button" data-theme="liquid-glass">Liquid Glass</button>
               <button type="button" class="segment-button" data-theme="neural">Neural</button>
               <button type="button" class="segment-button" data-theme="quantum">Quantum</button>
               <button type="button" class="segment-button" data-theme="crystalline">Crystalline</button>
@@ -1217,6 +1218,7 @@
             </div>
             <div class="theme-notes">
               <span><strong>Holographic</strong> iridescent refraction with caustic light</span>
+              <span><strong>Liquid Glass</strong> frosted panes with soft chromatic highlights</span>
               <span><strong>Neural</strong> AI-inspired circuitry with pulsing glow</span>
               <span><strong>Quantum</strong> particle gradients and energetic beams</span>
               <span><strong>Crystalline</strong> precision glass facets and cool sheen</span>
@@ -1452,7 +1454,7 @@
     const MESSAGE_PLACEHOLDER = 'Add a ticker message…';
       const THEME_OPTIONS = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
         ? OVERLAY_THEMES
-        : ['holographic', 'neural', 'quantum', 'crystalline', 'neon-noir'];
+        : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir'];
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
