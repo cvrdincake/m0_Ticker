@@ -1972,6 +1972,7 @@
           if (clamped !== this.overlay.scale) {
             this.overlay.scale = clamped;
             refresh = true;
+            slateNeedsRefresh = true;
           }
         }
 
@@ -2280,6 +2281,9 @@
           if (durationChanged) {
             this.startVisibleTimer();
           }
+          if (intervalChanged) {
+            this.startVisibleTimer();
+          }
         }
 
         if (intervalChanged && this.phase === 'cooldown') {
@@ -2289,16 +2293,11 @@
 
       showTicker() {
         if (!this.container || !this.messages.length) return;
-        const marquee = this.shouldUseMarquee();
         this.container.classList.remove('is-hiding');
         this.phase = 'visible';
         this.refreshVisible();
         this.container.classList.add('show');
-        if (marquee) {
-          this.debugSet('Status', 'marquee');
-        } else {
-          this.startVisibleTimer();
-        }
+        this.startVisibleTimer();
       }
 
       refreshVisible(force = false) {
@@ -2310,7 +2309,11 @@
           this.prepareMarquee(shouldReset);
           this.marqueeNeedsReset = false;
           if (this.phase === 'visible') {
-            this.debugSet('Status', 'marquee');
+            const duration = Math.max(1, Math.round(Number(this.displayDuration) || 0));
+            const status = (Number(this.intervalSeconds) || 0) > 0
+              ? `marquee ${duration}s`
+              : 'marquee';
+            this.debugSet('Status', status);
           }
         } else {
           this.stopMarquee(true);
@@ -2325,20 +2328,31 @@
       }
 
       startVisibleTimer() {
-        if (this.shouldUseMarquee()) {
+        const marquee = this.shouldUseMarquee();
+        clearTimeout(this.stopTimer);
+        this.stopTimer = null;
+
+        const durationSeconds = Math.max(1, Math.round(Number(this.displayDuration) || 0));
+        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
+
+        if (marquee && intervalSeconds === 0) {
           this.debugSet('Status', 'marquee');
-          clearTimeout(this.stopTimer);
-          this.stopTimer = null;
           return;
         }
-        clearTimeout(this.stopTimer);
-        const durationMs = Math.max(1000, this.displayDuration * 1000);
+
+        const durationMs = Math.max(1000, durationSeconds * 1000);
         this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
-        this.debugSet('Status', `visible ${this.displayDuration}s`);
+        if (marquee) {
+          this.debugSet('Status', `marquee ${durationSeconds}s`);
+        } else {
+          this.debugSet('Status', `visible ${durationSeconds}s`);
+        }
       }
 
       completeRun() {
-        if (this.shouldUseMarquee()) {
+        const marquee = this.shouldUseMarquee();
+        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
+        if (marquee && intervalSeconds === 0) {
           this.debugSet('Status', 'marquee');
           return;
         }
