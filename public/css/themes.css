@@ -588,17 +588,17 @@ body.ticker--contrast {
 /* Motion library */
 @keyframes tickerMaterialize {
   0% {
-    transform: translate3d(0, 40%, 0) scale(0.96);
+    transform: translate3d(0, 40%, 0);
     opacity: 0;
     filter: blur(6px) saturate(0.8);
   }
   60% {
-    transform: translate3d(0, -5%, 0) scale(1.02);
+    transform: translate3d(0, -5%, 0);
     opacity: 1;
     filter: blur(0px) saturate(1.08);
   }
   100% {
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, 0, 0);
     opacity: 1;
     filter: none;
   }
