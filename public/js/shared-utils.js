@@ -55,7 +55,7 @@
   }
 
   function clampSlateRotationSeconds(value, fallback) {
-    return clampNumber(value, 4, 60, fallback, 0);
+    return clampNumber(value, 4, 900, fallback, 0);
   }
 
   function normaliseHighlightList(value) {
@@ -63,7 +63,7 @@
       .split(',')
       .map(part => part.trim())
       .filter(Boolean)
-      .join(',');
+      .join(', ');
   }
 
   function normalisePosition(value) {

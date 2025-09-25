@@ -418,18 +418,18 @@
 
     .slate {
       position: fixed;
-      top: calc(16px * var(--ui-scale) / 1.75);
-      right: calc(16px * var(--ui-scale) / 1.75);
-      max-width: min(calc(220px * var(--ui-scale)), 24vw);
+      top: calc(24px * var(--ui-scale) / 1.75);
+      right: calc(24px * var(--ui-scale) / 1.75);
+      max-width: min(calc(360px * var(--ui-scale) / 1.75), 32vw);
       pointer-events: none;
       opacity: 0;
-      transform: translate3d(8px, -8px, 0);
+      transform: translate3d(calc(16px * var(--ui-scale) / 1.75), calc(-16px * var(--ui-scale) / 1.75), 0);
       transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
       z-index: 1080;
     }
 
     .slate.push-down {
-      top: calc(var(--bar-height) + (24px * var(--ui-scale) / 1.75) + (10px * var(--popup-scale)));
+      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
     }
 
     .slate.show {
@@ -441,11 +441,11 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      gap: calc(6px * var(--ui-scale) / 1.75);
-      padding: calc(12px * var(--ui-scale) / 1.75) calc(16px * var(--ui-scale) / 1.75);
-      padding-left: calc(18px * var(--ui-scale) / 1.75);
-      min-width: min(calc(180px * var(--ui-scale) / 1.75), 24vw);
-      max-width: min(calc(220px * var(--ui-scale) / 1.75), 24vw);
+      gap: calc(8px * var(--ui-scale) / 1.75);
+      padding: calc(16px * var(--ui-scale) / 1.75) calc(22px * var(--ui-scale) / 1.75);
+      padding-left: calc(22px * var(--ui-scale) / 1.75);
+      min-width: min(calc(240px * var(--ui-scale) / 1.75), 30vw);
+      max-width: min(calc(320px * var(--ui-scale) / 1.75), 32vw);
       border: 1px solid var(--popup-border-color);
       border-radius: 0;
       background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
@@ -711,6 +711,7 @@
       rotationSeconds: 12,
       showClock: true,
       clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
       nextLabel: 'Next up',
       nextTitle: '',
       nextSubtitle: '',
@@ -726,7 +727,10 @@
       ...DEFAULT_SLATE_SOURCE,
       rotationSeconds: typeof clampSlateRotationSeconds === 'function'
         ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
-        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 60),
+        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 900),
+      clockSubtitle: typeof DEFAULT_SLATE_SOURCE.clockSubtitle === 'string'
+        ? DEFAULT_SLATE_SOURCE.clockSubtitle.trim().slice(0, 200)
+        : 'UK time',
       notes: typeof normaliseSlateNotes === 'function'
         ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, 6, 200)
         : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
@@ -739,7 +743,13 @@
     };
 
     function normaliseHighlightString(value) {
-      return normaliseHighlightList ? normaliseHighlightList(value) : String(value || '').split(',').map(part => part.trim()).filter(Boolean).join(',');
+      return normaliseHighlightList
+        ? normaliseHighlightList(value)
+        : String(value || '')
+            .split(',')
+            .map(part => part.trim())
+            .filter(Boolean)
+            .join(', ');
     }
 
     function clampScale(value) {
@@ -1035,7 +1045,7 @@
       }
       const numeric = Number(value);
       if (!Number.isFinite(numeric)) return DEFAULT_SLATE.rotationSeconds || 12;
-      return Math.min(Math.max(Math.round(numeric), 4), 60);
+      return Math.min(Math.max(Math.round(numeric), 4), 900);
     }
 
     function computeSlateVisibleSeconds(rotationSeconds) {
@@ -1085,6 +1095,9 @@
       if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
       if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
       if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.clockSubtitle === 'string') {
+        result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      }
       if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
       if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
@@ -1130,7 +1143,7 @@
           type: 'clock',
           pill: (activeSlate.clockLabel || 'UK TIME').trim(),
           title: time,
-          subtitle: 'UK time',
+          subtitle: (activeSlate.clockSubtitle || 'UK time').trim(),
           meta: ''
         });
       }
@@ -1479,7 +1492,12 @@
           if (trimmed) merged.add(trimmed.toLowerCase());
         }
         if (!merged.size) return null;
-        const escaped = Array.from(merged)
+        const tokens = Array.from(merged)
+          .map(word => word.trim())
+          .filter(Boolean)
+          .sort((a, b) => b.length - a.length);
+        if (!tokens.length) return null;
+        const escaped = tokens
           .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
           .join('|');
         return escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
@@ -1488,7 +1506,9 @@
       setCustomHighlights(list) {
         const normalised = normaliseHighlightString(list);
         this.overlay.highlight = normalised;
-        this.customHighlights = normalised ? normalised.split(',') : [];
+        this.customHighlights = normalised
+          ? normalised.split(',').map(part => part.trim())
+          : [];
         this.highlightRegex = this.buildHighlightRegex();
         this.cachedLongestMessageWidth = null;
         if (this.popupVisible && this.popup.text) {
@@ -1676,7 +1696,7 @@
       if (this.slateSubtitleNode) {
         const subtitle = card.subtitle && typeof card.subtitle === 'string'
           ? card.subtitle
-          : 'UK time';
+          : (DEFAULT_SLATE.clockSubtitle || 'UK time');
         if (subtitle) {
           this.slateSubtitleNode.textContent = subtitle;
           this.slateSubtitleNode.classList.remove('is-hidden');
