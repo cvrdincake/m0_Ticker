@@ -77,7 +77,7 @@ const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
       mode: 'auto',
       accentAnim: true,
       sparkle: true,
-      theme: 'holographic'
+      theme: 'monotone'
     };
 
 const BASE_DEFAULT_POPUP = CONFIG_DEFAULT_POPUP

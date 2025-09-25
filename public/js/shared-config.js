@@ -28,7 +28,7 @@
     mode: 'auto',
     accentAnim: true,
     sparkle: true,
-    theme: 'holographic'
+    theme: 'monotone'
   });
 
   const DEFAULT_POPUP = Object.freeze({
