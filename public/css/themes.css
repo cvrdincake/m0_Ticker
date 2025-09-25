@@ -54,6 +54,7 @@
 /* MONOTONE THEME - Minimalist graphite surfaces */
 .ticker--monotone,
 body.ticker--monotone {
+  --accent: #d1d5db;
   --ticker-surface-a:
     linear-gradient(165deg,
       rgba(20, 22, 30, 0.94),
@@ -116,6 +117,11 @@ body.ticker--monotone {
       color-mix(in srgb, var(--accent) 68%, rgba(255, 255, 255, 0.1)),
       color-mix(in srgb, var(--accent) 24%, rgba(6, 7, 12, 0.92))
     );
+}
+
+.ticker--monotone .highlight,
+body.ticker--monotone .highlight {
+  color: rgba(225, 227, 235, 0.88);
 }
 
 /* HOLOGRAPHIC THEME - Futuristic iridescent surfaces */
