@@ -4647,6 +4647,64 @@
       return payload;
     }
 
+    function normaliseSceneForComparison(scene, { ignoreName = false } = {}) {
+      if (!scene) return null;
+      const comparable = {
+        ticker: scene.ticker || null,
+        popup: scene.popup || null,
+        slate: scene.slate || null,
+        overlay: scene.overlay || null
+      };
+      if (!ignoreName) {
+        comparable.name = String(scene.name || '').trim();
+      }
+      return comparable;
+    }
+
+    function scenesAreEquivalent(a, b, options = {}) {
+      if (!a || !b) return false;
+      const normalisedA = normaliseSceneForComparison(a, options);
+      const normalisedB = normaliseSceneForComparison(b, options);
+      return JSON.stringify(normalisedA) === JSON.stringify(normalisedB);
+    }
+
+    function scenesShareTickerMessages(a, b) {
+      if (!a || !b) return false;
+      const messagesA = Array.isArray(a?.ticker?.messages) ? a.ticker.messages : [];
+      const messagesB = Array.isArray(b?.ticker?.messages) ? b.ticker.messages : [];
+      if (!messagesA.length && !messagesB.length) {
+        return false;
+      }
+      if (messagesA.length !== messagesB.length) {
+        return false;
+      }
+      return JSON.stringify(messagesA) === JSON.stringify(messagesB);
+    }
+
+    function generateUniqueSceneName(baseName) {
+      const normalised = String(baseName || '').trim();
+      const trimmedBase = normalised.slice(0, MAX_SCENE_NAME_LENGTH);
+      if (!trimmedBase) return trimmedBase;
+      const existingNames = new Set(
+        scenes.map(scene => String(scene.name || '').trim().toLowerCase())
+      );
+      const lowerBase = trimmedBase.toLowerCase();
+      if (!existingNames.has(lowerBase)) {
+        return trimmedBase;
+      }
+      for (let suffix = 2; suffix < 1000; suffix += 1) {
+        const label = ` (${suffix})`;
+        const limit = Math.max(0, MAX_SCENE_NAME_LENGTH - label.length);
+        const truncatedBase = trimmedBase.slice(0, limit).trimEnd();
+        const candidate = `${truncatedBase}${label}`;
+        const lowerCandidate = candidate.toLowerCase();
+        if (!existingNames.has(lowerCandidate)) {
+          return candidate;
+        }
+      }
+      return trimmedBase;
+    }
+
     async function persistScenes(successMessage = 'Scene saved') {
       if (scenesSaveInFlight) {
         pendingSceneMessage = successMessage;
@@ -4706,10 +4764,61 @@
       const nameInput = el.sceneName ? el.sceneName.value : '';
       const payload = buildScenePayload(nameInput, existing?.id || null, existing?.name || '');
       if (!payload) return;
-      if (existing) {
-        scenes = scenes.map(scene => (scene.id === existing.id ? payload : scene));
+      const existingScene = existing
+        ? scenes.find(scene => scene.id === existing.id)
+        : null;
+      if (existingScene && scenesAreEquivalent(existingScene, payload)) {
+        toast('No changes detected. Reuse the existing scene instead of saving.');
+        return;
+      }
+      const duplicateScene = scenes.find(scene => scene.id !== payload.id && scenesAreEquivalent(scene, payload));
+      if (duplicateScene) {
+        toast(`Scene matches existing preset “${duplicateScene.name}”. Reuse it instead of saving a duplicate.`);
+        return;
+      }
+      if (existingScene) {
+        const confirmMessage = `Replace “${existingScene.name}” with the current configuration?`;
+        if (!confirm(confirmMessage)) {
+          toast('Scene save cancelled');
+          return;
+        }
+        scenes = scenes.map(scene => (scene.id === existingScene.id ? payload : scene));
         persistScenes('Scene updated');
       } else {
+        const contentTwin = scenes.find(scene =>
+          scene.id !== payload.id && scenesAreEquivalent(scene, payload, { ignoreName: true })
+        );
+        if (contentTwin) {
+          const confirmMessage = contentTwin.name
+            ? `Another scene (“${contentTwin.name}”) already has the same content. Save anyway?`
+            : 'Another scene already has the same content. Save anyway?';
+          if (!confirm(confirmMessage)) {
+            toast('Scene save cancelled');
+            return;
+          }
+        }
+        const nameDuplicate = scenes.find(scene =>
+          scene.name && payload.name && scene.name.trim().toLowerCase() === payload.name.trim().toLowerCase()
+        );
+        if (nameDuplicate) {
+          if (!confirm(`A scene named “${payload.name}” already exists. Keep the same name?`)) {
+            const uniqueName = generateUniqueSceneName(payload.name);
+            if (!uniqueName) {
+              toast('Scene save cancelled');
+              return;
+            }
+            if (uniqueName === payload.name) {
+              toast('Scene save cancelled');
+              return;
+            }
+            payload.name = uniqueName;
+            toast(`Scene renamed to “${payload.name}”.`);
+          }
+        }
+        const mostRecent = scenes[0];
+        if (mostRecent && scenesShareTickerMessages(mostRecent, payload)) {
+          toast(`Heads-up: the message queue matches the most recent preset “${mostRecent.name}”.`);
+        }
         scenes.unshift(payload);
         persistScenes('Scene saved');
       }
