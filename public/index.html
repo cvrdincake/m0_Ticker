@@ -222,6 +222,8 @@
     }
     .status-dot.active { background: var(--success); box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.22); }
     .status-value { color: var(--text); font-weight: 600; }
+    .status-value.is-active { color: color-mix(in srgb, var(--success) 55%, var(--accent) 45%); }
+    .status-value.is-inactive { color: var(--subtle); }
     .status-value.is-full { color: var(--danger); }
 
     .section-title { font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
@@ -2676,6 +2678,8 @@
       el.interval.value = formatMinutesValue(state.intervalMinutes);
       el.statusActive.classList.toggle('active', state.isActive);
       el.statusActiveText.textContent = state.isActive ? 'Active' : 'Inactive';
+      el.statusActiveText.classList.toggle('is-active', state.isActive);
+      el.statusActiveText.classList.toggle('is-inactive', !state.isActive);
       const count = state.messages.length;
       const queueFull = count >= MAX_MESSAGES;
       el.statusCount.textContent = `${count}/${MAX_MESSAGES}`;
