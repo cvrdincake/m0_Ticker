@@ -2604,6 +2604,9 @@
       return fixed.replace(/(\.\d*?[1-9])0+$/, '$1').replace(/\.0+$/, '');
     }
 
+    const RELATIVE_COUNTDOWN_THRESHOLD = 1e12;
+    const UNIX_SECONDS_THRESHOLD = 1e9;
+
     function formatDurationSeconds(value) {
       const numeric = Number(value);
       if (!Number.isFinite(numeric) || numeric <= 0) return '';
@@ -2614,23 +2617,42 @@
       return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
     }
 
-    function parseCountdownTarget(value) {
-      if (value === null || value === undefined) return null;
-      const raw = String(value).trim();
-      if (!raw) return null;
-      const numeric = Number(raw);
-      if (Number.isFinite(numeric) && numeric > 0) {
-        return Math.round(numeric);
+    function normaliseCountdownTargetValue(value, now = Date.now()) {
+      if (value === null || value === undefined || value === '') return null;
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value) || value <= 0) return null;
+        const rounded = Math.round(value);
+        if (rounded >= RELATIVE_COUNTDOWN_THRESHOLD) {
+          return rounded;
+        }
+        if (rounded >= UNIX_SECONDS_THRESHOLD) {
+          return rounded * 1000;
+        }
+        return now + Math.max(1, rounded) * 1000;
       }
-      const parsed = new Date(raw);
+      const trimmed = String(value).trim();
+      if (!trimmed) return null;
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        return normaliseCountdownTargetValue(numeric, now);
+      }
+      const parsed = new Date(trimmed);
       const ms = parsed.getTime();
       return Number.isNaN(ms) ? null : ms;
     }
 
-    function formatCountdownLabel(targetMs) {
-      const numeric = Number(targetMs);
-      if (!Number.isFinite(numeric)) return '';
-      const diff = Math.round(numeric - Date.now());
+    function parseCountdownTarget(value) {
+      if (value === null || value === undefined) return null;
+      const raw = String(value).trim();
+      if (!raw) return null;
+      const resolved = normaliseCountdownTargetValue(raw);
+      return Number.isFinite(resolved) ? resolved : null;
+    }
+
+    function formatCountdownLabel(targetMs, now = Date.now()) {
+      const resolved = normaliseCountdownTargetValue(targetMs, now);
+      if (!Number.isFinite(resolved)) return '';
+      const diff = Math.round(resolved - now);
       if (diff <= 0) return 'now';
       const seconds = Math.floor(diff / 1000);
       if (seconds >= 60) {
@@ -2948,7 +2970,16 @@
         countdownEl.textContent = '';
         return true;
       }
-      const label = formatCountdownLabel(popupPreviewCountdownTarget);
+      const now = Date.now();
+      const resolved = normaliseCountdownTargetValue(popupPreviewCountdownTarget, now);
+      if (!Number.isFinite(resolved)) {
+        countdownEl.textContent = '';
+        return true;
+      }
+      if (resolved !== popupPreviewCountdownTarget) {
+        popupPreviewCountdownTarget = resolved;
+      }
+      const label = formatCountdownLabel(resolved, now);
       countdownEl.textContent = label;
       return label === 'now';
     }
