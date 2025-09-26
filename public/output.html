@@ -2490,12 +2490,23 @@
             ? location.origin
             : DEFAULT_SERVER_URL;
         const serverParam = params.get('server');
-        const normalisedServer = normaliseServerBase(serverParam, fallbackOrigin);
+        const trimmedServerParam = typeof serverParam === 'string' ? serverParam.trim() : '';
+        let sanitisedServerParam = trimmedServerParam;
+
+        if (sanitisedServerParam) {
+          const lowerValue = sanitisedServerParam.toLowerCase();
+          if (lowerValue === 'undefined' || lowerValue === 'null') {
+            sanitisedServerParam = '';
+          } else if (/\/undefined\/?$/i.test(lowerValue)) {
+            sanitisedServerParam = sanitisedServerParam.replace(/\/undefined\/?$/i, '');
+          }
+        }
+
+        const normalisedServer = normaliseServerBase(sanitisedServerParam, fallbackOrigin);
         this.server = normalisedServer;
 
         if (params.has('server') && typeof history === 'object' && history && typeof history.replaceState === 'function') {
-          const trimmedParam = typeof serverParam === 'string' ? serverParam.trim() : '';
-          if (trimmedParam !== normalisedServer) {
+          if (sanitisedServerParam !== normalisedServer) {
             try {
               const nextUrl = new URL(location.href);
               nextUrl.searchParams.set('server', normalisedServer);
