@@ -8,7 +8,10 @@ const {
   clampIntervalSeconds,
   clampScaleValue,
   isSafeCssColor,
-  normaliseHighlightList
+  normaliseHighlightList,
+  sanitiseMessages,
+  MAX_TICKER_MESSAGES,
+  MAX_TICKER_MESSAGE_LENGTH
 } = utils;
 
 test('clampDurationSeconds enforces bounds and rounding', () => {
@@ -55,4 +58,25 @@ test('normaliseHighlightList trims whitespace and drops empty entries', () => {
   assert.equal(normaliseHighlightList(['alpha', ' beta ', ' '].join(',')), 'alpha, beta');
   assert.equal(normaliseHighlightList('Silent Hill f'), 'Silent Hill f', 'internal spaces are preserved');
   assert.equal(normaliseHighlightList(null), '', 'null input normalises to empty string');
+});
+
+test('sanitiseMessages enforces limits, supports metadata, and strict errors', () => {
+  const overlong = 'A'.repeat(MAX_TICKER_MESSAGE_LENGTH + 10);
+  const input = ['  Hello  ', '', overlong, 'Third', 'Fourth'];
+
+  const metaResult = sanitiseMessages(input, { includeMeta: true, maxMessages: 2 });
+  assert.deepStrictEqual(metaResult.messages, ['Hello', 'A'.repeat(MAX_TICKER_MESSAGE_LENGTH)]);
+  assert.equal(metaResult.trimmed, 1);
+  assert.equal(metaResult.truncated, 2);
+
+  assert.throws(
+    () => sanitiseMessages(['One', 'Two'], { strict: true, maxMessages: 1 }),
+    /Too many ticker messages/
+  );
+
+  assert.throws(
+    () => sanitiseMessages(['B'.repeat(MAX_TICKER_MESSAGE_LENGTH + 1)], { strict: true }),
+    /Ticker messages must be/,
+    'strict length overflow should throw'
+  );
 });

@@ -101,6 +101,21 @@
       .layout-col { gap: 24px; }
     }
 
+    @media (max-width: 480px) {
+      .panel {
+        padding: 20px 18px;
+        gap: 16px;
+      }
+      .preset-header,
+      .scene-header {
+        gap: 10px;
+      }
+      .preset-header button,
+      .scene-header button {
+        flex: 1 1 140px;
+      }
+    }
+
     .panel {
       position: relative;
       overflow: hidden;
@@ -119,6 +134,12 @@
       backdrop-filter: blur(18px) saturate(1.05);
     }
 
+    .panel.is-live {
+      --panel-border-color: color-mix(in srgb, var(--accent) 65%, rgba(112, 118, 136, 0.2));
+      --panel-glow: color-mix(in srgb, var(--accent) 36%, rgba(124, 92, 255, 0.22));
+      box-shadow: 0 24px 60px color-mix(in srgb, rgba(7, 10, 24, 0.55) 55%, var(--accent) 45%);
+    }
+
     .panel::before,
     .panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
 
@@ -127,6 +148,10 @@
       background: radial-gradient(ellipse at top left, var(--panel-glow), transparent 60%);
       opacity: 0.55;
       transform: rotate(6deg);
+    }
+
+    .panel.is-live::before {
+      opacity: 0.8;
     }
 
     .panel::after {
@@ -222,6 +247,8 @@
     }
     .status-dot.active { background: var(--success); box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.22); }
     .status-value { color: var(--text); font-weight: 600; }
+    .status-value.is-active { color: color-mix(in srgb, var(--success) 55%, var(--accent) 45%); }
+    .status-value.is-inactive { color: var(--subtle); }
     .status-value.is-full { color: var(--danger); }
 
     .section-title { font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
@@ -357,6 +384,11 @@
       gap: 12px;
       align-items: center;
     }
+    .actions--overlay-hint {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
     .actions .spacer { flex: 1; }
 
     .btn {
@@ -399,7 +431,20 @@
       align-items: center;
       justify-content: flex-start;
     }
-    .popup-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .popup-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      transition: color 0.2s ease, text-shadow 0.25s ease;
+    }
+    .popup-toggle.is-live,
+    .brb-toggle.is-live {
+      color: var(--accent-bright);
+      text-shadow: 0 0 14px color-mix(in srgb, var(--accent-glow) 75%, transparent);
+      font-weight: 600;
+    }
     .popup-duration {
       display: flex;
       align-items: center;
@@ -566,7 +611,14 @@
 
     .brb-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .brb-actions .spacer { flex: 1 1 auto; }
-    .brb-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .brb-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      transition: color 0.2s ease, text-shadow 0.25s ease;
+    }
     .brb-status { font-size: 12px; color: rgba(201, 208, 230, 0.75); }
 
     .message-list {
@@ -675,7 +727,11 @@
     }
 
     .preset-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .preset-header input { max-width: 240px; }
+    .preset-header input {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+    .preset-header button { flex: 0 0 auto; }
     .preset-list { display: flex; flex-direction: column; gap: 12px; }
     .preset-card {
       border: 1px solid rgba(112, 118, 136, 0.25);
@@ -692,6 +748,7 @@
     .preset-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .preset-actions button { border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(54, 62, 92, 0.9); color: #eef1ff; }
     .preset-actions button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(18, 22, 34, 0.4); }
+    .preset-hint { font-size: 12px; color: rgba(201, 208, 230, 0.68); margin-top: 6px; line-height: 1.4; }
     .preset-actions button[data-action="delete"] { background: rgba(255, 107, 107, 0.14); color: #ff8e8e; }
 
     .preset-modal {
@@ -742,7 +799,11 @@
     .preset-modal__actions { display: flex; justify-content: flex-end; gap: 10px; }
 
     .scene-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .scene-header input { max-width: 240px; }
+    .scene-header input {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+    .scene-header button { flex: 0 0 auto; }
     .scene-list { display: flex; flex-direction: column; gap: 12px; }
     .scene-card {
       display: grid;
@@ -1338,8 +1399,9 @@
             <label><input type="checkbox" id="accentAnimToggle" checked /> Accent shimmer</label>
             <label><input type="checkbox" id="sparkleToggle" checked /> Sparkle effects</label>
           </div>
-          <div class="actions">
+          <div class="actions actions--overlay-hint">
             <button class="btn btn-ghost" id="copyOverlay">Copy URL</button>
+            <p class="control-hint">Use this in an OBS Browser Source.</p>
           </div>
           <div class="preview-block">
             <div class="preview-toolbar">
@@ -1578,6 +1640,24 @@
       'theme'
     ];
 
+    const buildSceneOverlayPayload = serialiseOverlayForSceneImpl
+      ? (overlayPrefs = {}) => serialiseOverlayForSceneImpl(
+          overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {},
+          normaliseOverlayData,
+          SCENE_OVERLAY_KEYS,
+          { includeEmptyStrings: false }
+        )
+      : (overlayPrefs = {}) => {
+          const source = overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {};
+          const payload = {};
+          SCENE_OVERLAY_KEYS.forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+              payload[key] = source[key];
+            }
+          });
+          return payload;
+        };
+
     const sharedConfig = window.SharedConfig || {};
     const DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
       ? BASE_DEFAULT_HIGHLIGHTS.slice()
@@ -1768,6 +1848,8 @@
       popupDuration: document.getElementById('popupDuration'),
       popupCountdownEnabled: document.getElementById('popupCountdownEnabled'),
       popupCountdownTarget: document.getElementById('popupCountdownTarget'),
+      popupPanel: document.getElementById('popupPanel'),
+      popupActiveLabel: document.querySelector('#popupPanel .popup-toggle'),
       savePopup: document.getElementById('savePopup'),
       clearPopup: document.getElementById('clearPopup'),
       slateEnabled: document.getElementById('slateEnabled'),
@@ -1796,6 +1878,8 @@
       brbSave: document.getElementById('brbSave'),
       brbClear: document.getElementById('brbClear'),
       brbStatus: document.getElementById('brbStatus'),
+      brbPanel: document.getElementById('brbPanel'),
+      brbActiveLabel: document.querySelector('#brbPanel .brb-toggle'),
       statusBrb: document.getElementById('statusBrb'),
       statusBrbDot: document.getElementById('statusBrbDot'),
       presetModal: document.getElementById('presetMessageModal'),
@@ -1931,6 +2015,41 @@
         notesLabel: normalised.notesLabel || '',
         notes: Array.isArray(normalised.notes) ? normalised.notes.slice(0, MAX_SLATE_NOTES) : []
       };
+    }
+
+    function buildSceneOverlayPayload(source) {
+      if (!source || typeof source !== 'object') return null;
+
+      if (serialiseOverlayForSceneImpl) {
+        return serialiseOverlayForSceneImpl(source, {
+          normaliseOverlayData,
+          overlayKeys: SCENE_OVERLAY_KEYS,
+          includeEmptyStrings: true
+        });
+      }
+
+      const normalised = normaliseOverlayData(source);
+      const result = {};
+      let hasValue = false;
+
+      for (const key of SCENE_OVERLAY_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+        if (!(key in normalised)) continue;
+        const value = normalised[key];
+        if (value === undefined) continue;
+        result[key] = value;
+        hasValue = true;
+      }
+
+      if (!hasValue && Object.prototype.hasOwnProperty.call(source, 'theme')) {
+        const themeOnly = normaliseOverlayData({ theme: source.theme });
+        if (themeOnly && typeof themeOnly.theme === 'string' && themeOnly.theme) {
+          result.theme = themeOnly.theme;
+          hasValue = true;
+        }
+      }
+
+      return hasValue ? result : null;
     }
 
     function deriveSlateCardsForPreview(slate, _overlay = overlayPrefs) {
@@ -2309,7 +2428,10 @@
       const escaped = tokens
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
-      highlightRegex = escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+      const boundaryClass = '[\\p{L}\\p{N}_]';
+      highlightRegex = escaped
+        ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
+        : null;
     }
 
     function escapeHtml(str) {
@@ -2698,6 +2820,8 @@
       el.interval.value = formatMinutesValue(state.intervalMinutes);
       el.statusActive.classList.toggle('active', state.isActive);
       el.statusActiveText.textContent = state.isActive ? 'Active' : 'Inactive';
+      el.statusActiveText.classList.toggle('is-active', state.isActive);
+      el.statusActiveText.classList.toggle('is-inactive', !state.isActive);
       const count = state.messages.length;
       const queueFull = count >= MAX_MESSAGES;
       el.statusCount.textContent = `${count}/${MAX_MESSAGES}`;
@@ -2883,6 +3007,7 @@
             <button type="button" data-action="append">Append</button>
             <button type="button" data-action="delete">Delete</button>
           </div>
+          <div class="preset-hint">Ticker stays idle unless Auto-start is enabled or you press Start.</div>
         </div>`;
       }).join('');
       el.presetList.innerHTML = cards;
@@ -2903,8 +3028,30 @@
       if (popupText) {
         parts.push(scene.popup.isActive ? 'popup active' : 'popup ready');
       }
-      if (scene?.overlay?.theme) {
-        parts.push(`theme: ${scene.overlay.theme}`);
+      if (scene?.overlay) {
+        const overlayLabel = typeof scene.overlay.label === 'string'
+          ? scene.overlay.label.trim()
+          : '';
+        if (overlayLabel) {
+          parts.push(`label: ${overlayLabel}`);
+        }
+        if (scene.overlay.theme) {
+          parts.push(`theme: ${scene.overlay.theme}`);
+        }
+        if (typeof scene.overlay.scale === 'number' && Number.isFinite(scene.overlay.scale)
+          && scene.overlay.scale !== DEFAULT_OVERLAY.scale) {
+          parts.push(`scale ${scene.overlay.scale}×`);
+        }
+        if (typeof scene.overlay.popupScale === 'number' && Number.isFinite(scene.overlay.popupScale)
+          && scene.overlay.popupScale !== DEFAULT_OVERLAY.popupScale) {
+          parts.push(`popup ${scene.overlay.popupScale}×`);
+        }
+        if (scene.overlay.mode && scene.overlay.mode !== DEFAULT_OVERLAY.mode) {
+          parts.push(`mode: ${scene.overlay.mode}`);
+        }
+        if (scene.overlay.position && scene.overlay.position !== DEFAULT_OVERLAY.position) {
+          parts.push(`${scene.overlay.position} overlay`);
+        }
       }
       if (scene?.slate) {
         if (scene.slate.isEnabled) {
@@ -3106,8 +3253,11 @@
 
     function renderPopupControls() {
       if (!el.popupText) return;
+      const isLive = popupState.isActive && !!popupState.text;
+      if (el.popupPanel) el.popupPanel.classList.toggle('is-live', isLive);
+      if (el.popupActiveLabel) el.popupActiveLabel.classList.toggle('is-live', isLive);
       el.popupText.value = popupState.text;
-      el.popupActive.checked = popupState.isActive && !!popupState.text;
+      el.popupActive.checked = isLive;
       if (el.popupDuration) {
         el.popupDuration.value = popupState.durationSeconds ? String(popupState.durationSeconds) : '';
       }
@@ -3137,12 +3287,15 @@
     }
 
     function renderBrbControls() {
+      const isLive = brbState.isActive && !!brbState.text;
+      if (el.brbPanel) el.brbPanel.classList.toggle('is-live', isLive);
+      if (el.brbActiveLabel) el.brbActiveLabel.classList.toggle('is-live', isLive);
       if (el.brbText) {
         el.brbText.value = brbState.text;
         el.brbText.disabled = brbSaveInFlight;
       }
       if (el.brbActive) {
-        el.brbActive.checked = brbState.isActive && !!brbState.text;
+        el.brbActive.checked = isLive;
         el.brbActive.disabled = brbSaveInFlight;
       }
       if (el.brbSave) el.brbSave.disabled = brbSaveInFlight;
@@ -3150,14 +3303,14 @@
 
       if (el.brbStatus) {
         const parts = [];
-        parts.push(brbState.isActive && brbState.text ? 'BRB live' : 'BRB hidden');
+        parts.push(isLive ? 'BRB live' : 'BRB hidden');
         if (brbState.updatedAt) {
           parts.push(`Updated ${new Date(brbState.updatedAt).toLocaleTimeString()}`);
         }
         el.brbStatus.textContent = parts.join(' • ');
       }
 
-      const brbActive = brbState.isActive && !!brbState.text;
+      const brbActive = isLive;
       if (el.statusBrb) {
         el.statusBrb.textContent = brbActive ? 'Active' : 'Hidden';
       }
@@ -4229,6 +4382,124 @@
       }
     }
 
+    function buildSceneOverlayPayload(prefs = overlayPrefs) {
+      if (!prefs || typeof prefs !== 'object') {
+        return null;
+      }
+
+      const allowedKeys = SCENE_OVERLAY_KEYS || [];
+
+      if (serialiseOverlayForSceneImpl) {
+        const serialised = serialiseOverlayForSceneImpl(prefs, { keys: allowedKeys });
+        if (!serialised || typeof serialised !== 'object') {
+          return null;
+        }
+        const filtered = {};
+        for (const key of allowedKeys) {
+          if (Object.prototype.hasOwnProperty.call(serialised, key)) {
+            filtered[key] = serialised[key];
+          }
+        }
+        return Object.keys(filtered).length ? filtered : null;
+      }
+
+      const base = {
+        ...DEFAULT_OVERLAY,
+        highlight: DEFAULT_OVERLAY.highlight || DEFAULT_HIGHLIGHT_STRING
+      };
+      const normalised = { ...base };
+
+      if (typeof prefs.label === 'string') {
+        const trimmed = prefs.label.trim().slice(0, 48);
+        if (trimmed) normalised.label = trimmed;
+      }
+
+      if (typeof prefs.accent === 'string') {
+        const trimmed = prefs.accent.trim();
+        if (!trimmed) {
+          normalised.accent = '';
+        } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
+          normalised.accent = trimmed;
+        }
+      }
+
+      if (typeof prefs.accentSecondary === 'string') {
+        const trimmedSecondary = prefs.accentSecondary.trim();
+        if (!trimmedSecondary) {
+          normalised.accentSecondary = '';
+        } else if (trimmedSecondary.length <= 64 && isSafeColour(trimmedSecondary)) {
+          normalised.accentSecondary = trimmedSecondary;
+        }
+      }
+
+      if (typeof prefs.highlight === 'string') {
+        if (typeof normaliseHighlightInput === 'function') {
+          normalised.highlight = normaliseHighlightInput(prefs.highlight).slice(0, 512);
+        } else {
+          normalised.highlight = prefs.highlight.trim().slice(0, 512);
+        }
+      }
+
+      if (Number.isFinite(prefs.scale)) {
+        normalised.scale = typeof clampScaleValue === 'function'
+          ? clampScaleValue(prefs.scale, normalised.scale)
+          : Math.max(0.75, Math.min(2.5, Math.round(Number(prefs.scale) * 100) / 100));
+      }
+
+      if (Number.isFinite(prefs.popupScale)) {
+        normalised.popupScale = typeof clampPopupScaleValue === 'function'
+          ? clampPopupScaleValue(prefs.popupScale, normalised.popupScale)
+          : Math.max(0.6, Math.min(1.5, Math.round(Number(prefs.popupScale) * 100) / 100));
+      }
+
+      if (typeof prefs.position === 'string') {
+        normalised.position = typeof sharedNormalisePosition === 'function'
+          ? sharedNormalisePosition(prefs.position)
+          : (String(prefs.position).toLowerCase() === 'top' ? 'top' : 'bottom');
+      }
+
+      if (typeof prefs.mode === 'string') {
+        const fallbackMode = ['auto', 'marquee', 'chunk'].includes(String(prefs.mode).toLowerCase())
+          ? String(prefs.mode).toLowerCase()
+          : normalised.mode;
+        normalised.mode = typeof sharedNormaliseMode === 'function'
+          ? sharedNormaliseMode(prefs.mode) || normalised.mode
+          : fallbackMode;
+      }
+
+      if (typeof prefs.accentAnim === 'boolean') {
+        normalised.accentAnim = prefs.accentAnim;
+      }
+
+      if (typeof prefs.sparkle === 'boolean') {
+        normalised.sparkle = prefs.sparkle;
+      }
+
+      if (typeof prefs.theme === 'string') {
+        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
+          ? sharedNormaliseTheme(prefs.theme)
+          : String(prefs.theme).trim().toLowerCase();
+        const candidate = typeof normalisedTheme === 'string'
+          ? normalisedTheme.trim().toLowerCase()
+          : '';
+        if (candidate && THEME_OPTIONS.includes(candidate)) {
+          normalised.theme = candidate;
+        }
+      }
+
+      const limited = {};
+      for (const key of allowedKeys) {
+        if (Object.prototype.hasOwnProperty.call(normalised, key)) {
+          const value = normalised[key];
+          if (value !== undefined) {
+            limited[key] = value;
+          }
+        }
+      }
+
+      return Object.keys(limited).length ? limited : null;
+    }
+
     function buildScenePayload(name, existingId, fallbackName = '') {
       const baseName = String(name || fallbackName || '').trim();
       if (!baseName) {
@@ -4269,13 +4540,8 @@
         slate: serialiseSlateState(),
         updatedAt: Date.now()
       };
-      if (overlay && Object.keys(overlay).length) {
-        if (!overlay.theme) delete overlay.theme;
-        if (!overlay.position) delete overlay.position;
-        if (!overlay.mode) delete overlay.mode;
-        if (Object.keys(overlay).length) {
-          payload.overlay = overlay;
-        }
+      if (overlay) {
+        payload.overlay = overlay;
       }
       return payload;
     }

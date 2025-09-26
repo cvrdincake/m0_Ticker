@@ -86,6 +86,54 @@
       -webkit-font-smoothing: antialiased;
     }
 
+    .brb-banner {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(24px, 6vw, 120px);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.35), transparent 55%),
+        radial-gradient(circle at 85% 20%, rgba(244, 114, 182, 0.32), transparent 55%),
+        rgba(10, 14, 26, 0.94);
+      color: rgba(245, 247, 251, 0.96);
+      text-align: center;
+      letter-spacing: 0.04em;
+      font-size: clamp(28px, 6vw, 48px);
+      font-weight: 700;
+      line-height: 1.2;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 24px rgba(56, 189, 248, 0.55),
+        0 6px 18px rgba(8, 12, 24, 0.6);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.35s var(--ease-smooth), visibility 0.35s var(--ease-smooth);
+      z-index: 1400;
+    }
+
+    .brb-banner.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .brb-banner__content {
+      max-width: min(960px, 90vw);
+      white-space: pre-line;
+      color: inherit;
+    }
+
+    .ticker.brb-hidden,
+    .popup.brb-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: none !important;
+    }
+
     .ticker {
       position: fixed;
       left: 0;
@@ -671,6 +719,10 @@
     <div class="popup-inner" id="popupContent"></div>
   </div>
 
+  <div class="brb-banner" id="brbBanner" role="status" aria-live="assertive" aria-hidden="true">
+    <div class="brb-banner__content" id="brbBannerText"></div>
+  </div>
+
   <div class="slate" id="slate" aria-live="polite" aria-atomic="true">
     <div class="slate-card" id="slateCard" data-type="">
       <div class="slate-pill" id="slatePill">Segment slate</div>
@@ -723,8 +775,7 @@
     const MAX_MESSAGES = 50;
     const MAX_MESSAGE_LENGTH = 280;
     const MAX_POPUP_SECONDS = 600;
-    const RELATIVE_COUNTDOWN_THRESHOLD = 1e12;
-    const UNIX_SECONDS_THRESHOLD = 1e9;
+
     const MAX_SLATE_TITLE_LENGTH = 64;
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
@@ -756,6 +807,12 @@
       countdownEnabled: false,
       countdownTarget: null,
       ...(sharedConfig.DEFAULT_POPUP || {}),
+      updatedAt: null
+    };
+
+    const DEFAULT_BRB = {
+      text: '',
+      isActive: false,
       updatedAt: null
     };
 
@@ -868,6 +925,18 @@
         countdownEnabled,
         countdownTarget,
         updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+      };
+    }
+
+    function normaliseBrbPayload(data) {
+      const raw = typeof data?.text === 'string' ? data.text : '';
+      const text = raw.trim().slice(0, MAX_BRB_LENGTH);
+      const isActive = !!data?.isActive && !!text;
+      const updatedAtRaw = Number(data?._updatedAt ?? data?.updatedAt);
+      return {
+        text,
+        isActive,
+        updatedAt: Number.isFinite(updatedAtRaw) ? updatedAtRaw : Date.now()
       };
     }
 
@@ -2486,6 +2555,11 @@
         }
         this.popupNode = document.getElementById('popup');
         this.popupInner = document.getElementById('popupContent');
+        this.brbNode = document.getElementById('brbBanner');
+        this.brbTextNode = document.getElementById('brbBannerText');
+        if (this.brbNode) {
+          this.brbNode.setAttribute('aria-hidden', 'true');
+        }
         this.slateNode = document.getElementById('slate');
         this.slateCard = document.getElementById('slateCard');
         this.slatePill = document.getElementById('slatePill');
@@ -2504,6 +2578,8 @@
         this.intervalSeconds = 0;
         this.tickerUpdatedAt = null;
         this.popup = { ...DEFAULT_POPUP };
+        this.brb = { ...DEFAULT_BRB };
+        this.brbUpdatedAt = null;
         this.popupVisible = false;
         this.popupRefreshTimer = null;
         this.popupAutoHideTimer = null;
@@ -2669,28 +2745,90 @@
       handleTickerPayload(data) {
         const changes = this.updateTickerState(data);
         this.evaluate(changes);
-        this.debugSet('Status', 'OK');
+        this.debugSet('Status', this.isBrbActive() ? 'BRB active' : 'OK');
       }
 
       handlePopupPayload(data) {
-        if (!this.popupNode) return;
         const next = normalisePopupPayload(data);
         const textChanged = this.popup.text !== next.text;
         const visibilityChanged = this.popup.isActive !== next.isActive;
         this.popup = next;
+        if (!this.popupNode) return;
+        this.updatePopupState({ textChanged, visibilityChanged });
+      }
 
+      updatePopupState({ textChanged = false, visibilityChanged = false, force = false } = {}) {
+        if (!this.popupNode) return;
         this.clearPopupAutoTimer();
         this.clearPopupCountdownTimer();
-        if (next.isActive) {
-          this.updatePopupContent(next.text, textChanged || visibilityChanged);
+        if (this.isBrbActive()) {
+          this.hidePopup();
+          return;
+        }
+        if (this.popup.isActive) {
+          this.updatePopupContent(this.popup.text, textChanged || visibilityChanged || force);
           this.showPopup();
-          if (next.countdownEnabled && Number.isFinite(next.countdownTarget)) {
+          if (this.popup.countdownEnabled && Number.isFinite(this.popup.countdownTarget)) {
             this.startPopupCountdown();
           }
-          this.schedulePopupAutoHide(next.durationSeconds);
+          this.schedulePopupAutoHide(this.popup.durationSeconds);
         } else {
           this.hidePopup();
         }
+      }
+
+      isBrbActive() {
+        return !!(this.brb && this.brb.isActive && this.brb.text);
+      }
+
+      updateBrbBanner() {
+        if (!this.brbNode) return;
+        const active = this.isBrbActive();
+        const text = this.brb?.text || '';
+        if (this.brbTextNode) {
+          this.brbTextNode.textContent = text;
+        } else {
+          this.brbNode.textContent = text;
+        }
+        this.brbNode.classList.toggle('show', active);
+        this.brbNode.setAttribute('aria-hidden', active ? 'false' : 'true');
+      }
+
+      applyBrbOverlayState({ previouslyActive = false } = {}) {
+        const active = this.isBrbActive();
+        if (this.container) {
+          this.container.classList.toggle('brb-hidden', active);
+          this.container.setAttribute('aria-hidden', active ? 'true' : 'false');
+        }
+        if (this.popupNode) {
+          this.popupNode.classList.toggle('brb-hidden', active);
+          this.popupNode.setAttribute('aria-hidden', active ? 'true' : 'false');
+        }
+        if (active) {
+          this.hideTicker(true);
+          this.hidePopup();
+          this.debugSet('Status', 'BRB active');
+        } else if (previouslyActive) {
+          this.evaluate();
+          this.updatePopupState({ force: true });
+        }
+      }
+
+      handleBrbPayload(data) {
+        if (!data || typeof data !== 'object') return;
+        const next = normaliseBrbPayload(data);
+        const stamp = Number(data?._updatedAt ?? data?.updatedAt);
+        if (Number.isFinite(stamp)) {
+          if (Number.isFinite(this.brbUpdatedAt) && this.brbUpdatedAt === stamp) {
+            return;
+          }
+          next.updatedAt = stamp;
+        }
+        const previouslyActive = this.isBrbActive();
+        this.brb = next;
+        this.brbUpdatedAt = next.updatedAt;
+        this.updateBrbBanner();
+        this.applyBrbOverlayState({ previouslyActive });
       }
 
       buildHighlightRegex() {
@@ -2708,7 +2846,10 @@
         const escaped = tokens
           .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
           .join('|');
-        return escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+        const boundaryClass = '[\\p{L}\\p{N}_]';
+        return escaped
+          ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
+          : null;
       }
 
       setCustomHighlights(list) {
@@ -3336,6 +3477,11 @@
               handler: data => this.handlePopupPayload(data),
             },
             {
+              name: 'brb',
+              url: `${this.server}/brb/state`,
+              handler: data => this.handleBrbPayload(data),
+            },
+            {
               name: 'slate',
               url: `${this.server}/slate/state`,
               handler: data => this.handleSlatePayload(data),
@@ -3469,6 +3615,16 @@
             }
           });
 
+          source.addEventListener('brb', event => {
+            try {
+              const payload = JSON.parse(event.data);
+              this.handleBrbPayload(payload);
+              this.markStreamPrimed();
+            } catch (err) {
+              console.warn('[ticker] stream brb parse failed', err);
+            }
+          });
+
           source.addEventListener('slate', event => {
             try {
               const payload = JSON.parse(event.data);
@@ -3517,6 +3673,11 @@
       }
 
       evaluate({ messagesChanged = false, activeChanged = false, durationChanged = false, intervalChanged = false } = {}) {
+        if (this.isBrbActive()) {
+          this.hideTicker(true);
+          this.debugSet('Status', 'BRB active');
+          return;
+        }
         if (!this.isActive) {
           this.hideTicker(true);
           return;
