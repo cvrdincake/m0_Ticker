@@ -52,23 +52,52 @@ test('normaliseOverlayData preserves 48 character labels and trims overflow', ()
 });
 
 test('normalisePopupData enforces countdown invariants and is idempotent', () => {
-  const input = {
-    text: '   Hello there   ',
-    isActive: true,
-    durationSeconds: 0.4,
-    countdownEnabled: true,
-    countdownTarget: '42.2'
-  };
+  const mockNow = 1_700_000_000_000;
+  const originalNow = Date.now;
+  Date.now = () => mockNow;
 
-  const result = normalisePopupData(input);
-  assert.equal(result.text, 'Hello there');
-  assert.equal(result.isActive, true);
-  assert.equal(result.durationSeconds, 1);
-  assert.equal(result.countdownTarget, 42);
-  assert.equal(result.countdownEnabled, true);
-  assert.ok(Number.isFinite(result.updatedAt));
+  try {
+    const input = {
+      text: '   Hello there   ',
+      isActive: true,
+      durationSeconds: 0.4,
+      countdownEnabled: true,
+      countdownTarget: '42.2'
+    };
 
-  assert.deepStrictEqual(normalisePopupData(result), result);
+    const result = normalisePopupData(input);
+    assert.equal(result.text, 'Hello there');
+    assert.equal(result.isActive, true);
+    assert.equal(result.durationSeconds, 1);
+    assert.equal(result.countdownTarget, mockNow + 42_000);
+    assert.equal(result.countdownEnabled, true);
+    assert.ok(Number.isFinite(result.updatedAt));
+
+    assert.deepStrictEqual(normalisePopupData(result), result);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('normalisePopupData keeps absolute millisecond countdown targets intact', () => {
+  const mockNow = 1_700_000_000_000;
+  const target = mockNow + 60_000;
+  const originalNow = Date.now;
+  Date.now = () => mockNow;
+
+  try {
+    const result = normalisePopupData({
+      text: 'Absolute',
+      isActive: true,
+      countdownEnabled: true,
+      countdownTarget: target
+    });
+
+    assert.equal(result.countdownTarget, target);
+    assert.equal(result.countdownEnabled, true);
+  } finally {
+    Date.now = originalNow;
+  }
 });
 
 test('normaliseSlateData trims fields, limits notes, and is idempotent', () => {

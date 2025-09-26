@@ -775,7 +775,7 @@
     const MAX_MESSAGES = 50;
     const MAX_MESSAGE_LENGTH = 280;
     const MAX_POPUP_SECONDS = 600;
-    const MAX_BRB_LENGTH = 280;
+
     const MAX_SLATE_TITLE_LENGTH = 64;
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
@@ -911,8 +911,11 @@
       const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
         ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
         : null;
+      const now = Date.now();
       const countdownTargetRaw = Number(data?.countdownTarget);
-      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
+      const countdownTarget = Number.isFinite(countdownTargetRaw)
+        ? normaliseCountdownTargetValue(countdownTargetRaw, now)
+        : null;
       const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
       const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
       return {
@@ -1297,10 +1300,34 @@
       return cards;
     }
 
-    function formatCountdownLabel(targetMs) {
-      const numeric = Number(targetMs);
-      if (!Number.isFinite(numeric)) return '';
-      const diff = Math.round(numeric - Date.now());
+    function normaliseCountdownTargetValue(value, now = Date.now()) {
+      if (value === null || value === undefined || value === '') return null;
+      if (typeof value === 'number') {
+        if (!Number.isFinite(value) || value <= 0) return null;
+        const rounded = Math.round(value);
+        if (rounded >= RELATIVE_COUNTDOWN_THRESHOLD) {
+          return rounded;
+        }
+        if (rounded >= UNIX_SECONDS_THRESHOLD) {
+          return rounded * 1000;
+        }
+        return now + Math.max(1, rounded) * 1000;
+      }
+      const trimmed = String(value).trim();
+      if (!trimmed) return null;
+      const numeric = Number(trimmed);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        return normaliseCountdownTargetValue(numeric, now);
+      }
+      const parsed = new Date(trimmed);
+      const ms = parsed.getTime();
+      return Number.isNaN(ms) ? null : ms;
+    }
+
+    function formatCountdownLabel(targetMs, now = Date.now()) {
+      const resolved = normaliseCountdownTargetValue(targetMs, now);
+      if (!Number.isFinite(resolved)) return '';
+      const diff = Math.round(resolved - now);
       if (diff <= 0) return 'now';
       const seconds = Math.floor(diff / 1000);
       if (seconds >= 60) {
@@ -2910,7 +2937,17 @@
         countdownEl.textContent = '';
         return;
       }
-      const label = formatCountdownLabel(this.popup.countdownTarget);
+      const now = Date.now();
+      const resolved = normaliseCountdownTargetValue(this.popup.countdownTarget, now);
+      if (!Number.isFinite(resolved)) {
+        countdownEl.textContent = '';
+        this.clearPopupCountdownTimer();
+        return;
+      }
+      if (resolved !== this.popup.countdownTarget) {
+        this.popup.countdownTarget = resolved;
+      }
+      const label = formatCountdownLabel(resolved, now);
       countdownEl.textContent = label;
       if (label === 'now') {
         this.clearPopupCountdownTimer();

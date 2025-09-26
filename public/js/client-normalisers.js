@@ -20,38 +20,7 @@
     'duotone-fusion'
   ];
 
-  const {
-    MAX_TICKER_MESSAGES: SHARED_MAX_TICKER_MESSAGES,
-    MAX_TICKER_MESSAGE_LENGTH: SHARED_MAX_MESSAGE_LENGTH,
-    MAX_POPUP_DURATION_SECONDS: SHARED_MAX_POPUP_SECONDS,
-    MAX_SCENE_NAME_LENGTH: SHARED_MAX_SCENE_NAME_LENGTH,
-    MAX_SLATE_TITLE_LENGTH: SHARED_MAX_SLATE_TITLE_LENGTH,
-    MAX_SLATE_TEXT_LENGTH: SHARED_MAX_SLATE_TEXT_LENGTH,
-    MAX_SLATE_NOTES: SHARED_MAX_SLATE_NOTES,
-    sanitiseMessages: sharedSanitiseMessages
-  } = sharedUtils || {};
 
-  const MAX_MESSAGES = Number.isFinite(SHARED_MAX_TICKER_MESSAGES)
-    ? SHARED_MAX_TICKER_MESSAGES
-    : 50;
-  const MAX_MESSAGE_LENGTH = Number.isFinite(SHARED_MAX_MESSAGE_LENGTH)
-    ? SHARED_MAX_MESSAGE_LENGTH
-    : 280;
-  const MAX_POPUP_SECONDS = Number.isFinite(SHARED_MAX_POPUP_SECONDS)
-    ? SHARED_MAX_POPUP_SECONDS
-    : 600;
-  const MAX_SCENE_NAME_LENGTH = Number.isFinite(SHARED_MAX_SCENE_NAME_LENGTH)
-    ? SHARED_MAX_SCENE_NAME_LENGTH
-    : 80;
-  const MAX_SLATE_TITLE_LENGTH = Number.isFinite(SHARED_MAX_SLATE_TITLE_LENGTH)
-    ? SHARED_MAX_SLATE_TITLE_LENGTH
-    : 64;
-  const MAX_SLATE_TEXT_LENGTH = Number.isFinite(SHARED_MAX_SLATE_TEXT_LENGTH)
-    ? SHARED_MAX_SLATE_TEXT_LENGTH
-    : 200;
-  const MAX_SLATE_NOTES = Number.isFinite(SHARED_MAX_SLATE_NOTES)
-    ? SHARED_MAX_SLATE_NOTES
-    : 6;
 
   const themeOptions = Array.isArray(sharedUtils.OVERLAY_THEMES) && sharedUtils.OVERLAY_THEMES.length
     ? sharedUtils.OVERLAY_THEMES.slice()
@@ -146,6 +115,32 @@
       return Math.round(clamped * factor) / factor;
     }
     return Math.round(clamped);
+  }
+
+  function normaliseCountdownTargetValue(value, now = Date.now()) {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    if (typeof value === 'number') {
+      if (!Number.isFinite(value) || value <= 0) return null;
+      const rounded = Math.round(value);
+      if (rounded >= RELATIVE_COUNTDOWN_THRESHOLD) {
+        return rounded;
+      }
+      if (rounded >= UNIX_SECONDS_THRESHOLD) {
+        return rounded * 1000;
+      }
+      return now + Math.max(1, rounded) * 1000;
+    }
+    const trimmed = String(value).trim();
+    if (!trimmed) return null;
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return normaliseCountdownTargetValue(numeric, now);
+    }
+    const parsed = new Date(trimmed);
+    const ms = parsed.getTime();
+    return Number.isNaN(ms) ? null : ms;
   }
 
   function clampDuration(value, fallback = 5) {
@@ -347,8 +342,9 @@
     if (Number.isFinite(applyDefaults.durationSeconds) && applyDefaults.durationSeconds > 0) {
       result.durationSeconds = clampNumber(applyDefaults.durationSeconds, 1, maxDurationSeconds, null, 0);
     }
-    if (Number.isFinite(applyDefaults.countdownTarget)) {
-      result.countdownTarget = Math.round(applyDefaults.countdownTarget);
+    const defaultCountdown = normaliseCountdownTargetValue(applyDefaults.countdownTarget);
+    if (Number.isFinite(defaultCountdown)) {
+      result.countdownTarget = defaultCountdown;
     }
     result.countdownEnabled = !!applyDefaults.countdownEnabled && Number.isFinite(result.countdownTarget) && !!result.text;
     const defaultUpdatedAt = Number(applyDefaults.updatedAt ?? applyDefaults._updatedAt);
@@ -385,8 +381,8 @@
     }
 
     if (Object.prototype.hasOwnProperty.call(data, 'countdownTarget')) {
-      const numeric = Number(data.countdownTarget);
-      result.countdownTarget = Number.isFinite(numeric) ? Math.round(numeric) : null;
+      const resolvedCountdown = normaliseCountdownTargetValue(data.countdownTarget);
+      result.countdownTarget = Number.isFinite(resolvedCountdown) ? resolvedCountdown : null;
     }
 
     if (!result.text) {
