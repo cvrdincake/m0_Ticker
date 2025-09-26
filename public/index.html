@@ -2402,6 +2402,22 @@
       el.toast._hideTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
     }
 
+    function sanitiseServerUrlInput(value) {
+      if (typeof value !== 'string') return '';
+      const trimmed = value.trim();
+      if (!trimmed) return '';
+      const cleaned = trimmed.replace(/^[`'"]+/, '').replace(/[`'"]+$/, '');
+      const lowered = cleaned.toLowerCase();
+      const tokenCandidate = lowered.replace(/^[\\/]+|[\\/]+$/g, '');
+      if (tokenCandidate === 'undefined' || tokenCandidate === 'null') {
+        return '';
+      }
+      if (/\/(?:undefined|null)(?:[/?#]|$)/.test(lowered)) {
+        return '';
+      }
+      return cleaned;
+    }
+
     function serverBase() {
       const previous = el.serverUrl && typeof el.serverUrl.value === 'string'
         ? el.serverUrl.value
@@ -2414,7 +2430,9 @@
         return DEFAULT_SERVER_URL;
       })();
 
-      let base = normaliseServerBase(previous, fallbackOrigin);
+      const sanitisedPrevious = sanitiseServerUrlInput(previous);
+      const candidate = sanitisedPrevious || fallbackOrigin;
+      let base = normaliseServerBase(candidate, fallbackOrigin);
       if (typeof base !== 'string' || !base.trim()) {
         base = fallbackOrigin;
       } else {
@@ -3201,7 +3219,14 @@
         const parsed = JSON.parse(raw);
         if (parsed.overlay) overlayPrefs = normaliseOverlayData({ ...overlayPrefs, ...parsed.overlay });
         if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
-        if (typeof parsed.serverUrl === 'string') el.serverUrl.value = parsed.serverUrl;
+        if (typeof parsed.serverUrl === 'string') {
+          const storedServerUrl = parsed.serverUrl;
+          const cleanedServerUrl = sanitiseServerUrlInput(storedServerUrl);
+          el.serverUrl.value = cleanedServerUrl || '';
+          if (cleanedServerUrl !== storedServerUrl) {
+            saveLocal();
+          }
+        }
         if (typeof parsed.panel === 'string') setActivePanel(parsed.panel, { skipSave: true });
       } catch (err) {
         console.warn('Failed to read local preferences', err);
