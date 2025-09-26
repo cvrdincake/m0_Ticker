@@ -1952,6 +1952,41 @@
       };
     }
 
+    function buildSceneOverlayPayload(source) {
+      if (!source || typeof source !== 'object') return null;
+
+      if (serialiseOverlayForSceneImpl) {
+        return serialiseOverlayForSceneImpl(source, {
+          normaliseOverlayData,
+          overlayKeys: SCENE_OVERLAY_KEYS,
+          includeEmptyStrings: true
+        });
+      }
+
+      const normalised = normaliseOverlayData(source);
+      const result = {};
+      let hasValue = false;
+
+      for (const key of SCENE_OVERLAY_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+        if (!(key in normalised)) continue;
+        const value = normalised[key];
+        if (value === undefined) continue;
+        result[key] = value;
+        hasValue = true;
+      }
+
+      if (!hasValue && Object.prototype.hasOwnProperty.call(source, 'theme')) {
+        const themeOnly = normaliseOverlayData({ theme: source.theme });
+        if (themeOnly && typeof themeOnly.theme === 'string' && themeOnly.theme) {
+          result.theme = themeOnly.theme;
+          hasValue = true;
+        }
+      }
+
+      return hasValue ? result : null;
+    }
+
     function deriveSlateCardsForPreview(slate, _overlay = overlayPrefs) {
       const cards = [];
       const activeSlate = normaliseSlateData(slate);
@@ -2901,8 +2936,30 @@
       if (popupText) {
         parts.push(scene.popup.isActive ? 'popup active' : 'popup ready');
       }
-      if (scene?.overlay?.theme) {
-        parts.push(`theme: ${scene.overlay.theme}`);
+      if (scene?.overlay) {
+        const overlayLabel = typeof scene.overlay.label === 'string'
+          ? scene.overlay.label.trim()
+          : '';
+        if (overlayLabel) {
+          parts.push(`label: ${overlayLabel}`);
+        }
+        if (scene.overlay.theme) {
+          parts.push(`theme: ${scene.overlay.theme}`);
+        }
+        if (typeof scene.overlay.scale === 'number' && Number.isFinite(scene.overlay.scale)
+          && scene.overlay.scale !== DEFAULT_OVERLAY.scale) {
+          parts.push(`scale ${scene.overlay.scale}×`);
+        }
+        if (typeof scene.overlay.popupScale === 'number' && Number.isFinite(scene.overlay.popupScale)
+          && scene.overlay.popupScale !== DEFAULT_OVERLAY.popupScale) {
+          parts.push(`popup ${scene.overlay.popupScale}×`);
+        }
+        if (scene.overlay.mode && scene.overlay.mode !== DEFAULT_OVERLAY.mode) {
+          parts.push(`mode: ${scene.overlay.mode}`);
+        }
+        if (scene.overlay.position && scene.overlay.position !== DEFAULT_OVERLAY.position) {
+          parts.push(`${scene.overlay.position} overlay`);
+        }
       }
       if (scene?.slate) {
         if (scene.slate.isEnabled) {
@@ -4258,13 +4315,8 @@
         slate: serialiseSlateState(),
         updatedAt: Date.now()
       };
-      if (overlay && Object.keys(overlay).length) {
-        if (!overlay.theme) delete overlay.theme;
-        if (!overlay.position) delete overlay.position;
-        if (!overlay.mode) delete overlay.mode;
-        if (Object.keys(overlay).length) {
-          payload.overlay = overlay;
-        }
+      if (overlay) {
+        payload.overlay = overlay;
       }
       return payload;
     }
