@@ -101,6 +101,21 @@
       .layout-col { gap: 24px; }
     }
 
+    @media (max-width: 480px) {
+      .panel {
+        padding: 20px 18px;
+        gap: 16px;
+      }
+      .preset-header,
+      .scene-header {
+        gap: 10px;
+      }
+      .preset-header button,
+      .scene-header button {
+        flex: 1 1 140px;
+      }
+    }
+
     .panel {
       position: relative;
       overflow: hidden;
@@ -682,7 +697,11 @@
     }
 
     .preset-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .preset-header input { max-width: 240px; }
+    .preset-header input {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+    .preset-header button { flex: 0 0 auto; }
     .preset-list { display: flex; flex-direction: column; gap: 12px; }
     .preset-card {
       border: 1px solid rgba(112, 118, 136, 0.25);
@@ -750,7 +769,11 @@
     .preset-modal__actions { display: flex; justify-content: flex-end; gap: 10px; }
 
     .scene-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-    .scene-header input { max-width: 240px; }
+    .scene-header input {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+    .scene-header button { flex: 0 0 auto; }
     .scene-list { display: flex; flex-direction: column; gap: 12px; }
     .scene-card {
       display: grid;
