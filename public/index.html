@@ -4308,6 +4308,124 @@
       }
     }
 
+    function buildSceneOverlayPayload(prefs = overlayPrefs) {
+      if (!prefs || typeof prefs !== 'object') {
+        return null;
+      }
+
+      const allowedKeys = SCENE_OVERLAY_KEYS || [];
+
+      if (serialiseOverlayForSceneImpl) {
+        const serialised = serialiseOverlayForSceneImpl(prefs, { keys: allowedKeys });
+        if (!serialised || typeof serialised !== 'object') {
+          return null;
+        }
+        const filtered = {};
+        for (const key of allowedKeys) {
+          if (Object.prototype.hasOwnProperty.call(serialised, key)) {
+            filtered[key] = serialised[key];
+          }
+        }
+        return Object.keys(filtered).length ? filtered : null;
+      }
+
+      const base = {
+        ...DEFAULT_OVERLAY,
+        highlight: DEFAULT_OVERLAY.highlight || DEFAULT_HIGHLIGHT_STRING
+      };
+      const normalised = { ...base };
+
+      if (typeof prefs.label === 'string') {
+        const trimmed = prefs.label.trim().slice(0, 48);
+        if (trimmed) normalised.label = trimmed;
+      }
+
+      if (typeof prefs.accent === 'string') {
+        const trimmed = prefs.accent.trim();
+        if (!trimmed) {
+          normalised.accent = '';
+        } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
+          normalised.accent = trimmed;
+        }
+      }
+
+      if (typeof prefs.accentSecondary === 'string') {
+        const trimmedSecondary = prefs.accentSecondary.trim();
+        if (!trimmedSecondary) {
+          normalised.accentSecondary = '';
+        } else if (trimmedSecondary.length <= 64 && isSafeColour(trimmedSecondary)) {
+          normalised.accentSecondary = trimmedSecondary;
+        }
+      }
+
+      if (typeof prefs.highlight === 'string') {
+        if (typeof normaliseHighlightInput === 'function') {
+          normalised.highlight = normaliseHighlightInput(prefs.highlight).slice(0, 512);
+        } else {
+          normalised.highlight = prefs.highlight.trim().slice(0, 512);
+        }
+      }
+
+      if (Number.isFinite(prefs.scale)) {
+        normalised.scale = typeof clampScaleValue === 'function'
+          ? clampScaleValue(prefs.scale, normalised.scale)
+          : Math.max(0.75, Math.min(2.5, Math.round(Number(prefs.scale) * 100) / 100));
+      }
+
+      if (Number.isFinite(prefs.popupScale)) {
+        normalised.popupScale = typeof clampPopupScaleValue === 'function'
+          ? clampPopupScaleValue(prefs.popupScale, normalised.popupScale)
+          : Math.max(0.6, Math.min(1.5, Math.round(Number(prefs.popupScale) * 100) / 100));
+      }
+
+      if (typeof prefs.position === 'string') {
+        normalised.position = typeof sharedNormalisePosition === 'function'
+          ? sharedNormalisePosition(prefs.position)
+          : (String(prefs.position).toLowerCase() === 'top' ? 'top' : 'bottom');
+      }
+
+      if (typeof prefs.mode === 'string') {
+        const fallbackMode = ['auto', 'marquee', 'chunk'].includes(String(prefs.mode).toLowerCase())
+          ? String(prefs.mode).toLowerCase()
+          : normalised.mode;
+        normalised.mode = typeof sharedNormaliseMode === 'function'
+          ? sharedNormaliseMode(prefs.mode) || normalised.mode
+          : fallbackMode;
+      }
+
+      if (typeof prefs.accentAnim === 'boolean') {
+        normalised.accentAnim = prefs.accentAnim;
+      }
+
+      if (typeof prefs.sparkle === 'boolean') {
+        normalised.sparkle = prefs.sparkle;
+      }
+
+      if (typeof prefs.theme === 'string') {
+        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
+          ? sharedNormaliseTheme(prefs.theme)
+          : String(prefs.theme).trim().toLowerCase();
+        const candidate = typeof normalisedTheme === 'string'
+          ? normalisedTheme.trim().toLowerCase()
+          : '';
+        if (candidate && THEME_OPTIONS.includes(candidate)) {
+          normalised.theme = candidate;
+        }
+      }
+
+      const limited = {};
+      for (const key of allowedKeys) {
+        if (Object.prototype.hasOwnProperty.call(normalised, key)) {
+          const value = normalised[key];
+          if (value !== undefined) {
+            limited[key] = value;
+          }
+        }
+      }
+
+      return Object.keys(limited).length ? limited : null;
+    }
+
     function buildScenePayload(name, existingId, fallbackName = '') {
       const baseName = String(name || fallbackName || '').trim();
       if (!baseName) {
