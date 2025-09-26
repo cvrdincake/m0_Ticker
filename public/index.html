@@ -464,6 +464,27 @@
       border-color: var(--accent);
       box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.25);
     }
+    .popup-countdown-mode {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--subtle);
+    }
+    .popup-countdown-mode label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 500;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .popup-countdown-input[data-mode="target"] [data-countdown-field="seconds"],
+    .popup-countdown-input[data-mode="duration"] [data-countdown-field="target"] {
+      display: none;
+    }
     .popup-preview {
       position: relative;
       display: flex;
@@ -1448,9 +1469,14 @@
           </div>
           <div class="popup-countdown">
             <label class="popup-countdown-toggle"><input type="checkbox" id="popupCountdownEnabled" /> Append countdown timer</label>
-            <div class="popup-countdown-input">
+            <div class="popup-countdown-input" id="popupCountdownInput" data-mode="target">
               <label for="popupCountdownTarget">Countdown target</label>
-              <input type="datetime-local" id="popupCountdownTarget" />
+              <div class="popup-countdown-mode" role="radiogroup" aria-label="Countdown mode">
+                <label><input type="radio" name="popupCountdownMode" value="target" checked /> Target time</label>
+                <label><input type="radio" name="popupCountdownMode" value="duration" /> Duration</label>
+              </div>
+              <input type="datetime-local" id="popupCountdownTarget" data-countdown-field="target" />
+              <input type="number" id="popupCountdownSeconds" data-countdown-field="seconds" min="1" step="1" placeholder="Seconds" inputmode="numeric" />
             </div>
           </div>
           <div class="popup-preview is-empty" id="popupPreview">Popup preview</div>
@@ -1632,8 +1658,10 @@
       text: '',
       isActive: false,
       durationSeconds: null,
+      countdownMode: 'target',
       countdownEnabled: false,
       countdownTarget: null,
+      countdownSeconds: null,
       ...(BASE_DEFAULT_POPUP || {}),
       ...(sharedConfig.DEFAULT_POPUP || {}),
       updatedAt: null
@@ -1669,6 +1697,10 @@
       isActive: false,
       updatedAt: null
     };
+
+    const COUNTDOWN_MODE_TARGET = 'target';
+    const COUNTDOWN_MODE_DURATION = 'duration';
+    const COUNTDOWN_MODES = new Set([COUNTDOWN_MODE_TARGET, COUNTDOWN_MODE_DURATION]);
 
     const hasRandomUUID = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function';
 
@@ -1762,7 +1794,10 @@
       popupMeta: document.getElementById('popupMeta'),
       popupDuration: document.getElementById('popupDuration'),
       popupCountdownEnabled: document.getElementById('popupCountdownEnabled'),
+      popupCountdownInput: document.getElementById('popupCountdownInput'),
       popupCountdownTarget: document.getElementById('popupCountdownTarget'),
+      popupCountdownSeconds: document.getElementById('popupCountdownSeconds'),
+      popupCountdownModeInputs: Array.from(document.querySelectorAll('input[name="popupCountdownMode"]')),
       savePopup: document.getElementById('savePopup'),
       clearPopup: document.getElementById('clearPopup'),
       slateEnabled: document.getElementById('slateEnabled'),
@@ -2609,17 +2644,86 @@
       return remainder ? `${minutes}m ${remainder}s` : `${minutes}m`;
     }
 
-    function parseCountdownTarget(value) {
-      if (value === null || value === undefined) return null;
+    function normaliseCountdownMode(value) {
+      const mode = String(value || '').toLowerCase();
+      return COUNTDOWN_MODES.has(mode) ? mode : COUNTDOWN_MODE_TARGET;
+    }
+
+    function normaliseCountdownSeconds(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return null;
+      return Math.max(1, Math.round(numeric));
+    }
+
+    function parseCountdownTarget(value, mode = COUNTDOWN_MODE_TARGET, options = {}) {
+      const resolvedMode = normaliseCountdownMode(mode);
+      if (resolvedMode === COUNTDOWN_MODE_DURATION) {
+        const seconds = normaliseCountdownSeconds(value);
+        if (seconds === null) {
+          return { target: null, seconds: null };
+        }
+        const now = Number.isFinite(options.now) ? options.now : Date.now();
+        return { target: now + seconds * 1000, seconds };
+      }
+      if (value === null || value === undefined) {
+        return { target: null, seconds: null };
+      }
       const raw = String(value).trim();
-      if (!raw) return null;
+      if (!raw) {
+        return { target: null, seconds: null };
+      }
       const numeric = Number(raw);
       if (Number.isFinite(numeric) && numeric > 0) {
-        return Math.round(numeric);
+        return { target: Math.round(numeric), seconds: null };
       }
       const parsed = new Date(raw);
       const ms = parsed.getTime();
-      return Number.isNaN(ms) ? null : ms;
+      return { target: Number.isNaN(ms) ? null : ms, seconds: null };
+    }
+
+    function getCountdownModeFromInputs(fallback = popupState.countdownMode) {
+      const fallbackMode = normaliseCountdownMode(fallback);
+      if (!Array.isArray(el.popupCountdownModeInputs) || !el.popupCountdownModeInputs.length) {
+        return fallbackMode;
+      }
+      const checked = el.popupCountdownModeInputs.find(input => input && input.checked);
+      return checked ? normaliseCountdownMode(checked.value) : fallbackMode;
+    }
+
+    function setCountdownModeInputs(mode) {
+      const resolved = normaliseCountdownMode(mode);
+      if (Array.isArray(el.popupCountdownModeInputs)) {
+        for (const input of el.popupCountdownModeInputs) {
+          if (!input) continue;
+          input.checked = input.value === resolved;
+        }
+      }
+      if (el.popupCountdownInput) {
+        el.popupCountdownInput.dataset.mode = resolved;
+      }
+      return resolved;
+    }
+
+    function updateCountdownInputsDisabled() {
+      const mode = getCountdownModeFromInputs();
+      const hasText = !!(el.popupText && el.popupText.value.trim());
+      const countdownEnabled = !!(el.popupCountdownEnabled && el.popupCountdownEnabled.checked && hasText);
+      if (el.popupCountdownInput) {
+        el.popupCountdownInput.dataset.mode = mode;
+      }
+      if (el.popupCountdownTarget) {
+        const shouldDisable = popupSaveInFlight || !countdownEnabled || mode !== COUNTDOWN_MODE_TARGET;
+        el.popupCountdownTarget.disabled = shouldDisable;
+        if (!shouldDisable && mode === COUNTDOWN_MODE_TARGET) {
+          el.popupCountdownTarget.step = '1';
+        } else {
+          el.popupCountdownTarget.removeAttribute('step');
+        }
+      }
+      if (el.popupCountdownSeconds) {
+        const shouldDisable = popupSaveInFlight || !countdownEnabled || mode !== COUNTDOWN_MODE_DURATION;
+        el.popupCountdownSeconds.disabled = shouldDisable;
+      }
     }
 
     function formatCountdownLabel(targetMs) {
@@ -2996,9 +3100,29 @@
         el.popupPreview.appendChild(messageNode);
         shouldAnimate = text !== previous;
         if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
-          const target = el.popupCountdownTarget ? parseCountdownTarget(el.popupCountdownTarget.value) : null;
-          if (Number.isFinite(target)) {
-            popupPreviewCountdownTarget = target;
+          const mode = getCountdownModeFromInputs();
+          let parsed = { target: null, seconds: null };
+          if (mode === COUNTDOWN_MODE_DURATION) {
+            const rawSeconds = el.popupCountdownSeconds ? el.popupCountdownSeconds.value : '';
+            parsed = parseCountdownTarget(rawSeconds, mode);
+            if (el.popupCountdownSeconds && parsed.seconds !== null) {
+              const displaySeconds = String(parsed.seconds);
+              if (el.popupCountdownSeconds.value !== displaySeconds) {
+                el.popupCountdownSeconds.value = displaySeconds;
+              }
+            }
+          } else {
+            const rawTarget = el.popupCountdownTarget ? el.popupCountdownTarget.value : '';
+            parsed = parseCountdownTarget(rawTarget, mode);
+            if (el.popupCountdownTarget && Number.isFinite(parsed.target)) {
+              const formatted = formatDatetimeLocal(parsed.target);
+              if (formatted && el.popupCountdownTarget.value !== formatted) {
+                el.popupCountdownTarget.value = formatted;
+              }
+            }
+          }
+          if (Number.isFinite(parsed.target)) {
+            popupPreviewCountdownTarget = parsed.target;
             const countdownChip = document.createElement('span');
             countdownChip.className = 'popup-countdown-chip';
             countdownChip.dataset.popupCountdown = 'true';
@@ -3014,14 +3138,8 @@
         if (el.popupCountdownEnabled) {
           el.popupCountdownEnabled.checked = false;
         }
-        if (el.popupCountdownTarget) {
-          el.popupCountdownTarget.disabled = true;
-        }
       }
-      if (el.popupCountdownTarget && el.popupCountdownEnabled) {
-        const countdownActive = el.popupCountdownEnabled.checked;
-        el.popupCountdownTarget.disabled = popupSaveInFlight || !countdownActive;
-      }
+      updateCountdownInputsDisabled();
       if (shouldAnimate && messageNode) {
         const animator = createTextAnimator(messageNode);
         if (animator) {
@@ -3039,8 +3157,20 @@
       if (durationLabel) {
         parts.push(`Auto-hide ${durationLabel}`);
       }
-      if (popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget)) {
-        parts.push(`Countdown ${formatCountdownLabel(popupState.countdownTarget)}`);
+      if (popupState.countdownEnabled) {
+        const mode = normaliseCountdownMode(popupState.countdownMode);
+        if (mode === COUNTDOWN_MODE_DURATION) {
+          if (Number.isFinite(popupState.countdownTarget)) {
+            parts.push(`Countdown ${formatCountdownLabel(popupState.countdownTarget)}`);
+          } else if (Number.isFinite(popupState.countdownSeconds)) {
+            const label = formatDurationSeconds(popupState.countdownSeconds);
+            if (label) {
+              parts.push(`Countdown ${label}`);
+            }
+          }
+        } else if (Number.isFinite(popupState.countdownTarget)) {
+          parts.push(`Countdown ${formatCountdownLabel(popupState.countdownTarget)}`);
+        }
       }
       if (popupState.updatedAt) {
         parts.push(`Updated ${new Date(popupState.updatedAt).toLocaleTimeString()}`);
@@ -3061,14 +3191,27 @@
       if (el.popupDuration) {
         el.popupDuration.value = popupState.durationSeconds ? String(popupState.durationSeconds) : '';
       }
+      const countdownMode = setCountdownModeInputs(popupState.countdownMode);
+      const hasCountdownValue = countdownMode === COUNTDOWN_MODE_DURATION
+        ? Number.isFinite(popupState.countdownSeconds)
+        : Number.isFinite(popupState.countdownTarget);
       if (el.popupCountdownEnabled) {
-        const hasCountdown = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget);
+        const hasCountdown = popupState.countdownEnabled && hasCountdownValue;
         el.popupCountdownEnabled.checked = hasCountdown && !!popupState.text;
       }
       if (el.popupCountdownTarget) {
-        el.popupCountdownTarget.value = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget)
-          ? formatDatetimeLocal(popupState.countdownTarget)
-          : '';
+        if (countdownMode === COUNTDOWN_MODE_TARGET && Number.isFinite(popupState.countdownTarget)) {
+          el.popupCountdownTarget.value = formatDatetimeLocal(popupState.countdownTarget);
+        } else {
+          el.popupCountdownTarget.value = '';
+        }
+      }
+      if (el.popupCountdownSeconds) {
+        if (countdownMode === COUNTDOWN_MODE_DURATION && Number.isFinite(popupState.countdownSeconds)) {
+          el.popupCountdownSeconds.value = String(popupState.countdownSeconds);
+        } else {
+          el.popupCountdownSeconds.value = '';
+        }
       }
       updatePopupPreview();
       updatePopupMeta();
@@ -3078,10 +3221,7 @@
       el.popupActive.disabled = disabled;
       if (el.popupDuration) el.popupDuration.disabled = disabled;
       if (el.popupCountdownEnabled) el.popupCountdownEnabled.disabled = disabled;
-      if (el.popupCountdownTarget) {
-        const countdownEnabled = el.popupCountdownEnabled && el.popupCountdownEnabled.checked;
-        el.popupCountdownTarget.disabled = disabled || !countdownEnabled;
-      }
+      updateCountdownInputsDisabled();
       if (el.savePopup) el.savePopup.disabled = disabled;
       if (el.clearPopup) el.clearPopup.disabled = disabled;
     }
@@ -3424,35 +3564,49 @@
         }
       }
 
+      const countdownMode = getCountdownModeFromInputs(popupState.countdownMode);
       let countdownEnabled = el.popupCountdownEnabled ? el.popupCountdownEnabled.checked : false;
       if (!text) {
         countdownEnabled = false;
       }
       let countdownTarget = popupState.countdownTarget;
-      if (countdownEnabled) {
-        const rawCountdown = el.popupCountdownTarget ? el.popupCountdownTarget.value : '';
-        if (rawCountdown) {
-          const parsedCountdown = parseCountdownTarget(rawCountdown);
-          if (Number.isFinite(parsedCountdown)) {
-            countdownTarget = parsedCountdown;
-            if (el.popupCountdownTarget) {
-              const formatted = formatDatetimeLocal(parsedCountdown);
-              if (formatted) {
-                el.popupCountdownTarget.value = formatted;
-              }
-            }
+      let countdownSeconds = popupState.countdownSeconds;
+      if (countdownMode === COUNTDOWN_MODE_DURATION) {
+        const rawSeconds = el.popupCountdownSeconds ? el.popupCountdownSeconds.value.trim() : '';
+        const parsed = rawSeconds ? normaliseCountdownSeconds(rawSeconds) : null;
+        countdownSeconds = parsed;
+        if (el.popupCountdownSeconds) {
+          const display = parsed !== null ? String(parsed) : '';
+          if (el.popupCountdownSeconds.value !== display) {
+            el.popupCountdownSeconds.value = display;
+          }
+        }
+        if (countdownEnabled) {
+          if (Number.isFinite(countdownSeconds)) {
+            countdownTarget = Date.now() + countdownSeconds * 1000;
           } else {
             countdownEnabled = false;
             countdownTarget = null;
-            toast('Enter a valid countdown target');
+            toast('Enter a valid countdown duration in seconds');
           }
-        } else if (!Number.isFinite(countdownTarget)) {
-          countdownEnabled = false;
+        } else {
           countdownTarget = null;
-          toast('Select a countdown target time');
         }
       } else {
-        countdownTarget = null;
+        const rawCountdown = el.popupCountdownTarget ? el.popupCountdownTarget.value : '';
+        const parsedCountdown = rawCountdown ? parseCountdownTarget(rawCountdown, COUNTDOWN_MODE_TARGET) : { target: null };
+        countdownTarget = Number.isFinite(parsedCountdown.target) ? parsedCountdown.target : null;
+        if (el.popupCountdownTarget) {
+          const formatted = Number.isFinite(countdownTarget) ? formatDatetimeLocal(countdownTarget) : '';
+          if (el.popupCountdownTarget.value !== formatted) {
+            el.popupCountdownTarget.value = formatted;
+          }
+        }
+        if (countdownEnabled && !Number.isFinite(countdownTarget)) {
+          countdownEnabled = false;
+          toast('Select a countdown target time');
+        }
+        countdownSeconds = null;
       }
       if (el.popupCountdownEnabled && !countdownEnabled) {
         el.popupCountdownEnabled.checked = false;
@@ -3463,16 +3617,20 @@
         text,
         isActive,
         durationSeconds,
+        countdownMode,
         countdownEnabled,
-        countdownTarget
+        countdownTarget,
+        countdownSeconds
       };
 
       const changed =
         popupState.text !== nextState.text ||
         popupState.isActive !== nextState.isActive ||
         popupState.durationSeconds !== nextState.durationSeconds ||
+        popupState.countdownMode !== nextState.countdownMode ||
         popupState.countdownEnabled !== nextState.countdownEnabled ||
-        popupState.countdownTarget !== nextState.countdownTarget;
+        popupState.countdownTarget !== nextState.countdownTarget ||
+        popupState.countdownSeconds !== nextState.countdownSeconds;
 
       popupState = {
         ...nextState,
@@ -3495,8 +3653,10 @@
             text: popupState.text,
             isActive: popupState.isActive,
             durationSeconds: popupState.durationSeconds,
+            countdownMode: popupState.countdownMode,
             countdownEnabled: popupState.countdownEnabled,
-            countdownTarget: popupState.countdownTarget
+            countdownTarget: popupState.countdownTarget,
+            countdownSeconds: popupState.countdownSeconds
           })
         });
         let data = null;
@@ -4213,8 +4373,10 @@
           text: popup.text,
           isActive: popup.isActive,
           durationSeconds: popup.durationSeconds,
+          countdownMode: popup.countdownMode,
           countdownEnabled: popup.countdownEnabled,
-          countdownTarget: popup.countdownTarget
+          countdownTarget: popup.countdownTarget,
+          countdownSeconds: popup.countdownSeconds
         },
         slate: serialiseSlateState(),
         updatedAt: Date.now()
@@ -4752,35 +4914,80 @@
 
     if (el.popupCountdownTarget) {
       el.popupCountdownTarget.addEventListener('input', () => {
-        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+        if (
+          getCountdownModeFromInputs() === COUNTDOWN_MODE_TARGET &&
+          el.popupCountdownEnabled &&
+          el.popupCountdownEnabled.checked
+        ) {
           updatePopupPreview();
         }
       });
       el.popupCountdownTarget.addEventListener('change', () => {
-        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+        if (getCountdownModeFromInputs() === COUNTDOWN_MODE_TARGET) {
+          updatePopupPreview();
           queuePopupSave();
+        } else {
+          updateCountdownInputsDisabled();
         }
       });
     }
 
+    if (el.popupCountdownSeconds) {
+      el.popupCountdownSeconds.addEventListener('input', () => {
+        if (
+          getCountdownModeFromInputs() === COUNTDOWN_MODE_DURATION &&
+          el.popupCountdownEnabled &&
+          el.popupCountdownEnabled.checked
+        ) {
+          updatePopupPreview();
+        }
+      });
+      el.popupCountdownSeconds.addEventListener('change', () => {
+        updatePopupPreview();
+        queuePopupSave();
+      });
+    }
+
+    if (Array.isArray(el.popupCountdownModeInputs)) {
+      for (const input of el.popupCountdownModeInputs) {
+        if (!input) continue;
+        input.addEventListener('change', () => {
+          const mode = getCountdownModeFromInputs();
+          setCountdownModeInputs(mode);
+          updatePopupPreview();
+          updateCountdownInputsDisabled();
+          queuePopupSave();
+        });
+      }
+    }
+
     if (el.popupCountdownEnabled) {
       el.popupCountdownEnabled.addEventListener('change', () => {
+        const mode = getCountdownModeFromInputs();
         if (el.popupCountdownEnabled.checked) {
           if (!el.popupText.value.trim()) {
             el.popupCountdownEnabled.checked = false;
             toast('Enter popup text before enabling the countdown');
+            updateCountdownInputsDisabled();
             return;
           }
-          if (!el.popupCountdownTarget || !el.popupCountdownTarget.value) {
-            toast('Select a countdown target time');
+          if (mode === COUNTDOWN_MODE_TARGET) {
+            if (!el.popupCountdownTarget || !el.popupCountdownTarget.value) {
+              toast('Select a countdown target time');
+            }
+          } else {
+            const secondsValue = el.popupCountdownSeconds ? el.popupCountdownSeconds.value.trim() : '';
+            if (!secondsValue) {
+              toast('Enter countdown duration in seconds');
+            }
           }
         }
         updatePopupPreview();
-        if (el.popupCountdownTarget) {
-          el.popupCountdownTarget.disabled = popupSaveInFlight || !el.popupCountdownEnabled.checked;
-        }
-        const hasTarget = el.popupCountdownTarget && el.popupCountdownTarget.value;
-        if (!el.popupCountdownEnabled.checked || hasTarget) {
+        updateCountdownInputsDisabled();
+        const hasValue = mode === COUNTDOWN_MODE_DURATION
+          ? Number.isFinite(normaliseCountdownSeconds(el.popupCountdownSeconds ? el.popupCountdownSeconds.value.trim() : ''))
+          : !!(el.popupCountdownTarget && el.popupCountdownTarget.value);
+        if (!el.popupCountdownEnabled.checked || hasValue) {
           queuePopupSave();
         }
       });
@@ -4814,8 +5021,10 @@
         text: '',
         isActive: false,
         durationSeconds: null,
+        countdownMode: COUNTDOWN_MODE_TARGET,
         countdownEnabled: false,
         countdownTarget: null,
+        countdownSeconds: null,
         updatedAt: Date.now()
       };
       updatePopupMeta();

@@ -35,8 +35,10 @@
     "text": "Silent Hill f - Deep Dive / Analysis w/ Moose",
     "isActive": true,
     "durationSeconds": null,
+    "countdownMode": "target",
     "countdownEnabled": false,
     "countdownTarget": null,
+    "countdownSeconds": null,
     "_updatedAt": 1758647615533
   },
   "slate": {

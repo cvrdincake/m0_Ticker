@@ -36,8 +36,10 @@
     text: '',
     isActive: false,
     durationSeconds: null,
+    countdownMode: 'target',
     countdownEnabled: false,
-    countdownTarget: null
+    countdownTarget: null,
+    countdownSeconds: null
   });
 
   const DEFAULT_SLATE = Object.freeze({
