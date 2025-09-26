@@ -10,6 +10,7 @@
   const DEFAULT_OVERLAY_KEYS = [
     'label',
     'accent',
+    'accentSecondary',
     'highlight',
     'scale',
     'popupScale',

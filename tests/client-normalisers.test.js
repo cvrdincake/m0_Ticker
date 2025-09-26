@@ -21,7 +21,7 @@ test('normaliseOverlayData clamps values and is idempotent', () => {
     mode: 'Chunk',
     accentAnim: false,
     sparkle: false,
-    theme: 'Neon-Noir'
+    theme: 'Aurora-Night'
   };
 
   const result = normaliseOverlayData(input);
@@ -34,7 +34,7 @@ test('normaliseOverlayData clamps values and is idempotent', () => {
   assert.equal(result.mode, 'chunk');
   assert.equal(result.accentAnim, false);
   assert.equal(result.sparkle, false);
-  assert.equal(result.theme, 'neon-noir');
+  assert.equal(result.theme, 'aurora-night');
 
   assert.deepStrictEqual(normaliseOverlayData(result), result);
 });
@@ -98,7 +98,7 @@ test('normaliseSceneEntry rejects empty payloads and preserves round-trip data',
     displayDuration: 1,
     intervalBetween: 7200,
     isActive: true,
-    overlay: { theme: 'Neon-Noir' },
+    overlay: { theme: 'Aurora-Night' },
     popup: { text: '   ' },
     slate: {
       rotationSeconds: 3,
@@ -117,7 +117,7 @@ test('normaliseSceneEntry rejects empty payloads and preserves round-trip data',
   assert.equal(result.popup.isActive, false);
   assert.equal(result.slate.rotationSeconds, 4);
   assert.deepStrictEqual(result.slate.notes, ['alpha', 'beta']);
-  assert.deepStrictEqual(result.overlay, { theme: 'neon-noir' });
+  assert.deepStrictEqual(result.overlay, { theme: 'aurora-night' });
   assert.ok(Number.isFinite(result.updatedAt));
 
   assert.deepStrictEqual(normaliseSceneEntry(result), result);
