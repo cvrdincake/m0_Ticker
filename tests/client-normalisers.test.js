@@ -40,6 +40,17 @@ test('normaliseOverlayData clamps values and is idempotent', () => {
   assert.deepStrictEqual(normaliseOverlayData(result), result);
 });
 
+test('normaliseOverlayData preserves 48 character labels and trims overflow', () => {
+  const label48 = 'Overlay label length check '.padEnd(48, 'x');
+
+  const result = normaliseOverlayData({ label: label48 });
+  assert.equal(result.label, label48);
+
+  const overflow = normaliseOverlayData({ label: `${label48}overflow` });
+  assert.equal(overflow.label.length, 48);
+  assert.equal(overflow.label, label48);
+});
+
 test('normalisePopupData enforces countdown invariants and is idempotent', () => {
   const input = {
     text: '   Hello there   ',

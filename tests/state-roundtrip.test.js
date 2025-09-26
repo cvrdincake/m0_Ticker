@@ -79,6 +79,8 @@ test('ticker state export/import round-trips through the API', async t => {
 
   await waitForServer();
 
+  const overlayLabel = 'Overlay label length check '.padEnd(48, 'x');
+
   const tickerPayload = {
     isActive: true,
     messages: ['Alpha', 'Beta', 'Gamma'],
@@ -106,7 +108,7 @@ test('ticker state export/import round-trips through the API', async t => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      label: 'LIVE',
+      label: overlayLabel,
       accent: '#ff00ff',
       accentSecondary: 'rgba(0, 255, 255, 0.8)',
       highlight: 'alpha,beta',
@@ -194,6 +196,7 @@ test('ticker state export/import round-trips through the API', async t => {
   assert.ok(exportResponse.ok, 'export endpoint should respond with 200');
   const exportedState = await exportResponse.json();
   assert.ok(exportedState && typeof exportedState === 'object', 'export should return JSON');
+  assert.equal(exportedState.overlay.label, overlayLabel, 'overlay label should retain 48 characters');
 
   // Mutate the state so the import has to overwrite everything
   await fetchJson(`${BASE_URL}/ticker/state`, {
