@@ -5093,6 +5093,9 @@
         updatePopupMeta();
         return;
       }
+      if (!confirm('Clear the popup message?')) {
+        return;
+      }
       el.popupText.value = '';
       el.popupActive.checked = false;
       updatePopupPreview();
@@ -5125,6 +5128,16 @@
 
     if (el.brbClear) {
       el.brbClear.addEventListener('click', () => {
+        const hasBrbInput = el.brbText && el.brbText.value.trim().length > 0;
+        const hasBrbState = brbState.text && brbState.text.trim().length > 0;
+        const brbActive = (el.brbActive && el.brbActive.checked) || brbState.isActive;
+
+        if (hasBrbInput || hasBrbState || brbActive) {
+          if (!confirm('Clear the BRB message?')) {
+            return;
+          }
+        }
+
         if (el.brbText) el.brbText.value = '';
         if (el.brbActive) el.brbActive.checked = false;
         brbState = { ...brbState, text: '', isActive: false, updatedAt: Date.now() };
