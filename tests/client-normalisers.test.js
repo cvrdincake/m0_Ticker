@@ -7,6 +7,7 @@ const {
   normaliseOverlayData,
   normalisePopupData,
   normaliseSlateData,
+  normaliseSlateNotesList,
   normaliseSceneEntry
 } = normalisers;
 
@@ -86,6 +87,19 @@ test('normaliseSlateData trims fields, limits notes, and is idempotent', () => {
   assert.deepStrictEqual(result.notes, ['first', 'second', 'third', 'fourth', 'fifth', 'sixth']);
 
   assert.deepStrictEqual(normaliseSlateData(result), result);
+});
+
+test('normaliseSlateNotesList allows six full-length lines', () => {
+  const lines = Array.from({ length: 6 }, (_, index) => `Line ${index + 1} `.padEnd(200, '#'));
+  const textBlock = lines.join('\n');
+
+  const result = normaliseSlateNotesList(textBlock);
+
+  assert.equal(result.length, 6);
+  result.forEach((line, index) => {
+    assert.equal(line.length, 200);
+    assert.equal(line, lines[index]);
+  });
 });
 
 test('normaliseSceneEntry rejects empty payloads and preserves round-trip data', () => {
