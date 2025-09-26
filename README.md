@@ -16,6 +16,10 @@ With the server running on <http://127.0.0.1:3000>:
 
 The dashboard consumes the SSE stream to stay in sync with the server, and the overlay hydrates itself from the same `/ticker/stream` endpoint when it loads. OBS can point directly at the overlay URL, while operators can manage queues and presets from the dashboard.
 
+## Importing and exporting state
+
+Use the dashboard controls in the header to export the complete ticker state to a JSON download or import a previously saved file. The buttons call the `/ticker/state/export` and `/ticker/state/import` endpoints under the hood and trigger a full dashboard refresh so every panel is rehydrated after a successful import.
+
 ## Configuration
 
 Set the following environment variables before starting `server.js` to change where assets and state are loaded from (see [Getting Started](#getting-started) for the launch command):

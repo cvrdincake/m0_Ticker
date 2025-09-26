@@ -192,6 +192,17 @@
       gap: 14px;
     }
 
+    .status-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .status-actions .btn {
+      min-width: 140px;
+    }
+
     .status-card {
       display: flex;
       flex-direction: column;
@@ -1160,6 +1171,12 @@
           <div class="status-item"><label><input type="checkbox" id="autoStart" /> Auto-start when messages exist</label></div>
         </div>
       </div>
+
+      <div class="status-actions">
+        <button type="button" class="btn btn-ghost" id="exportState">Export state</button>
+        <button type="button" class="btn btn-ghost" id="importState">Import state</button>
+        <input type="file" id="importStateInput" accept="application/json,.json" hidden />
+      </div>
     </div>
 
     <div class="layout-grid">
@@ -1649,6 +1666,9 @@
       overlayChip: document.getElementById('overlayUrlChip'),
       overlayText: document.getElementById('overlayUrlText'),
       serverUrl: document.getElementById('serverUrl'),
+      stateExport: document.getElementById('exportState'),
+      stateImport: document.getElementById('importState'),
+      stateImportInput: document.getElementById('importStateInput'),
       statusServer: document.getElementById('statusServer'),
       statusActive: document.getElementById('statusActive'),
       statusActiveText: document.getElementById('statusActiveText'),
@@ -4472,6 +4492,79 @@ function normalisePopupData(data) {
       connectStream();
       fetchState({ silent: true });
       updateOverlayChip();
+    });
+
+    el.stateExport.addEventListener('click', async () => {
+      if (!confirm('Export the full dashboard state as a JSON download?')) {
+        return;
+      }
+      const base = serverBase();
+      try {
+        const res = await fetch(`${base}/ticker/state/export`, { cache: 'no-store' });
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ticker-state.json';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 500);
+        toast('State exported');
+      } catch (err) {
+        console.error('State export failed', err);
+        toast('Failed to export state');
+      }
+    });
+
+    el.stateImport.addEventListener('click', () => {
+      if (!el.stateImportInput) return;
+      el.stateImportInput.value = '';
+      el.stateImportInput.click();
+    });
+
+    el.stateImportInput.addEventListener('change', async () => {
+      const file = el.stateImportInput.files && el.stateImportInput.files[0];
+      if (!file) return;
+      if (!confirm(`Import "${file.name}" and replace the current dashboard state?`)) {
+        el.stateImportInput.value = '';
+        return;
+      }
+      try {
+        const text = await file.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error('Selected file is not valid JSON');
+        }
+        const base = serverBase();
+        const res = await fetch(`${base}/ticker/state/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed)
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (err) {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+        }
+        if (!res.ok || !data || data.ok !== true) {
+          const message = data?.error || data?.message || `Import failed (HTTP ${res.status})`;
+          throw new Error(message);
+        }
+        await fetchState({ silent: false });
+        toast('State imported');
+      } catch (err) {
+        console.error('State import failed', err);
+        toast(err.message || 'Failed to import state');
+      } finally {
+        el.stateImportInput.value = '';
+      }
     });
 
     el.autoStart.addEventListener('change', () => {
