@@ -17,6 +17,11 @@ With the server running on <http://127.0.0.1:3000>:
 The dashboard consumes the SSE stream to stay in sync with the server, and the overlay hydrates itself from the same `/ticker/stream` endpoint when it loads. OBS can point directly at the overlay URL, while operators can manage queues and presets from the dashboard.
 
 
+## Browser requirements
+
+The dashboard and overlay apply modern CSS features—including `color-mix()` and `backdrop-filter`—to achieve their visual treatments. We have verified that both render as intended in OBS Studio 30.1 (Chromium/CEF 114). Older OBS or Chromium/CEF builds gracefully fall back to solid-color backgrounds and borders when those features are unavailable, and you can confirm the degradations locally with `--disable-blink-features=BackdropFilter` if you need to simulate the reduced capabilities.
+
+
 
 ## Configuration
 

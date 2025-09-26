@@ -23,13 +23,13 @@
       --divider-height: calc(var(--space-sm) * 1.75);
       --accent: #38bdf8;
       --accent-secondary: #f472b6;
-      --accent-bright: color-mix(in srgb, var(--accent) 78%, #f6fbff 22%);
-      --accent-secondary-bright: color-mix(in srgb, var(--accent-secondary, var(--accent)) 75%, #f5f1ff 25%);
-      --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-      --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.42));
-      --accent-muted: color-mix(in srgb, var(--accent) 45%, rgba(14, 18, 30, 0.75));
-      --accent-duo: color-mix(in srgb, var(--accent) 55%, var(--accent-secondary, var(--accent)) 45%);
-      --accent-contrast: color-mix(in srgb, var(--accent) 52%, #0b0f1a 48%);
+      --accent-bright: #7dd3fc;
+      --accent-secondary-bright: #fbcfe8;
+      --accent-soft: rgba(56, 189, 248, 0.16);
+      --accent-glow: rgba(56, 189, 248, 0.42);
+      --accent-muted: rgba(14, 18, 30, 0.75);
+      --accent-duo: #2f6bb2;
+      --accent-contrast: #0b0f1a;
       --surface-a: rgba(14, 16, 24, 0.94);
       --surface-b: rgba(6, 8, 14, 0.92);
       --surface-border: rgba(255, 255, 255, 0.12);
@@ -53,26 +53,57 @@
       --ticker-accent-overlay:
         linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
         linear-gradient(140deg,
-          color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.2) 20%),
-          color-mix(in srgb, var(--accent-secondary, var(--accent)) 58%, rgba(8, 12, 24, 0.82) 42%)
+          rgba(125, 211, 252, 0.78),
+          rgba(32, 46, 82, 0.82)
         );
-      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.28));
-      --ticker-accent-glow: 0 0 18px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.26));
+      --ticker-accent-border: 1px solid rgba(56, 189, 248, 0.35);
+      --ticker-accent-glow: 0 0 18px rgba(56, 189, 248, 0.26);
       --ticker-accent-animation: midnightGlassSweep 18s var(--ease-premium) infinite;
-      --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
-      --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
-      --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+      --popup-surface-a: rgba(18, 20, 30, 0.95);
+      --popup-surface-b: rgba(10, 12, 22, 0.9);
+      --popup-border-color: rgba(160, 180, 220, 0.22);
       --popup-shadow: var(--ticker-shadow);
       --popup-text-color: rgba(248, 250, 255, 0.96);
-      --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
-      --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 82%, var(--accent) 18%);
-      --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 70%, var(--accent-secondary, var(--accent)) 30%);
+      --popup-divider-color: rgba(200, 210, 240, 0.2);
+      --popup-countdown-color: rgba(240, 242, 248, 0.9);
+      --popup-countdown-dot: rgba(255, 255, 255, 0.52);
       --popup-accent-strip:
         linear-gradient(165deg,
-          color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.2)),
-          color-mix(in srgb, var(--accent-secondary, var(--accent)) 52%, rgba(255, 255, 255, 0.08))
+          var(--accent),
+          rgba(255, 255, 255, 0.18)
         );
       --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
+    }
+
+    @supports (color: color-mix(in srgb, red 50%, blue)) {
+      :root {
+        --accent-bright: color-mix(in srgb, var(--accent) 78%, #f6fbff 22%);
+        --accent-secondary-bright: color-mix(in srgb, var(--accent-secondary, var(--accent)) 75%, #f5f1ff 25%);
+        --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+        --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.42));
+        --accent-muted: color-mix(in srgb, var(--accent) 45%, rgba(14, 18, 30, 0.75));
+        --accent-duo: color-mix(in srgb, var(--accent) 55%, var(--accent-secondary, var(--accent)) 45%);
+        --accent-contrast: color-mix(in srgb, var(--accent) 52%, #0b0f1a 48%);
+        --ticker-accent-overlay:
+          linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
+          linear-gradient(140deg,
+            color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.2) 20%),
+            color-mix(in srgb, var(--accent-secondary, var(--accent)) 58%, rgba(8, 12, 24, 0.82) 42%)
+          );
+        --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.28));
+        --ticker-accent-glow: 0 0 18px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.26));
+        --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
+        --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
+        --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+        --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
+        --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 82%, var(--accent) 18%);
+        --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 70%, var(--accent-secondary, var(--accent)) 30%);
+        --popup-accent-strip:
+          linear-gradient(165deg,
+            color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.2)),
+            color-mix(in srgb, var(--accent-secondary, var(--accent)) 52%, rgba(255, 255, 255, 0.08))
+          );
+      }
     }
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -152,9 +183,9 @@
       background:
         var(--ticker-ambient-mask, transparent),
         linear-gradient(150deg, var(--ticker-surface-a), var(--ticker-surface-b));
+      background-color: var(--ticker-surface-a);
       box-shadow: var(--ticker-shadow), var(--ticker-chromatic-shadows, 0 0 0 transparent);
       border-top: 1px solid var(--ticker-border);
-      backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
       filter: var(--ticker-depth-filter, none);
       mask-image: var(--ticker-depth-mask, none);
       -webkit-mask-image: var(--ticker-depth-mask, none);
@@ -171,6 +202,13 @@
       will-change: transform, opacity, filter;
       contain: layout style paint;
       z-index: 1000;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .ticker {
+        backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+        -webkit-backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+      }
     }
 
     .ticker-visuals {
@@ -451,15 +489,22 @@
       gap: calc(14px * var(--popup-scale));
       padding: calc(16px * var(--popup-scale)) calc(22px * var(--popup-scale));
       border-radius: 0;
+      background-color: var(--popup-surface-a);
       background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
       border: 1px solid var(--popup-border-color);
       box-shadow: var(--popup-shadow);
-      backdrop-filter: blur(18px) saturate(1.05);
       font-size: calc(16px * var(--popup-scale));
       font-weight: 600;
       line-height: 1.4;
       color: var(--popup-text-color);
       overflow: hidden;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .popup-inner {
+        backdrop-filter: blur(18px) saturate(1.05);
+        -webkit-backdrop-filter: blur(18px) saturate(1.05);
+      }
     }
 
     .popup-message {
@@ -545,11 +590,18 @@
       max-width: min(calc(320px * var(--ui-scale) / 1.75), 32vw);
       border: 1px solid var(--popup-border-color);
       border-radius: 0;
+      background-color: var(--popup-surface-a);
       background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
       box-shadow: var(--popup-shadow);
-      backdrop-filter: blur(14px) saturate(1.05);
       color: var(--popup-text-color);
       overflow: hidden;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .slate-card {
+        backdrop-filter: blur(14px) saturate(1.05);
+        -webkit-backdrop-filter: blur(14px) saturate(1.05);
+      }
     }
 
     .slate-card::before {
@@ -635,8 +687,14 @@
     }
 
     .slate-dots span.is-active {
-      background: color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.6));
+      background: rgba(56, 189, 248, 0.68);
       opacity: 1;
+    }
+
+    @supports (color: color-mix(in srgb, red 50%, blue)) {
+      .slate-dots span.is-active {
+        background: color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.6));
+      }
     }
 
     .popup-inner.refresh {
