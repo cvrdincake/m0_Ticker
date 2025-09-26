@@ -813,7 +813,7 @@
       clampPopupScaleValue,
       clampSlateRotationSeconds,
       normaliseSlateNotes,
-      normaliseServerBaseUrl: sharedNormaliseServerBaseUrl
+
     } = window.TickerShared || {};
 
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
@@ -2484,7 +2484,7 @@
     class TickerOverlay {
       constructor() {
         const params = new URLSearchParams(location.search);
-        this.server = normaliseServerBase(params.get('server'), DEFAULT_SERVER_URL);
+
         this.overlay = { ...DEFAULT_OVERLAY };
         this.overrides = {
           label: false,
