@@ -155,6 +155,62 @@
     return false;
   }
 
+  function stripServerPath(pathname) {
+    let result = String(pathname || '');
+    if (!result) return '';
+
+    while (/\/ticker\/?$/i.test(result)) {
+      result = result.replace(/\/ticker\/?$/i, '');
+    }
+
+    result = result.replace(/\/+$/g, '');
+    if (result === '/') {
+      return '';
+    }
+
+    return result;
+  }
+
+  function normaliseServerBaseUrl(value, fallback = 'http://127.0.0.1:3000') {
+    const fallbackString = typeof fallback === 'string' && fallback.trim()
+      ? fallback.trim()
+      : 'http://127.0.0.1:3000';
+    const raw = typeof value === 'string' ? value.trim() : '';
+    const target = raw || fallbackString;
+    const schemeRe = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+    const candidates = schemeRe.test(target)
+      ? [target]
+      : [target, `http://${target}`];
+
+    const parseWith = (input, base) => {
+      try {
+        const parsed = base ? new URL(input, base) : new URL(input);
+        const cleanedPath = stripServerPath(parsed.pathname);
+        return cleanedPath ? `${parsed.origin}${cleanedPath}` : parsed.origin;
+      } catch {
+        return null;
+      }
+    };
+
+    for (const candidate of candidates) {
+      const result = parseWith(candidate);
+      if (result) return result;
+    }
+
+    for (const candidate of candidates) {
+      const result = parseWith(candidate, fallbackString);
+      if (result) return result;
+    }
+
+    const manual = stripServerPath(target);
+    if (!manual) {
+      const fallbackManual = stripServerPath(fallbackString);
+      return fallbackManual || fallbackString;
+    }
+    return manual;
+  }
+
   function normaliseSlateNotes(value, limit = 6, maxLength = 160) {
     const raw = Array.isArray(value)
       ? value
@@ -241,6 +297,7 @@
     normaliseMode,
     normaliseTheme,
     normaliseSlateNotes,
-    isSafeCssColor
+    isSafeCssColor,
+    normaliseServerBaseUrl
   };
 });

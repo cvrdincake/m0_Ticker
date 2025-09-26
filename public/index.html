@@ -1765,6 +1765,7 @@
       normalisePosition: sharedNormalisePosition,
       normaliseTheme: sharedNormaliseTheme,
       normaliseSlateNotes,
+      normaliseServerBaseUrl: sharedNormaliseServerBaseUrl,
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
 
@@ -1791,6 +1792,22 @@
       normaliseSceneEntry,
       sanitiseMessages
     } = normaliserExports;
+
+    const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
+    const normaliseServerBase = typeof sharedNormaliseServerBaseUrl === 'function'
+      ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+      : (value, fallback = DEFAULT_SERVER_URL) => {
+          const fallbackValue = typeof fallback === 'string' && fallback.trim()
+            ? fallback.trim()
+            : DEFAULT_SERVER_URL;
+          const raw = typeof value === 'string' ? value.trim() : '';
+          const target = raw || fallbackValue;
+          const cleaned = target
+            .replace(/(?:\/ticker)+\/?$/i, '')
+            .replace(/\/+$/g, '');
+          const fallbackClean = fallbackValue.replace(/\/+$/g, '');
+          return cleaned || fallbackClean;
+        };
 
     function normaliseThemeList(list) {
       if (!Array.isArray(list)) return [];
@@ -2275,8 +2292,7 @@
     }
 
     function serverBase() {
-      const value = (el.serverUrl.value || 'http://127.0.0.1:3000').trim();
-      return value.replace(/\/?$/, '');
+      return normaliseServerBase(el.serverUrl.value, DEFAULT_SERVER_URL);
     }
 
     function secondsToMinutes(seconds) {
