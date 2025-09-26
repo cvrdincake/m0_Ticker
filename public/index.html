@@ -1576,6 +1576,7 @@
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
 
+    const sharedConfigWindow = window.SharedConfig || {};
     const normaliserExports = window.TickerClientNormalisers || {};
     const {
       DEFAULT_OVERLAY: BASE_DEFAULT_OVERLAY,
@@ -1599,6 +1600,20 @@
       sanitiseMessages
     } = normaliserExports;
 
+    function normaliseThemeList(list) {
+      if (!Array.isArray(list)) return [];
+      const seen = new Set();
+      const normalised = [];
+      for (const entry of list) {
+        if (typeof entry !== 'string') continue;
+        const trimmed = entry.trim().toLowerCase();
+        if (!trimmed || seen.has(trimmed)) continue;
+        seen.add(trimmed);
+        normalised.push(trimmed);
+      }
+      return normalised;
+    }
+
     const STORAGE_KEY = 'ticker-dashboard-v3';
     const MAX_MESSAGES = EXPORTED_MAX_MESSAGES || 50;
     const MAX_MESSAGE_LENGTH = EXPORTED_MAX_MESSAGE_LENGTH || 280;
@@ -1613,8 +1628,8 @@
     const THEME_OPTIONS = Array.isArray(BASE_THEME_OPTIONS) && BASE_THEME_OPTIONS.length
         ? BASE_THEME_OPTIONS.slice()
         : (Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
-            ? OVERLAY_THEMES
-            : ['midnight-glass', 'aurora-night', 'nexus-grid', 'zen-flow', 'duotone-fusion']);
+            ? OVERLAY_THEMES.slice()
+            : normaliseThemeList(sharedConfigWindow.OVERLAY_THEMES));
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
