@@ -1757,9 +1757,11 @@
     const buildSceneOverlayPayload = serialiseOverlayForSceneImpl
       ? (overlayPrefs = {}) => serialiseOverlayForSceneImpl(
           overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {},
-          normaliseOverlayData,
-          SCENE_OVERLAY_KEYS,
-          { includeEmptyStrings: false }
+          {
+            normaliseOverlayData,
+            overlayKeys: SCENE_OVERLAY_KEYS,
+            includeEmptyStrings: false
+          }
         )
       : (overlayPrefs = {}) => {
           const source = overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {};
@@ -4491,7 +4493,11 @@
       const allowedKeys = SCENE_OVERLAY_KEYS || [];
 
       if (serialiseOverlayForSceneImpl) {
-        const serialised = serialiseOverlayForSceneImpl(prefs, { keys: allowedKeys });
+        const serialised = serialiseOverlayForSceneImpl(prefs, {
+          normaliseOverlayData,
+          overlayKeys: allowedKeys,
+          includeEmptyStrings: false
+        });
         if (!serialised || typeof serialised !== 'object') {
           return null;
         }
