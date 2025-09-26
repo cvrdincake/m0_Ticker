@@ -804,17 +804,15 @@
       text: '',
       isActive: false,
       durationSeconds: null,
+      countdownMode: 'target',
       countdownEnabled: false,
       countdownTarget: null,
+      countdownSeconds: null,
       ...(sharedConfig.DEFAULT_POPUP || {}),
       updatedAt: null
     };
 
-    const DEFAULT_BRB = {
-      text: '',
-      isActive: false,
-      updatedAt: null
-    };
+
 
     const DEFAULT_SLATE_SOURCE = {
       isEnabled: true,
@@ -904,6 +902,17 @@
       return THEME_CLASSNAMES.includes(`ticker--${theme}`) ? theme : null;
     }
 
+    function normaliseCountdownMode(value) {
+      const mode = String(value || '').toLowerCase();
+      return COUNTDOWN_MODES.has(mode) ? mode : COUNTDOWN_MODE_TARGET;
+    }
+
+    function normaliseCountdownSeconds(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric) || numeric <= 0) return null;
+      return Math.max(1, Math.round(numeric));
+    }
+
     function normalisePopupPayload(data) {
       const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 280) : '';
       const isActive = !!data?.isActive && !!text;
@@ -911,17 +920,34 @@
       const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
         ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
         : null;
+      const countdownMode = normaliseCountdownMode(data?.countdownMode);
+      const seconds = normaliseCountdownSeconds(data?.countdownSeconds);
       const countdownTargetRaw = Number(data?.countdownTarget);
-      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
-      const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
+      let countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
       const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
+      const resolvedUpdatedAt = Number.isFinite(updatedAt) ? updatedAt : Date.now();
+      if (countdownMode === COUNTDOWN_MODE_DURATION) {
+        if (Number.isFinite(seconds)) {
+          if (!Number.isFinite(countdownTarget)) {
+            countdownTarget = resolvedUpdatedAt + seconds * 1000;
+          }
+        } else {
+          countdownTarget = null;
+        }
+      }
+      const hasCountdownValue = countdownMode === COUNTDOWN_MODE_DURATION
+        ? Number.isFinite(seconds)
+        : countdownTarget !== null;
+      const countdownEnabled = !!data?.countdownEnabled && !!text && hasCountdownValue;
       return {
         text,
         isActive,
         durationSeconds,
+        countdownMode,
         countdownEnabled,
         countdownTarget,
-        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+        countdownSeconds: countdownMode === COUNTDOWN_MODE_DURATION && Number.isFinite(seconds) ? seconds : null,
+        updatedAt: resolvedUpdatedAt
       };
     }
 

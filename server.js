@@ -91,8 +91,10 @@ const BASE_DEFAULT_POPUP = CONFIG_DEFAULT_POPUP
       text: '',
       isActive: false,
       durationSeconds: null,
+      countdownMode: 'target',
       countdownEnabled: false,
-      countdownTarget: null
+      countdownTarget: null,
+      countdownSeconds: null
     };
 
 const BASE_DEFAULT_SLATE_SOURCE = CONFIG_DEFAULT_SLATE
@@ -265,23 +267,22 @@ app.post('/popup/state', (req, res) => {
     if (Object.prototype.hasOwnProperty.call(update, 'durationSeconds')) {
       state.popup.durationSeconds = update.durationSeconds;
     }
+    if (Object.prototype.hasOwnProperty.call(update, 'countdownMode')) {
+      state.popup.countdownMode = update.countdownMode;
+    }
     if (Object.prototype.hasOwnProperty.call(update, 'countdownEnabled')) {
       state.popup.countdownEnabled = update.countdownEnabled;
+    }
+    if (Object.prototype.hasOwnProperty.call(update, 'countdownSeconds')) {
+      state.popup.countdownSeconds = update.countdownSeconds;
     }
     if (Object.prototype.hasOwnProperty.call(update, 'countdownTarget')) {
       state.popup.countdownTarget = update.countdownTarget;
     }
-    if (!state.popup.text.trim()) {
-      state.popup.text = '';
-      state.popup.isActive = false;
-      state.popup.countdownEnabled = false;
-      state.popup.countdownTarget = null;
-    }
-    if (!state.popup.countdownEnabled || !Number.isFinite(state.popup.countdownTarget)) {
-      state.popup.countdownEnabled = false;
-      state.popup.countdownTarget = null;
-    }
-    state.popup._updatedAt = Date.now();
+    state.popup.countdownMode = normaliseCountdownMode(state.popup.countdownMode);
+    const now = Date.now();
+    state.popup._updatedAt = now;
+    reconcilePopupState(state.popup, now);
     schedulePopupAutoDismiss();
     schedulePersist();
     broadcast('popup', state.popup);
@@ -487,20 +488,52 @@ function sanitisePopupInput(input) {
         result.durationSeconds = null;
       }
     }
+    if (typeof input.countdownMode === 'string') {
+      result.countdownMode = normaliseCountdownMode(input.countdownMode);
+    }
     if (Object.prototype.hasOwnProperty.call(input, 'countdownEnabled')) {
       result.countdownEnabled = !!input.countdownEnabled;
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'countdownSeconds')) {
+      result.countdownSeconds = normaliseCountdownSeconds(input.countdownSeconds);
     }
     if (Object.prototype.hasOwnProperty.call(input, 'countdownTarget')) {
       result.countdownTarget = normaliseCountdownTarget(input.countdownTarget);
     }
   }
+  result.countdownMode = normaliseCountdownMode(result.countdownMode);
   if (!Number.isFinite(result.countdownTarget)) {
     result.countdownTarget = null;
   }
-  if (!result.countdownTarget) {
+  if (!Number.isFinite(result.countdownSeconds)) {
+    result.countdownSeconds = null;
+  }
+  const hasValue = result.countdownMode === 'duration'
+    ? Number.isFinite(result.countdownSeconds)
+    : Number.isFinite(result.countdownTarget);
+  if (!hasValue) {
     result.countdownEnabled = false;
+    if (result.countdownMode === 'duration') {
+      result.countdownTarget = null;
+    }
   }
   return result;
+}
+
+function normaliseCountdownMode(value) {
+  const mode = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return mode === 'duration' ? 'duration' : 'target';
+}
+
+function normaliseCountdownSeconds(value) {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric) || numeric <= 0) {
+    return null;
+  }
+  return Math.max(1, Math.round(numeric));
 }
 
 function normaliseCountdownTarget(value) {
@@ -519,6 +552,44 @@ function normaliseCountdownTarget(value) {
   const parsed = new Date(trimmed);
   const ms = parsed.getTime();
   return Number.isNaN(ms) ? null : ms;
+}
+
+function reconcilePopupState(popup, timestamp = Date.now()) {
+  if (!popup || typeof popup !== 'object') return popup;
+  popup.countdownMode = normaliseCountdownMode(popup.countdownMode);
+  const text = typeof popup.text === 'string' ? popup.text.trim() : '';
+  if (!text) {
+    popup.text = '';
+    popup.isActive = false;
+    popup.countdownEnabled = false;
+    popup.countdownTarget = null;
+    popup.countdownSeconds = null;
+    return popup;
+  }
+  popup.text = text;
+  if (popup.countdownMode === 'duration') {
+    const seconds = normaliseCountdownSeconds(popup.countdownSeconds);
+    popup.countdownSeconds = seconds;
+    if (!popup.countdownEnabled || !Number.isFinite(seconds)) {
+      popup.countdownEnabled = false;
+      popup.countdownTarget = null;
+    } else {
+      popup.countdownTarget = timestamp + seconds * 1000;
+    }
+  } else {
+    popup.countdownSeconds = null;
+    popup.countdownTarget = normaliseCountdownTarget(popup.countdownTarget);
+    if (!Number.isFinite(popup.countdownTarget)) {
+      popup.countdownTarget = null;
+    }
+  }
+  if (popup.countdownEnabled) {
+    popup.countdownEnabled = !!popup.text;
+    if (!popup.countdownEnabled && popup.countdownMode === 'duration') {
+      popup.countdownTarget = null;
+    }
+  }
+  return popup;
 }
 
 function clearPopupAutoDismiss() {
@@ -859,12 +930,7 @@ function applyScene(scene) {
       ...popup,
       _updatedAt: now
     };
-    if (!state.popup.text.trim()) {
-      state.popup.text = '';
-      state.popup.isActive = false;
-      state.popup.countdownEnabled = false;
-      state.popup.countdownTarget = null;
-    }
+    reconcilePopupState(state.popup, now);
     schedulePopupAutoDismiss();
     popupChanged = true;
   }
@@ -981,12 +1047,7 @@ function hydrateState(partial, target = state, options = {}) {
       ...popup,
       _updatedAt: Number.isFinite(partial.popup._updatedAt) ? partial.popup._updatedAt : Date.now()
     };
-    if (!target.popup.text || !target.popup.text.trim()) {
-      target.popup.text = '';
-      target.popup.isActive = false;
-      target.popup.countdownEnabled = false;
-      target.popup.countdownTarget = null;
-    }
+    reconcilePopupState(target.popup, target.popup._updatedAt || Date.now());
   }
 
   if (partial.slate && typeof partial.slate === 'object') {
@@ -1016,8 +1077,12 @@ function replaceState(nextState) {
   state.presets = Array.isArray(nextState.presets) ? nextState.presets : [];
   state.scenes = Array.isArray(nextState.scenes) ? nextState.scenes : [];
   if (nextState.overlay) state.overlay = nextState.overlay;
-  if (nextState.popup) state.popup = nextState.popup;
+  if (nextState.popup) {
+    state.popup = nextState.popup;
+    reconcilePopupState(state.popup, state.popup && Number.isFinite(state.popup._updatedAt) ? state.popup._updatedAt : Date.now());
+  }
   if (nextState.slate) state.slate = nextState.slate;
+  schedulePopupAutoDismiss();
 }
 
 async function loadStateFromDisk() {

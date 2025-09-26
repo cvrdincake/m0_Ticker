@@ -86,8 +86,10 @@
     text: '',
     isActive: false,
     durationSeconds: null,
+    countdownMode: 'target',
     countdownEnabled: false,
     countdownTarget: null,
+    countdownSeconds: null,
     ...(sharedConfig.DEFAULT_POPUP || {})
   });
 
@@ -181,6 +183,21 @@
       return sharedUtils.clampSlateRotationSeconds(value, fallback);
     }
     return clampNumber(value, 4, 900, fallback, 0);
+  }
+
+  const COUNTDOWN_MODE_TARGET = 'target';
+  const COUNTDOWN_MODE_DURATION = 'duration';
+  const COUNTDOWN_MODES = new Set([COUNTDOWN_MODE_TARGET, COUNTDOWN_MODE_DURATION]);
+
+  function normaliseCountdownMode(value) {
+    const mode = String(value || '').toLowerCase();
+    return COUNTDOWN_MODES.has(mode) ? mode : COUNTDOWN_MODE_TARGET;
+  }
+
+  function normaliseCountdownSeconds(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric) || numeric <= 0) return null;
+    return Math.max(1, Math.round(numeric));
   }
 
   function isSafeColour(value) {
@@ -333,8 +350,10 @@
       text: '',
       isActive: false,
       durationSeconds: null,
+      countdownMode: 'target',
       countdownEnabled: false,
       countdownTarget: null,
+      countdownSeconds: null,
       updatedAt: null
     };
 
@@ -347,20 +366,27 @@
     if (Number.isFinite(applyDefaults.durationSeconds) && applyDefaults.durationSeconds > 0) {
       result.durationSeconds = clampNumber(applyDefaults.durationSeconds, 1, maxDurationSeconds, null, 0);
     }
+    result.countdownMode = normaliseCountdownMode(applyDefaults.countdownMode);
+    if (Object.prototype.hasOwnProperty.call(applyDefaults, 'countdownSeconds')) {
+      const seconds = normaliseCountdownSeconds(applyDefaults.countdownSeconds);
+      if (seconds !== null) {
+        result.countdownSeconds = seconds;
+      }
+    }
     if (Number.isFinite(applyDefaults.countdownTarget)) {
       result.countdownTarget = Math.round(applyDefaults.countdownTarget);
     }
-    result.countdownEnabled = !!applyDefaults.countdownEnabled && Number.isFinite(result.countdownTarget) && !!result.text;
+    const defaultHasValue = result.countdownMode === COUNTDOWN_MODE_DURATION
+      ? Number.isFinite(result.countdownSeconds)
+      : Number.isFinite(result.countdownTarget);
+    result.countdownEnabled = !!applyDefaults.countdownEnabled && defaultHasValue && !!result.text;
     const defaultUpdatedAt = Number(applyDefaults.updatedAt ?? applyDefaults._updatedAt);
     if (Number.isFinite(defaultUpdatedAt)) {
       result.updatedAt = defaultUpdatedAt;
     }
 
     if (!data || typeof data !== 'object') {
-      if (!Number.isFinite(result.updatedAt)) {
-        result.updatedAt = Date.now();
-      }
-      return result;
+      data = {};
     }
 
     if (typeof data.text === 'string') {
@@ -380,8 +406,17 @@
       }
     }
 
+    if (typeof data.countdownMode === 'string') {
+      result.countdownMode = normaliseCountdownMode(data.countdownMode);
+    }
+
     if (Object.prototype.hasOwnProperty.call(data, 'countdownEnabled')) {
       result.countdownEnabled = !!data.countdownEnabled;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(data, 'countdownSeconds')) {
+      const seconds = normaliseCountdownSeconds(data.countdownSeconds);
+      result.countdownSeconds = seconds;
     }
 
     if (Object.prototype.hasOwnProperty.call(data, 'countdownTarget')) {
@@ -389,23 +424,48 @@
       result.countdownTarget = Number.isFinite(numeric) ? Math.round(numeric) : null;
     }
 
-    if (!result.text) {
-      result.isActive = false;
-      result.countdownEnabled = false;
-      result.countdownTarget = null;
-    }
-
-    if (!Number.isFinite(result.countdownTarget)) {
-      result.countdownTarget = null;
-      result.countdownEnabled = false;
-    } else {
-      result.countdownEnabled = result.countdownEnabled && !!result.text;
-    }
-
     const updatedAt = Number(data.updatedAt ?? data._updatedAt);
     result.updatedAt = Number.isFinite(updatedAt)
       ? updatedAt
       : (Number.isFinite(result.updatedAt) ? result.updatedAt : Date.now());
+
+    if (!result.text) {
+      result.isActive = false;
+      result.countdownEnabled = false;
+      result.countdownTarget = null;
+      result.countdownSeconds = null;
+    }
+
+    if (result.countdownMode === COUNTDOWN_MODE_DURATION) {
+      if (!Number.isFinite(result.countdownSeconds)) {
+        result.countdownSeconds = null;
+      }
+      if (Number.isFinite(result.countdownSeconds)) {
+        if (!Number.isFinite(result.countdownTarget)) {
+          result.countdownTarget = result.updatedAt + result.countdownSeconds * 1000;
+        }
+      } else {
+        result.countdownTarget = null;
+      }
+    } else {
+      result.countdownSeconds = null;
+      if (!Number.isFinite(result.countdownTarget)) {
+        result.countdownTarget = null;
+      }
+    }
+
+    const hasCountdownValue = result.countdownMode === COUNTDOWN_MODE_DURATION
+      ? Number.isFinite(result.countdownSeconds)
+      : Number.isFinite(result.countdownTarget);
+
+    if (!hasCountdownValue) {
+      result.countdownEnabled = false;
+      if (result.countdownMode === COUNTDOWN_MODE_DURATION) {
+        result.countdownTarget = null;
+      }
+    } else {
+      result.countdownEnabled = !!result.countdownEnabled && !!result.text;
+    }
 
     return result;
   }
