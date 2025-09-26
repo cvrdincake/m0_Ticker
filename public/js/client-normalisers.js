@@ -12,14 +12,6 @@
     root.TickerClientNormalisers = exports;
   }
 })(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function (sharedUtils = {}, sharedConfig = {}) {
-  const FALLBACK_THEMES = [
-    'midnight-glass',
-    'aurora-night',
-    'nexus-grid',
-    'zen-flow',
-    'duotone-fusion'
-  ];
-
   const {
     MAX_TICKER_MESSAGES: SHARED_MAX_TICKER_MESSAGES,
     MAX_TICKER_MESSAGE_LENGTH: SHARED_MAX_MESSAGE_LENGTH,
@@ -53,9 +45,22 @@
     ? SHARED_MAX_SLATE_NOTES
     : 6;
 
-  const themeOptions = Array.isArray(sharedUtils.OVERLAY_THEMES) && sharedUtils.OVERLAY_THEMES.length
-    ? sharedUtils.OVERLAY_THEMES.slice()
-    : FALLBACK_THEMES.slice();
+  const themeOptions = (() => {
+    if (Array.isArray(sharedUtils.OVERLAY_THEMES) && sharedUtils.OVERLAY_THEMES.length) {
+      return sharedUtils.OVERLAY_THEMES.slice();
+    }
+    if (Array.isArray(sharedConfig.OVERLAY_THEMES) && sharedConfig.OVERLAY_THEMES.length) {
+      const seen = new Set();
+      return sharedConfig.OVERLAY_THEMES
+        .map(entry => (typeof entry === 'string' ? entry.trim().toLowerCase() : ''))
+        .filter(theme => {
+          if (!theme || seen.has(theme)) return false;
+          seen.add(theme);
+          return true;
+        });
+    }
+    return [];
+  })();
   const themeSet = new Set(themeOptions);
 
   const defaultHighlights = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length

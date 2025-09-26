@@ -31,4 +31,3 @@ Set the following environment variables before starting `server.js` to change wh
 | `TICKER_DEFAULT_ACCENT_SECONDARY` | Override the secondary accent colour (must be a valid CSS colour). | `#f472b6` |
 | `TICKER_DEFAULT_THEME` | Override the default overlay theme (must be one of the configured themes). | `midnight-glass` |
 
-The path variables accept relative paths, which will be resolved against the current working directory when the server boots.
