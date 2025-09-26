@@ -8,7 +8,9 @@ const os = require('node:os');
 const { setTimeout: delay } = require('node:timers/promises');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const BASE_URL = 'http://127.0.0.1:3000';
+const HOST = '127.0.0.1';
+const TEST_PORT = 3202;
+const BASE_URL = `http://${HOST}:${TEST_PORT}`;
 
 async function waitForServer() {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -58,7 +60,9 @@ test('ticker state export/import round-trips through the API', async t => {
     cwd: ROOT_DIR,
     env: {
       ...process.env,
-      TICKER_STATE_FILE: stateFile
+      TICKER_STATE_FILE: stateFile,
+      HTTP_PORT: String(TEST_PORT),
+      HTTP_HOST: HOST
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -104,6 +108,7 @@ test('ticker state export/import round-trips through the API', async t => {
     body: JSON.stringify({
       label: 'LIVE',
       accent: '#ff00ff',
+      accentSecondary: 'rgba(0, 255, 255, 0.8)',
       highlight: 'alpha,beta',
       scale: 1.2,
       popupScale: 1.05,
@@ -111,7 +116,7 @@ test('ticker state export/import round-trips through the API', async t => {
       mode: 'chunk',
       accentAnim: false,
       sparkle: false,
-      theme: 'neural'
+      theme: 'nexus-grid'
     })
   });
 
@@ -173,7 +178,8 @@ test('ticker state export/import round-trips through the API', async t => {
             durationSeconds: 15
           },
           overlay: {
-            theme: 'monotone'
+            accentSecondary: '#ffe066',
+            theme: 'duotone-fusion'
           },
           slate: {
             notes: ['Scene note one']

@@ -20,13 +20,11 @@
   ]);
 
   const OVERLAY_THEMES = [
-    'holographic',
-    'liquid-glass',
-    'neural',
-    'quantum',
-    'crystalline',
-    'neon-noir',
-    'monotone'
+    'midnight-glass',
+    'aurora-night',
+    'nexus-grid',
+    'zen-flow',
+    'duotone-fusion'
   ];
 
   function clampNumber(value, min, max, fallback, precision) {

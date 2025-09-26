@@ -13,13 +13,11 @@
   }
 })(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function (sharedUtils = {}, sharedConfig = {}) {
   const FALLBACK_THEMES = [
-    'holographic',
-    'liquid-glass',
-    'neural',
-    'quantum',
-    'crystalline',
-    'neon-noir',
-    'monotone'
+    'midnight-glass',
+    'aurora-night',
+    'nexus-grid',
+    'zen-flow',
+    'duotone-fusion'
   ];
 
   const MAX_MESSAGES = 50;
@@ -46,7 +44,8 @@
 
   const defaultOverlay = Object.freeze({
     label: 'LIVE',
-    accent: '#ef4444',
+    accent: '#38bdf8',
+    accentSecondary: '#f472b6',
     highlight: defaultHighlightString,
     scale: 1.75,
     popupScale: 1,
@@ -54,7 +53,7 @@
     mode: 'auto',
     accentAnim: true,
     sparkle: true,
-    theme: 'monotone',
+    theme: 'midnight-glass',
     ...(sharedConfig.DEFAULT_OVERLAY || {})
   });
 
@@ -233,6 +232,15 @@
         result.accent = '';
       } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
         result.accent = trimmed;
+      }
+    }
+
+    if (typeof data.accentSecondary === 'string') {
+      const trimmedSecondary = data.accentSecondary.trim();
+      if (!trimmedSecondary) {
+        result.accentSecondary = '';
+      } else if (trimmedSecondary.length <= 64 && isSafeColour(trimmedSecondary)) {
+        result.accentSecondary = trimmedSecondary;
       }
     }
 

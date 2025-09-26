@@ -9,6 +9,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.8/pixi.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <link rel="stylesheet" href="css/themes.css">
   <style>
     :root {
@@ -18,13 +21,15 @@
       --label-width: calc(100px * var(--ui-scale));
       --padding-x: var(--space-lg);
       --divider-height: calc(var(--space-sm) * 1.75);
-      --accent: #ef4444;
-      --accent-bright: color-mix(in srgb, var(--accent) 80%, #f8f9ff 20%);
+      --accent: #38bdf8;
+      --accent-secondary: #f472b6;
+      --accent-bright: color-mix(in srgb, var(--accent) 78%, #f6fbff 22%);
+      --accent-secondary-bright: color-mix(in srgb, var(--accent-secondary, var(--accent)) 75%, #f5f1ff 25%);
       --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
-      --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.4));
-      --accent-muted: color-mix(in srgb, var(--accent) 55%, rgba(14, 16, 24, 0.7));
-      --accent-duo: color-mix(in srgb, var(--accent) 60%, #1c1e27 40%);
-      --accent-contrast: color-mix(in srgb, var(--accent) 56%, #0d0f16 44%);
+      --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.42));
+      --accent-muted: color-mix(in srgb, var(--accent) 45%, rgba(14, 18, 30, 0.75));
+      --accent-duo: color-mix(in srgb, var(--accent) 55%, var(--accent-secondary, var(--accent)) 45%);
+      --accent-contrast: color-mix(in srgb, var(--accent) 52%, #0b0f1a 48%);
       --surface-a: rgba(14, 16, 24, 0.94);
       --surface-b: rgba(6, 8, 14, 0.92);
       --surface-border: rgba(255, 255, 255, 0.12);
@@ -47,20 +52,26 @@
       --ticker-divider-color: rgba(255, 255, 255, 0.32);
       --ticker-accent-overlay:
         linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
-        linear-gradient(150deg, var(--accent-bright), var(--accent-muted));
-      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 55%, rgba(255, 255, 255, 0.3));
-      --ticker-accent-glow: 0 0 12px color-mix(in srgb, var(--accent) 24%, rgba(255, 255, 255, 0.22));
-      --ticker-accent-animation: holographicShift 20s var(--ease-premium) infinite;
+        linear-gradient(140deg,
+          color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.2) 20%),
+          color-mix(in srgb, var(--accent-secondary, var(--accent)) 58%, rgba(8, 12, 24, 0.82) 42%)
+        );
+      --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.28));
+      --ticker-accent-glow: 0 0 18px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.26));
+      --ticker-accent-animation: midnightGlassSweep 18s var(--ease-premium) infinite;
       --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
       --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
       --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
       --popup-shadow: var(--ticker-shadow);
       --popup-text-color: rgba(248, 250, 255, 0.96);
       --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
-      --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 85%, var(--accent) 15%);
-      --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 75%, var(--accent) 25%);
+      --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 82%, var(--accent) 18%);
+      --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 70%, var(--accent-secondary, var(--accent)) 30%);
       --popup-accent-strip:
-        linear-gradient(165deg, var(--accent), color-mix(in srgb, var(--accent) 32%, rgba(255, 255, 255, 0.45)));
+        linear-gradient(165deg,
+          color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.2)),
+          color-mix(in srgb, var(--accent-secondary, var(--accent)) 52%, rgba(255, 255, 255, 0.08))
+        );
       --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
     }
 
@@ -112,6 +123,26 @@
       will-change: transform, opacity, filter;
       contain: layout style paint;
       z-index: 1000;
+    }
+
+    .ticker-visuals {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+      mix-blend-mode: normal;
+    }
+
+    .ticker-visuals canvas,
+    .ticker-visuals video,
+    .ticker-visuals svg,
+    .ticker-visuals div {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
     }
 
     .ticker.top {
@@ -205,6 +236,7 @@
       top: 0;
       bottom: 0;
       overflow: hidden;
+      z-index: 2;
     }
 
     .ticker-content {
@@ -650,6 +682,7 @@
   </div>
 
   <div class="ticker" id="ticker">
+    <div class="ticker-visuals" id="tickerVisuals"></div>
     <div class="ticker-label" id="tickerLabel">LIVE</div>
     <div class="ticker-track" id="tickerTrack">
       <div class="ticker-content" id="tickerContent"></div>
@@ -694,11 +727,12 @@
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
     const HIDE_TRANSITION_FALLBACK_MS = 700;
-    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir', 'monotone']).map(theme => `ticker--${theme}`);
+    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['midnight-glass', 'aurora-night', 'nexus-grid', 'zen-flow', 'duotone-fusion']).map(theme => `ticker--${theme}`);
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',
-      accent: '#ef4444',
+      accent: '#38bdf8',
+      accentSecondary: '#f472b6',
       highlight: DEFAULT_HIGHLIGHT_STRING,
       scale: 1.75,
       popupScale: 1,
@@ -706,7 +740,7 @@
       mode: 'auto',
       accentAnim: true,
       sparkle: true,
-      theme: 'monotone',
+      theme: 'midnight-glass',
       ...(sharedConfig.DEFAULT_OVERLAY || {})
     };
     if (!DEFAULT_OVERLAY.highlight) {
@@ -1466,6 +1500,824 @@
       return animator;
     }
 
+    function resolveColorString(value, fallback) {
+      return value && typeof value === 'string' && value.trim() ? value.trim() : fallback;
+    }
+
+    let colorParserElement = null;
+    function ensureColorParserElement() {
+      if (colorParserElement || typeof document === 'undefined') return colorParserElement;
+      colorParserElement = document.createElement('span');
+      colorParserElement.style.position = 'absolute';
+      colorParserElement.style.opacity = '0';
+      colorParserElement.style.pointerEvents = 'none';
+      colorParserElement.style.left = '-9999px';
+      colorParserElement.style.top = '-9999px';
+      if (document.body) {
+        document.body.appendChild(colorParserElement);
+      }
+      return colorParserElement;
+    }
+
+    function colorStringToRgbArray(color, fallback = '#ffffff') {
+      const el = ensureColorParserElement();
+      if (!el) return [1, 1, 1, 1];
+      const target = resolveColorString(color, fallback);
+      el.style.color = target;
+      const computed = getComputedStyle(el).color || 'rgb(255, 255, 255)';
+      const match = computed.match(/rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)(?:,\s*(\d+(?:\.\d+)?))?\)/i);
+      if (!match) {
+        return [1, 1, 1, 1];
+      }
+      const r = Math.min(255, Math.max(0, parseFloat(match[1] || '0')));
+      const g = Math.min(255, Math.max(0, parseFloat(match[2] || '0')));
+      const b = Math.min(255, Math.max(0, parseFloat(match[3] || '0')));
+      const a = match[4] !== undefined ? Math.min(1, Math.max(0, parseFloat(match[4]))) : 1;
+      return [r / 255, g / 255, b / 255, a];
+    }
+
+    function colorStringToNumber(color, fallback = '#ffffff') {
+      const rgb = colorStringToRgbArray(color, fallback);
+      const r = Math.round(rgb[0] * 255);
+      const g = Math.round(rgb[1] * 255);
+      const b = Math.round(rgb[2] * 255);
+      return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+    }
+
+    function createMidnightPalette(primary, secondary) {
+      const base = resolveColorString(primary, '#38bdf8');
+      const alt = resolveColorString(secondary, base);
+      return [colorStringToNumber(base), colorStringToNumber(alt)];
+    }
+
+    class MidnightGlassEngine {
+      constructor(container, options = {}) {
+        this.name = 'midnight-glass';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.app = null;
+        this.orbs = [];
+        this.palette = createMidnightPalette(options.accent, options.accentSecondary);
+        if (!container || typeof PIXI === 'undefined') return;
+        try {
+          this.app = new PIXI.Application({
+            width: container.clientWidth || 1,
+            height: container.clientHeight || 1,
+            backgroundAlpha: 0,
+            antialias: true,
+            autoStart: !this.reducedMotion,
+            resolution: window.devicePixelRatio || 1
+          });
+        } catch (err) {
+          console.warn('[ticker] failed to initialise PixiJS background', err);
+          this.app = null;
+          return;
+        }
+        this.app.renderer.view.style.width = '100%';
+        this.app.renderer.view.style.height = '100%';
+        this.app.renderer.view.style.pointerEvents = 'none';
+        container.appendChild(this.app.view);
+        this.blurFilter = new PIXI.filters.BlurFilter();
+        this.blurFilter.blur = 24;
+        this.blurFilter.quality = 4;
+        this.app.stage.filters = [this.blurFilter];
+        this.createOrbs();
+        this.app.ticker.add(this.tick, this);
+        if (this.reducedMotion) {
+          this.app.ticker.stop();
+        }
+      }
+
+      createOrbs() {
+        if (!this.app) return;
+        const width = this.app.renderer.width;
+        const height = this.app.renderer.height;
+        const count = Math.max(10, Math.round((width + height) / 160));
+        this.orbs = [];
+        for (let i = 0; i < count; i++) {
+          const graphic = new PIXI.Graphics();
+          const radius = this.randomBetween(70, 160);
+          const color = this.palette[i % this.palette.length];
+          graphic.beginFill(color, 0.12);
+          graphic.drawCircle(0, 0, radius);
+          graphic.endFill();
+          graphic.x = Math.random() * width;
+          graphic.y = Math.random() * height;
+          graphic.alpha = 0.85;
+          this.app.stage.addChild(graphic);
+          this.orbs.push({
+            sprite: graphic,
+            radius,
+            vx: (Math.random() - 0.5) * 0.25,
+            vy: (Math.random() - 0.5) * 0.25,
+            drift: 0.4 + Math.random() * 0.6
+          });
+        }
+      }
+
+      randomBetween(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      tick(delta) {
+        if (!this.app || this.reducedMotion) return;
+        const width = this.app.renderer.width;
+        const height = this.app.renderer.height;
+        for (const orb of this.orbs) {
+          orb.sprite.x += orb.vx * delta * orb.drift;
+          orb.sprite.y += orb.vy * delta * orb.drift;
+          if (orb.sprite.x < -orb.radius) orb.sprite.x = width + orb.radius;
+          if (orb.sprite.x > width + orb.radius) orb.sprite.x = -orb.radius;
+          if (orb.sprite.y < -orb.radius) orb.sprite.y = height + orb.radius;
+          if (orb.sprite.y > height + orb.radius) orb.sprite.y = -orb.radius;
+        }
+      }
+
+      updateColors(colors = {}) {
+        this.palette = createMidnightPalette(colors.accent, colors.accentSecondary);
+        this.orbs.forEach((orb, index) => {
+          const color = this.palette[index % this.palette.length];
+          orb.sprite.clear();
+          orb.sprite.beginFill(color, 0.12);
+          orb.sprite.drawCircle(0, 0, orb.radius);
+          orb.sprite.endFill();
+        });
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.app) return;
+        if (this.reducedMotion) {
+          this.app.ticker.stop();
+        } else {
+          this.app.ticker.start();
+        }
+      }
+
+      resize() {
+        if (!this.app || !this.container) return;
+        const width = this.container.clientWidth || 1;
+        const height = this.container.clientHeight || 1;
+        this.app.renderer.resize(width, height);
+        this.createOrbs();
+        if (this.reducedMotion) {
+          this.app.render();
+        }
+      }
+
+      destroy() {
+        if (this.app) {
+          this.app.ticker.remove(this.tick, this);
+          this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+          this.app = null;
+        }
+        this.orbs = [];
+      }
+    }
+
+    class AuroraNightEngine {
+      constructor(container, options = {}) {
+        this.name = 'aurora-night';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.renderer = null;
+        this.scene = null;
+        this.camera = null;
+        this.mesh = null;
+        this.uniforms = null;
+        this.render = this.render.bind(this);
+        if (!container || typeof THREE === 'undefined') return;
+        try {
+          this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        } catch (err) {
+          console.warn('[ticker] failed to initialise WebGL renderer', err);
+          this.renderer = null;
+          return;
+        }
+        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+        this.renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.pointerEvents = 'none';
+        container.appendChild(this.renderer.domElement);
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        this.uniforms = {
+          u_time: { value: 0 },
+          u_colorA: { value: new THREE.Color(resolveColorString(options.accent, '#38bdf8')) },
+          u_colorB: { value: new THREE.Color(resolveColorString(options.accentSecondary, options.accent || '#f472b6')) }
+        };
+        const geometry = new THREE.PlaneGeometry(2, 2);
+        const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+        const fragmentShader = `precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }`;
+        const material = new THREE.ShaderMaterial({
+          uniforms: this.uniforms,
+          vertexShader,
+          fragmentShader,
+          transparent: true,
+          depthTest: false,
+          depthWrite: false
+        });
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.scene.add(this.mesh);
+        if (!this.reducedMotion) {
+          this.renderer.setAnimationLoop(this.render);
+        } else {
+          this.render(performance.now());
+        }
+      }
+
+      render(time = performance.now()) {
+        if (!this.renderer || !this.uniforms) return;
+        this.uniforms.u_time.value = time * 0.001;
+        this.renderer.render(this.scene, this.camera);
+      }
+
+      updateColors(colors = {}) {
+        if (!this.uniforms) return;
+        const primary = resolveColorString(colors.accent, '#38bdf8');
+        const secondary = resolveColorString(colors.accentSecondary, primary);
+        try {
+          this.uniforms.u_colorA.value.set(primary);
+          this.uniforms.u_colorB.value.set(secondary);
+        } catch (err) {
+          // ignore colour conversion errors
+        }
+        if (this.reducedMotion) {
+          this.render(performance.now());
+        }
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.renderer) return;
+        if (this.reducedMotion) {
+          this.renderer.setAnimationLoop(null);
+          this.render(performance.now());
+        } else {
+          this.renderer.setAnimationLoop(this.render);
+        }
+      }
+
+      resize() {
+        if (!this.renderer || !this.container) return;
+        const width = this.container.clientWidth || 1;
+        const height = this.container.clientHeight || 1;
+        this.renderer.setSize(width, height);
+        if (this.reducedMotion) {
+          this.render(performance.now());
+        }
+      }
+
+      destroy() {
+        if (this.renderer) {
+          this.renderer.setAnimationLoop(null);
+          this.renderer.dispose();
+          if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+          }
+        }
+        this.renderer = null;
+        this.scene = null;
+        this.mesh = null;
+        this.uniforms = null;
+      }
+    }
+
+    class NexusGridEngine {
+      constructor(container, options = {}) {
+        this.name = 'nexus-grid';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, this.accent);
+        this.canvas = null;
+        this.ctx = null;
+        this.nodes = [];
+        this.animFrame = null;
+        if (!container) return;
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = container.clientWidth || 1;
+        this.canvas.height = container.clientHeight || 1;
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.pointerEvents = 'none';
+        container.appendChild(this.canvas);
+        this.ctx = this.canvas.getContext('2d');
+        this.initNodes();
+        if (!this.reducedMotion) {
+          this.animate();
+        } else {
+          this.draw();
+        }
+      }
+
+      initNodes() {
+        if (!this.canvas) return;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        const count = Math.max(18, Math.round((width + height) / 80));
+        this.nodes = [];
+        for (let i = 0; i < count; i++) {
+          this.nodes.push({
+            x: Math.random() * width,
+            y: Math.random() * height,
+            vx: (Math.random() - 0.5) * 0.35,
+            vy: (Math.random() - 0.5) * 0.35,
+            pulse: Math.random() * Math.PI * 2
+          });
+        }
+      }
+
+      animate() {
+        if (this.reducedMotion) return;
+        this.draw();
+        this.animFrame = requestAnimationFrame(() => this.animate());
+      }
+
+      draw() {
+        if (!this.ctx || !this.canvas) return;
+        const ctx = this.ctx;
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(8, 12, 20, 0.45)';
+        ctx.fillRect(0, 0, width, height);
+        const primary = colorStringToRgbArray(this.accent);
+        const secondary = colorStringToRgbArray(this.accentSecondary);
+        const strokeStyle = `rgba(${Math.round(primary[0] * 255)}, ${Math.round(primary[1] * 255)}, ${Math.round(primary[2] * 255)}, 0.32)`;
+        const secondaryStroke = `rgba(${Math.round(secondary[0] * 255)}, ${Math.round(secondary[1] * 255)}, ${Math.round(secondary[2] * 255)}, 0.24)`;
+        const nodeFill = `rgba(${Math.round(primary[0] * 255)}, ${Math.round(primary[1] * 255)}, ${Math.round(primary[2] * 255)}, 0.55)`;
+        const nodeFillSecondary = `rgba(${Math.round(secondary[0] * 255)}, ${Math.round(secondary[1] * 255)}, ${Math.round(secondary[2] * 255)}, 0.45)`;
+        for (let i = 0; i < this.nodes.length; i++) {
+          const node = this.nodes[i];
+          if (!this.reducedMotion) {
+            node.x += node.vx;
+            node.y += node.vy;
+            node.pulse += 0.01;
+            if (node.x < 0 || node.x > width) node.vx *= -1;
+            if (node.y < 0 || node.y > height) node.vy *= -1;
+          }
+          const radius = 2.4 + Math.sin(node.pulse) * 1.6;
+          ctx.beginPath();
+          ctx.fillStyle = i % 2 === 0 ? nodeFill : nodeFillSecondary;
+          ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          for (let j = i + 1; j < this.nodes.length; j++) {
+            const other = this.nodes[j];
+            const dx = node.x - other.x;
+            const dy = node.y - other.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < Math.min(width, height) * 0.25) {
+              const alpha = 0.35 - (dist / (Math.min(width, height) * 0.25)) * 0.35;
+              ctx.strokeStyle = j % 2 === 0 ? strokeStyle : secondaryStroke;
+              ctx.globalAlpha = Math.max(0.08, alpha);
+              ctx.beginPath();
+              ctx.moveTo(node.x, node.y);
+              ctx.lineTo(other.x, other.y);
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+      }
+
+      updateColors(colors = {}) {
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        if (this.reducedMotion) {
+          this.draw();
+        }
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (this.reducedMotion) {
+          if (this.animFrame) {
+            cancelAnimationFrame(this.animFrame);
+            this.animFrame = null;
+          }
+          this.draw();
+        } else {
+          this.animate();
+        }
+      }
+
+      resize() {
+        if (!this.canvas || !this.container) return;
+        const width = this.container.clientWidth || 1;
+        const height = this.container.clientHeight || 1;
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.initNodes();
+        if (this.reducedMotion) {
+          this.draw();
+        }
+      }
+
+      destroy() {
+        if (this.animFrame) {
+          cancelAnimationFrame(this.animFrame);
+          this.animFrame = null;
+        }
+        if (this.canvas && this.canvas.parentNode) {
+          this.canvas.parentNode.removeChild(this.canvas);
+        }
+        this.canvas = null;
+        this.ctx = null;
+        this.nodes = [];
+      }
+    }
+
+    const ZEN_FLOW_BASE_ANIMATION = {
+      v: '5.7.6',
+      fr: 60,
+      ip: 0,
+      op: 360,
+      w: 800,
+      h: 450,
+      nm: 'Zen Flow',
+      ddd: 0,
+      assets: [],
+      layers: [
+        {
+          ddd: 0,
+          ind: 1,
+          ty: 4,
+          nm: 'Blob A',
+          ks: {
+            o: { a: 0, k: 60 },
+            r: { a: 0, k: 0 },
+            p: {
+              a: 1,
+              k: [
+                { t: 0, s: [420, 240, 0], to: [30, -10, 0], ti: [-30, 10, 0] },
+                { t: 180, s: [380, 210, 0], to: [-30, 10, 0], ti: [30, -10, 0] },
+                { t: 360, s: [420, 240, 0] }
+              ]
+            },
+            a: { a: 0, k: [0, 0, 0] },
+            s: {
+              a: 1,
+              k: [
+                { t: 0, s: [115, 125, 100] },
+                { t: 180, s: [135, 95, 100] },
+                { t: 360, s: [115, 125, 100] }
+              ]
+            }
+          },
+          shapes: [
+            {
+              ty: 'gr',
+              nm: 'Blob A Group',
+              it: [
+                {
+                  ty: 'el',
+                  p: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [360, 360] },
+                  d: 1,
+                  nm: 'Ellipse Path 1',
+                  mn: 'ADBE Vector Shape - Ellipse',
+                  hd: false
+                },
+                {
+                  ty: 'fl',
+                  c: { a: 0, k: [0.2, 0.6, 0.9, 1] },
+                  o: { a: 0, k: 100 },
+                  r: 1,
+                  nm: 'Fill 1',
+                  mn: 'ADBE Vector Graphic - Fill',
+                  hd: false
+                },
+                {
+                  ty: 'tr',
+                  p: { a: 0, k: [0, 0] },
+                  a: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [100, 100] },
+                  r: { a: 0, k: 0 },
+                  o: { a: 0, k: 100 },
+                  sk: { a: 0, k: 0 },
+                  sa: { a: 0, k: 0 },
+                  nm: 'Transform'
+                }
+              ],
+              np: 2,
+              cix: 2,
+              bm: 0,
+              ix: 1,
+              mn: 'ADBE Vector Group',
+              hd: false
+            }
+          ],
+          ip: 0,
+          op: 360,
+          st: 0,
+          bm: 0
+        },
+        {
+          ddd: 0,
+          ind: 2,
+          ty: 4,
+          nm: 'Blob B',
+          ks: {
+            o: { a: 0, k: 48 },
+            r: { a: 0, k: 0 },
+            p: {
+              a: 1,
+              k: [
+                { t: 0, s: [360, 230, 0], to: [-20, 15, 0], ti: [20, -15, 0] },
+                { t: 180, s: [410, 270, 0], to: [20, -15, 0], ti: [-20, 15, 0] },
+                { t: 360, s: [360, 230, 0] }
+              ]
+            },
+            a: { a: 0, k: [0, 0, 0] },
+            s: {
+              a: 1,
+              k: [
+                { t: 0, s: [95, 105, 100] },
+                { t: 180, s: [120, 90, 100] },
+                { t: 360, s: [95, 105, 100] }
+              ]
+            }
+          },
+          shapes: [
+            {
+              ty: 'gr',
+              nm: 'Blob B Group',
+              it: [
+                {
+                  ty: 'el',
+                  p: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [300, 300] },
+                  d: 1,
+                  nm: 'Ellipse Path 1',
+                  mn: 'ADBE Vector Shape - Ellipse',
+                  hd: false
+                },
+                {
+                  ty: 'fl',
+                  c: { a: 0, k: [0.9, 0.35, 0.75, 1] },
+                  o: { a: 0, k: 100 },
+                  r: 1,
+                  nm: 'Fill 1',
+                  mn: 'ADBE Vector Graphic - Fill',
+                  hd: false
+                },
+                {
+                  ty: 'tr',
+                  p: { a: 0, k: [0, 0] },
+                  a: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [100, 100] },
+                  r: { a: 0, k: 0 },
+                  o: { a: 0, k: 100 },
+                  sk: { a: 0, k: 0 },
+                  sa: { a: 0, k: 0 },
+                  nm: 'Transform'
+                }
+              ],
+              np: 2,
+              cix: 2,
+              bm: 0,
+              ix: 1,
+              mn: 'ADBE Vector Group',
+              hd: false
+            }
+          ],
+          ip: 0,
+          op: 360,
+          st: 0,
+          bm: 0
+        }
+      ]
+    };
+
+    function buildZenFlowData(accent, accentSecondary) {
+      const data = JSON.parse(JSON.stringify(ZEN_FLOW_BASE_ANIMATION));
+      const primary = colorStringToRgbArray(accent, '#38bdf8');
+      const secondary = colorStringToRgbArray(accentSecondary, accent || '#f472b6');
+      if (data.layers[0]?.shapes?.[0]?.it?.[1]?.c) {
+        data.layers[0].shapes[0].it[1].c.k = primary;
+      }
+      if (data.layers[1]?.shapes?.[0]?.it?.[1]?.c) {
+        data.layers[1].shapes[0].it[1].c.k = secondary;
+      }
+      return data;
+    }
+
+    class ZenFlowEngine {
+      constructor(container, options = {}) {
+        this.name = 'zen-flow';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.node = null;
+        this.animation = null;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, this.accent);
+        if (!container || typeof lottie === 'undefined') return;
+        this.node = document.createElement('div');
+        this.node.style.position = 'absolute';
+        this.node.style.inset = '-30%';
+        this.node.style.pointerEvents = 'none';
+        this.node.style.filter = 'blur(80px)';
+        this.node.style.mixBlendMode = 'screen';
+        container.appendChild(this.node);
+        this.loadAnimation();
+      }
+
+      loadAnimation() {
+        if (!this.node || typeof lottie === 'undefined') return;
+        if (this.animation) {
+          this.animation.destroy();
+          this.animation = null;
+        }
+        const data = buildZenFlowData(this.accent, this.accentSecondary);
+        this.animation = lottie.loadAnimation({
+          container: this.node,
+          renderer: 'svg',
+          loop: true,
+          autoplay: !this.reducedMotion,
+          animationData: data
+        });
+        if (this.reducedMotion && this.animation) {
+          this.animation.goToAndStop(90, true);
+        }
+      }
+
+      updateColors(colors = {}) {
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        this.loadAnimation();
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.animation) return;
+        if (this.reducedMotion) {
+          this.animation.pause();
+          this.animation.goToAndStop(120, true);
+        } else {
+          this.animation.play();
+        }
+      }
+
+      resize() {
+        // SVG scales automatically within the container.
+      }
+
+      destroy() {
+        if (this.animation) {
+          this.animation.destroy();
+          this.animation = null;
+        }
+        if (this.node && this.node.parentNode) {
+          this.node.parentNode.removeChild(this.node);
+        }
+        this.node = null;
+      }
+    }
+
+    class DuotoneFusionEngine {
+      constructor(container, options = {}) {
+        this.name = 'duotone-fusion';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.layer = null;
+        this.timeline = null;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, '#f472b6');
+        if (!container) return;
+        this.layer = document.createElement('div');
+        this.layer.style.position = 'absolute';
+        this.layer.style.inset = '-40%';
+        this.layer.style.pointerEvents = 'none';
+        this.layer.style.opacity = '0.55';
+        this.layer.style.filter = 'blur(140px)';
+        this.layer.style.mixBlendMode = 'screen';
+        container.appendChild(this.layer);
+        this.updateGradient();
+        if (!this.reducedMotion && typeof gsap !== 'undefined') {
+          this.timeline = gsap.to(this.layer, {
+            duration: 16,
+            backgroundPosition: '200% 50%',
+            ease: 'none',
+            repeat: -1,
+            yoyo: true
+          });
+        }
+      }
+
+      updateGradient() {
+        if (!this.layer) return;
+        const primary = resolveColorString(this.accent, '#38bdf8');
+        const secondary = resolveColorString(this.accentSecondary, primary);
+        this.layer.style.background = `linear-gradient(135deg, ${primary}, ${secondary})`;
+        this.layer.style.backgroundSize = '200% 200%';
+      }
+
+      updateColors(colors = {}) {
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        this.updateGradient();
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (this.timeline) {
+          if (this.reducedMotion) {
+            this.timeline.pause();
+          } else {
+            this.timeline.play();
+          }
+        }
+      }
+
+      resize() {
+        // Layer covers the container automatically via CSS.
+      }
+
+      destroy() {
+        if (this.timeline) {
+          this.timeline.kill();
+          this.timeline = null;
+        }
+        if (this.layer && this.layer.parentNode) {
+          this.layer.parentNode.removeChild(this.layer);
+        }
+        this.layer = null;
+      }
+    }
+
+    class ThemeVisualController {
+      constructor(container, options = {}) {
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.current = null;
+      }
+
+      static get factories() {
+        if (!this._factories) {
+          this._factories = {
+            'midnight-glass': (container, opts) => new MidnightGlassEngine(container, opts),
+            'aurora-night': (container, opts) => new AuroraNightEngine(container, opts),
+            'nexus-grid': (container, opts) => new NexusGridEngine(container, opts),
+            'zen-flow': (container, opts) => new ZenFlowEngine(container, opts),
+            'duotone-fusion': (container, opts) => new DuotoneFusionEngine(container, opts)
+          };
+        }
+        return this._factories;
+      }
+
+      setTheme(theme, colors = {}) {
+        if (!this.container) return;
+        const factories = ThemeVisualController.factories;
+        const resolvedTheme = (theme && factories[theme]) ? theme : 'midnight-glass';
+        if (this.current && this.current.name === resolvedTheme) {
+          if (typeof this.current.updateColors === 'function') {
+            this.current.updateColors(colors);
+          }
+          return;
+        }
+        if (this.current && typeof this.current.destroy === 'function') {
+          this.current.destroy();
+        }
+        if (this.container) {
+          this.container.innerHTML = '';
+        }
+        const factory = factories[resolvedTheme];
+        this.current = factory ? factory(this.container, { ...colors, reducedMotion: this.reducedMotion }) : null;
+      }
+
+      updateColors(colors = {}) {
+        if (this.current && typeof this.current.updateColors === 'function') {
+          this.current.updateColors(colors);
+        }
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (this.current && typeof this.current.setReducedMotion === 'function') {
+          this.current.setReducedMotion(this.reducedMotion);
+        }
+      }
+
+      resize() {
+        if (this.current && typeof this.current.resize === 'function') {
+          this.current.resize();
+        }
+      }
+
+      destroy() {
+        if (this.current && typeof this.current.destroy === 'function') {
+          this.current.destroy();
+        }
+        this.current = null;
+        if (this.container) {
+          this.container.innerHTML = '';
+        }
+      }
+    }
+
     class TickerOverlay {
       constructor() {
         const params = new URLSearchParams(location.search);
@@ -1474,6 +2326,7 @@
         this.overrides = {
           label: false,
           accent: false,
+          accentSecondary: false,
           highlight: false,
           scale: false,
           popupScale: false,
@@ -1501,6 +2354,20 @@
             this.overrides.accent = true;
           } else {
             console.warn('[ticker] ignoring unsafe accent override', trimmed);
+          }
+        }
+
+        const accentSecondaryParam = params.get('accentSecondary');
+        if (accentSecondaryParam !== null) {
+          const trimmedSecondary = accentSecondaryParam.trim();
+          if (!trimmedSecondary) {
+            this.overlay.accentSecondary = '';
+            this.overrides.accentSecondary = true;
+          } else if (isSafeCssColor(trimmedSecondary)) {
+            this.overlay.accentSecondary = trimmedSecondary;
+            this.overrides.accentSecondary = true;
+          } else {
+            console.warn('[ticker] ignoring unsafe secondary accent override', trimmedSecondary);
           }
         }
 
@@ -1567,6 +2434,27 @@
         this.labelNode = document.getElementById('tickerLabel');
         this.contentNode = document.getElementById('tickerContent');
         this.trackNode = document.getElementById('tickerTrack');
+        this.visualContainer = document.getElementById('tickerVisuals');
+        this.themeVisuals = this.visualContainer
+          ? new ThemeVisualController(this.visualContainer, {
+              reducedMotion: prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false
+            })
+          : null;
+        this.handleResize = () => {
+          if (this.themeVisuals) {
+            this.themeVisuals.resize();
+          }
+        };
+        window.addEventListener('resize', this.handleResize);
+        if (prefersReducedMotionQuery && this.themeVisuals) {
+          this.reducedMotionListener = event => {
+            const shouldReduce = event.matches || this.overlay.accentAnim === false;
+            this.themeVisuals.setReducedMotion(shouldReduce);
+          };
+          prefersReducedMotionQuery.addEventListener('change', this.reducedMotionListener);
+        } else {
+          this.reducedMotionListener = null;
+        }
         this.popupNode = document.getElementById('popup');
         this.popupInner = document.getElementById('popupContent');
         this.slateNode = document.getElementById('slate');
@@ -1665,11 +2553,24 @@
           this.measureNode.parentNode.removeChild(this.measureNode);
           this.measureNode = null;
         }
+        if (this.handleResize) {
+          window.removeEventListener('resize', this.handleResize);
+          this.handleResize = null;
+        }
+        if (prefersReducedMotionQuery && this.reducedMotionListener) {
+          prefersReducedMotionQuery.removeEventListener('change', this.reducedMotionListener);
+          this.reducedMotionListener = null;
+        }
+        if (this.themeVisuals) {
+          this.themeVisuals.destroy();
+          this.themeVisuals = null;
+        }
         if (document.body) {
           document.body.classList.remove(...THEME_CLASSNAMES);
           document.body.classList.remove('no-sparkle');
         }
         document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-secondary');
       }
 
       clearTimers() {
@@ -2197,11 +3098,31 @@
         } else {
           document.documentElement.style.removeProperty('--accent');
         }
+        if (this.overlay.accentSecondary && isSafeCssColor(this.overlay.accentSecondary)) {
+          document.documentElement.style.setProperty('--accent-secondary', this.overlay.accentSecondary);
+        } else {
+          document.documentElement.style.removeProperty('--accent-secondary');
+        }
         document.documentElement.style.setProperty('--ui-scale', String(this.overlay.scale));
         document.documentElement.style.setProperty('--popup-scale', String(this.overlay.popupScale));
         this.cachedLongestMessageWidth = null;
         if (this.popupNode) {
           this.popupNode.classList.toggle('push-down', this.overlay.position === 'top');
+        }
+        if (this.themeVisuals) {
+          const computed = getComputedStyle(document.documentElement);
+          const accentValue = resolveColorString(
+            computed.getPropertyValue('--accent'),
+            this.overlay.accent || DEFAULT_OVERLAY.accent || '#38bdf8'
+          );
+          const secondaryValue = resolveColorString(
+            computed.getPropertyValue('--accent-secondary'),
+            this.overlay.accentSecondary || this.overlay.accent || DEFAULT_OVERLAY.accentSecondary || accentValue
+          );
+          this.themeVisuals.setTheme(theme, { accent: accentValue, accentSecondary: secondaryValue });
+          const shouldReduce = (prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false) || this.overlay.accentAnim === false;
+          this.themeVisuals.setReducedMotion(shouldReduce);
+          this.themeVisuals.resize();
         }
         if (refreshContent && this.phase === 'visible') {
           this.refreshVisible(true);
@@ -2233,6 +3154,21 @@
             }
           } else {
             console.warn('[ticker] ignoring unsafe accent update', accent);
+          }
+        }
+
+        if (!this.overrides.accentSecondary && typeof data.accentSecondary === 'string') {
+          const accentSecondary = data.accentSecondary.trim();
+          if (!accentSecondary) {
+            if (this.overlay.accentSecondary) {
+              this.overlay.accentSecondary = '';
+            }
+          } else if (isSafeCssColor(accentSecondary)) {
+            if (accentSecondary !== this.overlay.accentSecondary) {
+              this.overlay.accentSecondary = accentSecondary;
+            }
+          } else {
+            console.warn('[ticker] ignoring unsafe secondary accent update', accentSecondary);
           }
         }
 

@@ -37,8 +37,11 @@ const {
 } = sharedConfig || {};
 const OVERLAY_THEME_SET = new Set(OVERLAY_THEMES);
 
-const HTTP_HOST = '127.0.0.1';
-const HTTP_PORT = 3000;
+const HTTP_HOST = process.env.HTTP_HOST || '127.0.0.1';
+const HTTP_PORT = (() => {
+  const raw = Number(process.env.HTTP_PORT);
+  return Number.isFinite(raw) && raw > 0 ? raw : 3000;
+})();
 
 // Serve only the public UI assets by default. Override via TICKER_DIR when needed.
 const DEFAULT_TICKER_DIR = path.join(__dirname, 'public');
@@ -70,7 +73,8 @@ const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
   ? { ...CONFIG_DEFAULT_OVERLAY }
   : {
       label: 'LIVE',
-      accent: '#ef4444',
+      accent: '#38bdf8',
+      accentSecondary: '#f472b6',
       highlight: DEFAULT_HIGHLIGHT_STRING,
       scale: 1.75,
       popupScale: 1,
@@ -78,7 +82,7 @@ const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
       mode: 'auto',
       accentAnim: true,
       sparkle: true,
-      theme: 'monotone'
+      theme: 'midnight-glass'
     };
 
 const BASE_DEFAULT_POPUP = CONFIG_DEFAULT_POPUP
@@ -749,6 +753,18 @@ function sanitiseOverlayInput(input, options = {}) {
       result.accent = trimmed;
     } else if (strict) {
       throw new Error('Accent must be a valid CSS colour.');
+    }
+  }
+  if (typeof input.accentSecondary === 'string') {
+    const trimmedSecondary = input.accentSecondary.trim();
+    if (!trimmedSecondary) {
+      result.accentSecondary = '';
+    } else if (trimmedSecondary.length > 64) {
+      if (strict) throw new Error('Secondary accent must be 64 characters or fewer.');
+    } else if (isSafeCssColor(trimmedSecondary)) {
+      result.accentSecondary = trimmedSecondary;
+    } else if (strict) {
+      throw new Error('Secondary accent must be a valid CSS colour.');
     }
   }
   if (typeof input.highlight === 'string') {

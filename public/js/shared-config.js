@@ -20,7 +20,8 @@
 
   const DEFAULT_OVERLAY = Object.freeze({
     label: 'LIVE',
-    accent: '#ef4444',
+    accent: '#38bdf8',
+    accentSecondary: '#f472b6',
     highlight: DEFAULT_HIGHLIGHT_STRING,
     scale: 1.75,
     popupScale: 1,
@@ -28,7 +29,7 @@
     mode: 'auto',
     accentAnim: true,
     sparkle: true,
-    theme: 'monotone'
+    theme: 'midnight-glass'
   });
 
   const DEFAULT_POPUP = Object.freeze({

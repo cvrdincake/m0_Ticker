@@ -6,7 +6,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 
-const BASE_URL = 'http://127.0.0.1:3000';
+const HOST = '127.0.0.1';
+const TEST_PORT = 3201;
+const BASE_URL = `http://${HOST}:${TEST_PORT}`;
 const REPO_ROOT = path.join(__dirname, '..');
 
 let tmpDir;
@@ -32,7 +34,7 @@ async function waitForServerReady(proc) {
 
     function onStdout(chunk) {
       const text = chunk.toString();
-      if (text.includes('listening on http://127.0.0.1:3000')) {
+      if (text.includes(`listening on http://${HOST}:${TEST_PORT}`)) {
         if (settled) return;
         settled = true;
         cleanup();
@@ -79,7 +81,9 @@ test.before(async () => {
     env: {
       ...process.env,
       NODE_ENV: 'test',
-      TICKER_STATE_FILE: stateFile
+      TICKER_STATE_FILE: stateFile,
+      HTTP_PORT: String(TEST_PORT),
+      HTTP_HOST: HOST
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -135,6 +139,7 @@ test('POST /ticker/scenes sanitises and persists payloads', async () => {
         overlay: {
           label: '  Live Now  ',
           accent: 'javascript:alert(1)',
+          accentSecondary: '  rgba(255, 0, 255, 0.8)  ',
           highlight: 'Alpha,,Beta',
           scale: 9,
           popupScale: 0,
@@ -142,7 +147,7 @@ test('POST /ticker/scenes sanitises and persists payloads', async () => {
           mode: 'Chunk',
           accentAnim: false,
           sparkle: false,
-          theme: 'Neon-Noir'
+          theme: '  Aurora-Night  '
         },
         popup: {
           text: '   Popup message   ',
@@ -177,13 +182,14 @@ test('POST /ticker/scenes sanitises and persists payloads', async () => {
   assert.equal(scene.popup.countdownTarget, null);
   assert.equal(scene.overlay.label, 'Live Now');
   assert.equal(scene.overlay.highlight, 'Alpha, Beta');
+  assert.equal(scene.overlay.accentSecondary, 'rgba(255, 0, 255, 0.8)');
   assert.equal(scene.overlay.scale, 2.5);
   assert.equal(scene.overlay.popupScale, 0.6);
   assert.equal(scene.overlay.position, 'top');
   assert.equal(scene.overlay.mode, 'chunk');
   assert.equal(scene.overlay.accentAnim, false);
   assert.equal(scene.overlay.sparkle, false);
-  assert.equal(scene.overlay.theme, 'neon-noir');
+  assert.equal(scene.overlay.theme, 'aurora-night');
   assert.equal(scene.slate.rotationSeconds, 4);
   assert.deepStrictEqual(scene.slate.notes, ['first', 'second']);
   assert.equal(scene.slate.notesLabel, 'Label');
@@ -225,6 +231,7 @@ test('POST /ticker/overlay sanitises overlay payloads', async () => {
   const payload = {
     label: '  BREAKING  ',
     accent: '  rgb(255, 0, 0)  ',
+    accentSecondary: '  #ABCDEF  ',
     highlight: 'One,,Two',
     scale: 8,
     popupScale: 0.2,
@@ -232,7 +239,7 @@ test('POST /ticker/overlay sanitises overlay payloads', async () => {
     mode: 'Chunk',
     sparkle: false,
     accentAnim: false,
-    theme: 'Neon-Noir'
+    theme: 'Zen-Flow'
   };
 
   const { response, data } = await postJson('/ticker/overlay', payload);
@@ -241,6 +248,7 @@ test('POST /ticker/overlay sanitises overlay payloads', async () => {
   const overlay = data.overlay;
   assert.equal(overlay.label, 'BREAKING');
   assert.equal(overlay.accent, 'rgb(255, 0, 0)');
+  assert.equal(overlay.accentSecondary, '#ABCDEF');
   assert.equal(overlay.highlight, 'One, Two');
   assert.equal(overlay.scale, 2.5);
   assert.equal(overlay.popupScale, 0.6);
@@ -248,7 +256,7 @@ test('POST /ticker/overlay sanitises overlay payloads', async () => {
   assert.equal(overlay.mode, 'chunk');
   assert.equal(overlay.sparkle, false);
   assert.equal(overlay.accentAnim, false);
-  assert.equal(overlay.theme, 'neon-noir');
+  assert.equal(overlay.theme, 'zen-flow');
 
   const { response: getResponse, data: getData } = await getJson('/ticker/overlay');
   assert.equal(getResponse.status, 200);
