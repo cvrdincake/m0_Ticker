@@ -1116,6 +1116,24 @@
     }
     .toast.show { opacity: 1; transform: translateY(0); }
 
+    .boot-warning {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 16px;
+      background: #7f1d1d;
+      color: #fef2f2;
+      text-align: center;
+      font-weight: 600;
+      z-index: 1200;
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .boot-warning[hidden] {
+      display: none;
+    }
+
     .fx { display: inline-flex; position: relative; color: inherit; }
     .fx-letter { display: inline-block; --i: 0; will-change: transform, filter; }
     .fx.fx-sparkle { animation: gentlePulse 6s ease-in-out infinite; }
@@ -1854,6 +1872,7 @@
     </div>
   </div>
 
+  <div class="boot-warning" id="bootWarning" role="alert" hidden></div>
   <div class="toast" id="toast"></div>
 
   <script src="js/shared-config.js"></script>
@@ -1901,6 +1920,210 @@
       normaliseSceneEntry,
       sanitiseMessages
     } = normaliserExports;
+
+    const FALLBACK_MAX_MESSAGES = Number.isFinite(EXPORTED_MAX_MESSAGES)
+      ? EXPORTED_MAX_MESSAGES
+      : 50;
+    const FALLBACK_MAX_MESSAGE_LENGTH = Number.isFinite(EXPORTED_MAX_MESSAGE_LENGTH)
+      ? EXPORTED_MAX_MESSAGE_LENGTH
+      : 280;
+
+    const bootWarningEl = document.getElementById('bootWarning');
+    const missingHelperNames = new Set();
+
+    function reportMissingHelper(helperName) {
+      if (!helperName) return;
+      const helperId = String(helperName);
+      if (!missingHelperNames.has(helperId)) {
+        missingHelperNames.add(helperId);
+        console.error(`[Ticker] Helper script "${helperId}" is unavailable. Falling back to safe defaults.`);
+      }
+      if (bootWarningEl) {
+        const names = Array.from(missingHelperNames).sort();
+        bootWarningEl.textContent = names.length
+          ? `Dashboard loaded in degraded mode. Missing helpers: ${names.join(', ')}.`
+          : 'Dashboard loaded in degraded mode.';
+        bootWarningEl.hidden = false;
+      }
+    }
+
+    const sanitiseMessagesFn = typeof sanitiseMessages === 'function'
+      ? sanitiseMessages
+      : (messages, options = {}) => {
+          reportMissingHelper('sanitiseMessages');
+          const list = Array.isArray(messages) ? messages : [];
+          const {
+            maxMessages = FALLBACK_MAX_MESSAGES,
+            maxLength = FALLBACK_MAX_MESSAGE_LENGTH,
+            includeMeta = false
+          } = options;
+          const cleaned = [];
+          let trimmed = 0;
+          let truncated = 0;
+          for (const entry of list) {
+            let text = '';
+            if (typeof entry === 'string') {
+              text = entry.trim();
+            } else if (entry && typeof entry === 'object' && typeof entry.text === 'string') {
+              text = entry.text.trim();
+            } else {
+              text = String(entry ?? '').trim();
+            }
+            if (!text) continue;
+            if (cleaned.length >= maxMessages) {
+              truncated += 1;
+              continue;
+            }
+            if (text.length > maxLength) {
+              text = text.slice(0, maxLength);
+              trimmed += 1;
+            }
+            cleaned.push(text);
+          }
+          if (includeMeta) {
+            return { messages: cleaned, trimmed, truncated };
+          }
+          return cleaned;
+        };
+
+    const normaliseHighlightInputFn = typeof normaliseHighlightInput === 'function'
+      ? normaliseHighlightInput
+      : value => {
+          reportMissingHelper('normaliseHighlightInput');
+          const entries = Array.isArray(value)
+            ? value
+            : typeof value === 'string'
+              ? value.split(/[\n,]/)
+              : [];
+          const seen = new Set();
+          const normalised = [];
+          for (const entry of entries) {
+            if (typeof entry !== 'string') continue;
+            const trimmed = entry.trim();
+            if (!trimmed) continue;
+            const key = trimmed.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            normalised.push(trimmed);
+          }
+          return normalised.join(', ');
+        };
+
+    const normaliseSlateNotesListFn = typeof normaliseSlateNotesList === 'function'
+      ? normaliseSlateNotesList
+      : value => {
+          reportMissingHelper('normaliseSlateNotesList');
+          const entries = Array.isArray(value)
+            ? value
+            : typeof value === 'string'
+              ? value.split(/\r?\n/)
+              : [];
+          return entries
+            .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
+            .filter(Boolean);
+        };
+
+    const normaliseOverlayDataFn = typeof normaliseOverlayData === 'function'
+      ? normaliseOverlayData
+      : (value = {}) => {
+          reportMissingHelper('normaliseOverlayData');
+          const source = value && typeof value === 'object' ? value : {};
+          const result = { ...source };
+          if (typeof result.highlight === 'string') {
+            const normalisedHighlight = normaliseHighlightInputFn(result.highlight);
+            if (typeof normalisedHighlight === 'string') {
+              result.highlight = normalisedHighlight.slice(0, 512);
+            } else if (Array.isArray(normalisedHighlight)) {
+              result.highlight = normalisedHighlight.join(', ').slice(0, 512);
+            }
+          }
+          return result;
+        };
+
+    const normalisePopupDataFn = typeof normalisePopupData === 'function'
+      ? normalisePopupData
+      : (value = {}) => {
+          reportMissingHelper('normalisePopupData');
+          const source = value && typeof value === 'object' ? value : {};
+          const text = typeof source.text === 'string' ? source.text.trim() : '';
+          const duration = Number(source.durationSeconds);
+          const countdownTarget = typeof source.countdownTarget === 'string'
+            ? source.countdownTarget
+            : null;
+          const result = {
+            text,
+            isActive: !!source.isActive && !!text,
+            durationSeconds: Number.isFinite(duration) ? duration : null,
+            countdownEnabled: !!source.countdownEnabled,
+            countdownTarget
+          };
+          if (typeof source.countdownLabel === 'string') {
+            result.countdownLabel = source.countdownLabel;
+          }
+          if ('updatedAt' in source) {
+            const stamp = Number(source.updatedAt);
+            result.updatedAt = Number.isFinite(stamp) ? stamp : source.updatedAt;
+          } else {
+            result.updatedAt = null;
+          }
+          return result;
+        };
+
+    const normaliseSlateDataFn = typeof normaliseSlateData === 'function'
+      ? normaliseSlateData
+      : (value = {}) => {
+          reportMissingHelper('normaliseSlateData');
+          const source = value && typeof value === 'object' ? value : {};
+          const result = { ...source };
+          result.isEnabled = source.isEnabled !== false;
+          result.showClock = source.showClock !== false;
+          const rotation = Number(source.rotationSeconds);
+          result.rotationSeconds = Number.isFinite(rotation) ? rotation : 12;
+          result.notes = normaliseSlateNotesListFn(source.notes ?? source.notesList ?? []);
+          if (!Array.isArray(result.notes)) {
+            result.notes = [];
+          }
+          return result;
+        };
+
+    const normaliseSceneEntryFn = typeof normaliseSceneEntry === 'function'
+      ? (entry, helpers) => normaliseSceneEntry(entry, helpers)
+      : (entry, helpers = {}) => {
+          reportMissingHelper('normaliseSceneEntry');
+          if (!entry || typeof entry !== 'object') return null;
+          const result = { ...entry };
+          if (entry.overlay) {
+            result.overlay = normaliseOverlayDataFn(entry.overlay);
+          }
+          if (entry.popup) {
+            result.popup = normalisePopupDataFn(entry.popup);
+          }
+          result.messages = sanitiseMessagesFn(entry.messages || [], { includeMeta: true });
+          if (!Array.isArray(result.messages)) {
+            result.messages = [];
+          }
+          if (typeof result.displayDuration !== 'number' && typeof helpers.fallbackDisplayDuration === 'number') {
+            result.displayDuration = helpers.fallbackDisplayDuration;
+          }
+          if (typeof result.intervalSeconds !== 'number' && typeof helpers.fallbackIntervalSeconds === 'number') {
+            result.intervalSeconds = helpers.fallbackIntervalSeconds;
+          }
+          return result;
+        };
+
+    [
+      ['sanitiseMessages', sanitiseMessages],
+      ['normaliseHighlightInput', normaliseHighlightInput],
+      ['normaliseOverlayData', normaliseOverlayData],
+      ['normalisePopupData', normalisePopupData],
+      ['normaliseSlateNotesList', normaliseSlateNotesList],
+      ['normaliseSlateData', normaliseSlateData],
+      ['normaliseSceneEntry', normaliseSceneEntry]
+    ].forEach(([name, impl]) => {
+      if (typeof impl !== 'function') {
+        reportMissingHelper(name);
+      }
+    });
 
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
     const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
@@ -1979,7 +2202,7 @@
       ? (overlayPrefs = {}) => serialiseOverlayForSceneImpl(
           overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {},
           {
-            normaliseOverlayData,
+            normaliseOverlayData: normaliseOverlayDataFn,
             overlayKeys: SCENE_OVERLAY_KEYS,
             includeEmptyStrings: false
           }
@@ -2078,7 +2301,7 @@
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
 
-    const DEFAULT_SLATE_NORMALISED = normaliseSlateData(DEFAULT_SLATE_TEMPLATE);
+    const DEFAULT_SLATE_NORMALISED = normaliseSlateDataFn(DEFAULT_SLATE_TEMPLATE);
     const DEFAULT_SLATE = {
       ...DEFAULT_SLATE_NORMALISED,
       notes: Array.isArray(DEFAULT_SLATE_NORMALISED.notes) ? [...DEFAULT_SLATE_NORMALISED.notes] : [],
@@ -2528,7 +2751,7 @@
     }
 
     function serialiseSlateState(source = slateState) {
-      const normalised = normaliseSlateData(source);
+      const normalised = normaliseSlateDataFn(source);
       return {
         isEnabled: !!normalised.isEnabled,
         rotationSeconds: clampSlateRotation(normalised.rotationSeconds),
@@ -2551,13 +2774,13 @@
 
       if (serialiseOverlayForSceneImpl) {
         return serialiseOverlayForSceneImpl(source, {
-          normaliseOverlayData,
+          normaliseOverlayData: normaliseOverlayDataFn,
           overlayKeys: SCENE_OVERLAY_KEYS,
           includeEmptyStrings: true
         });
       }
 
-      const normalised = normaliseOverlayData(source);
+      const normalised = normaliseOverlayDataFn(source);
       const result = {};
       let hasValue = false;
 
@@ -2571,7 +2794,7 @@
       }
 
       if (!hasValue && Object.prototype.hasOwnProperty.call(source, 'theme')) {
-        const themeOnly = normaliseOverlayData({ theme: source.theme });
+        const themeOnly = normaliseOverlayDataFn({ theme: source.theme });
         if (themeOnly && typeof themeOnly.theme === 'string' && themeOnly.theme) {
           result.theme = themeOnly.theme;
           hasValue = true;
@@ -2583,7 +2806,7 @@
 
     function deriveSlateCardsForPreview(slate, _overlay = overlayPrefs) {
       const cards = [];
-      const activeSlate = normaliseSlateData(slate);
+      const activeSlate = normaliseSlateDataFn(slate);
 
       const pushCard = (type, pill, title, subtitle = '') => {
         const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
@@ -2914,7 +3137,7 @@
     }
 
     function updateSlateNotes(rawValue) {
-      const notes = normaliseSlateNotesList(rawValue);
+      const notes = normaliseSlateNotesListFn(rawValue);
       const previous = Array.isArray(slateState.notes) ? slateState.notes : [];
       const changed = notes.length !== previous.length || notes.some((note, index) => note !== previous[index]);
       if (!changed) return notes;
@@ -3217,7 +3440,7 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
-        if (parsed.overlay) overlayPrefs = normaliseOverlayData({ ...overlayPrefs, ...parsed.overlay });
+        if (parsed.overlay) overlayPrefs = normaliseOverlayDataFn({ ...overlayPrefs, ...parsed.overlay });
         if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
         if (typeof parsed.serverUrl === 'string') {
           const storedServerUrl = parsed.serverUrl;
@@ -3846,7 +4069,7 @@
         return;
       }
 
-      const messages = sanitiseMessages(payload.messages || []);
+      const messages = sanitiseMessagesFn(payload.messages || []);
       const messagesChanged = JSON.stringify(state.messages) !== JSON.stringify(messages);
       state.messages = messages;
       state.isActive = !!payload.isActive && state.messages.length > 0;
@@ -3878,7 +4101,7 @@
         return;
       }
       pendingOverlayPayload = null;
-      overlayPrefs = normaliseOverlayData(payload);
+      overlayPrefs = normaliseOverlayDataFn(payload);
       renderOverlayControls();
       updateHighlightRegex();
       renderSlateControls();
@@ -3902,7 +4125,7 @@
         return;
       }
       pendingSlatePayload = null;
-      const next = normaliseSlateData(payload);
+      const next = normaliseSlateDataFn(payload);
       const stamp = Number(payload._updatedAt ?? payload.updatedAt);
       if (Number.isFinite(stamp) && Number.isFinite(slateState.updatedAt) && slateState.updatedAt === stamp) {
         return;
@@ -3913,7 +4136,7 @@
 
     function applyPopupData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      popupState = normalisePopupData(payload);
+      popupState = normalisePopupDataFn(payload);
       renderPopupControls();
     }
 
@@ -3928,7 +4151,7 @@
       presets = list.map(entry => ({
         id: String(entry.id || generateClientId('preset')),
         name: String(entry.name || 'Preset'),
-        messages: sanitiseMessages(entry.messages || []),
+        messages: sanitiseMessagesFn(entry.messages || []),
         updatedAt: Number(entry.updatedAt) || Date.now()
       }));
       renderPresets();
@@ -3938,7 +4161,7 @@
       if (!Array.isArray(list)) return;
       const mapped = [];
       for (const entry of list) {
-        const normalised = normaliseSceneEntry(entry, {
+        const normalised = normaliseSceneEntryFn(entry, {
           fallbackDisplayDuration: state.displayDuration,
           fallbackIntervalSeconds: minutesToSeconds(state.intervalMinutes),
           maxMessages: MAX_MESSAGES,
@@ -4076,7 +4299,7 @@
           presets = data.presets.map(entry => ({
             id: String(entry.id || generateClientId('preset')),
             name: String(entry.name || 'Preset'),
-            messages: sanitiseMessages(entry.messages || []),
+            messages: sanitiseMessagesFn(entry.messages || []),
             updatedAt: Number(entry.updatedAt) || Date.now()
           }));
           renderPresets();
@@ -4458,7 +4681,7 @@
           throw new Error(message);
         }
         if (data && data.overlay) {
-          overlayPrefs = normaliseOverlayData(data.overlay);
+          overlayPrefs = normaliseOverlayDataFn(data.overlay);
           renderOverlayControls();
           updateHighlightRegex();
           renderMessages();
@@ -4703,7 +4926,7 @@
       let source = typeof index === 'number' && index >= 0 && index < state.messages.length
         ? state.messages[index]
         : fallback;
-      const sanitised = sanitiseMessages([source], { includeMeta: true });
+      const sanitised = sanitiseMessagesFn([source], { includeMeta: true });
       if (!sanitised.messages.length) {
         updatePresetModalError('Message is empty after sanitising');
         return;
@@ -4836,7 +5059,7 @@
       if (!preset) return;
       switch (button.dataset.action) {
         case 'load':
-          const loadResult = sanitiseMessages(preset.messages, { includeMeta: true });
+          const loadResult = sanitiseMessagesFn(preset.messages, { includeMeta: true });
           state.messages = [...loadResult.messages];
           if (state.messages.length) {
             state.isActive = state.isActive || el.autoStart.checked;
@@ -4859,7 +5082,7 @@
             toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
             return;
           }
-          const appendResult = sanitiseMessages(preset.messages, { includeMeta: true });
+          const appendResult = sanitiseMessagesFn(preset.messages, { includeMeta: true });
           const available = MAX_MESSAGES - state.messages.length;
           const additions = appendResult.messages.slice(0, available);
           if (!additions.length) {
@@ -4898,7 +5121,7 @@
 
       if (serialiseOverlayForSceneImpl) {
         const serialised = serialiseOverlayForSceneImpl(prefs, {
-          normaliseOverlayData,
+          normaliseOverlayData: normaliseOverlayDataFn,
           overlayKeys: allowedKeys,
           includeEmptyStrings: false
         });
@@ -4944,8 +5167,9 @@
       }
 
       if (typeof prefs.highlight === 'string') {
-        if (typeof normaliseHighlightInput === 'function') {
-          normalised.highlight = normaliseHighlightInput(prefs.highlight).slice(0, 512);
+        const normalisedHighlight = normaliseHighlightInputFn(prefs.highlight);
+        if (typeof normalisedHighlight === 'string' && normalisedHighlight) {
+          normalised.highlight = normalisedHighlight.slice(0, 512);
         } else {
           normalised.highlight = prefs.highlight.trim().slice(0, 512);
         }
@@ -5018,9 +5242,9 @@
         return null;
       }
       const trimmedName = baseName.slice(0, MAX_SCENE_NAME_LENGTH);
-      const tickerResult = sanitiseMessages(state.messages, { includeMeta: true });
+      const tickerResult = sanitiseMessagesFn(state.messages, { includeMeta: true });
       const messages = tickerResult.messages;
-      const popup = normalisePopupData(popupState);
+      const popup = normalisePopupDataFn(popupState);
       if (!messages.length && !popup.text) {
         toast('Add messages or popup text before saving a scene');
         return null;
@@ -5539,7 +5763,7 @@
     el.highlightWords.addEventListener('input', () => {
       const raw = el.highlightWords.value;
       updateHighlightHint(raw);
-      const normalised = normaliseHighlightInput(raw);
+      const normalised = normaliseHighlightInputFn(raw);
       const changed = overlayPrefs.highlight !== normalised;
       overlayPrefs.highlight = normalised;
       if (changed) {
@@ -5890,7 +6114,7 @@
           const text = await file.text();
           const data = JSON.parse(text);
           if (Array.isArray(data.messages)) {
-            const result = sanitiseMessages(data.messages, { includeMeta: true });
+            const result = sanitiseMessagesFn(data.messages, { includeMeta: true });
             state.messages = result.messages;
             if (el.autoStart.checked && state.messages.length) state.isActive = true;
             renderMessages();
