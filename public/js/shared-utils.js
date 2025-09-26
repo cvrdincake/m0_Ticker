@@ -11,6 +11,14 @@
   const RGB_COLOR_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
   const HSL_COLOR_RE = /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
 
+  const MAX_TICKER_MESSAGES = 50;
+  const MAX_TICKER_MESSAGE_LENGTH = 280;
+  const MAX_POPUP_DURATION_SECONDS = 600;
+  const MAX_SCENE_NAME_LENGTH = 80;
+  const MAX_SLATE_TITLE_LENGTH = 64;
+  const MAX_SLATE_TEXT_LENGTH = 200;
+  const MAX_SLATE_NOTES = 6;
+
   const SAFE_COLOR_KEYWORDS = new Set([
     'white', 'black', 'silver', 'gray', 'grey', 'maroon', 'red', 'purple', 'fuchsia',
     'green', 'lime', 'olive', 'yellow', 'navy', 'blue', 'teal', 'aqua', 'orange',
@@ -140,8 +148,64 @@
     return notes;
   }
 
+  function sanitiseMessages(list, options = {}) {
+    const includeMeta = !!options.includeMeta;
+    if (!Array.isArray(list)) {
+      return includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
+    }
+
+    const {
+      strict = false,
+      maxMessages = MAX_TICKER_MESSAGES,
+      maxLength = MAX_TICKER_MESSAGE_LENGTH
+    } = options;
+
+    const cleaned = [];
+    let trimmedCount = 0;
+    let truncatedCount = 0;
+
+    for (const entry of list) {
+      let text = String(entry ?? '').trim();
+      if (!text) continue;
+
+      if (cleaned.length >= maxMessages) {
+        if (strict) {
+          throw new Error(`Too many ticker messages (maximum ${maxMessages}).`);
+        }
+        if (includeMeta) {
+          truncatedCount += 1;
+          continue;
+        }
+        break;
+      }
+
+      if (text.length > maxLength) {
+        if (strict) {
+          throw new Error(`Ticker messages must be ${maxLength} characters or fewer.`);
+        }
+        text = text.slice(0, maxLength);
+        trimmedCount += 1;
+      }
+
+      cleaned.push(text);
+    }
+
+    if (includeMeta) {
+      return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
+    }
+    return cleaned;
+  }
+
   return {
     OVERLAY_THEMES,
+    MAX_TICKER_MESSAGES,
+    MAX_TICKER_MESSAGE_LENGTH,
+    MAX_POPUP_DURATION_SECONDS,
+    MAX_SCENE_NAME_LENGTH,
+    MAX_SLATE_TITLE_LENGTH,
+    MAX_SLATE_TEXT_LENGTH,
+    MAX_SLATE_NOTES,
+    sanitiseMessages,
     clampDurationSeconds,
     clampIntervalSeconds,
     clampScaleValue,

@@ -16,6 +16,14 @@ const sharedUtils = require('./public/js/shared-utils.js');
 const sharedConfig = require('./public/js/shared-config.js');
 const {
   OVERLAY_THEMES,
+  MAX_TICKER_MESSAGES,
+  MAX_TICKER_MESSAGE_LENGTH,
+  MAX_POPUP_DURATION_SECONDS,
+  MAX_SCENE_NAME_LENGTH,
+  MAX_SLATE_TITLE_LENGTH,
+  MAX_SLATE_TEXT_LENGTH,
+  MAX_SLATE_NOTES,
+  sanitiseMessages,
   clampDurationSeconds,
   clampIntervalSeconds,
   clampScaleValue,
@@ -53,14 +61,6 @@ const STATE_FILE_INPUT = process.env.TICKER_STATE_FILE || DEFAULT_STATE_FILE;
 const STATE_FILE = path.resolve(STATE_FILE_INPUT);
 
 const PERSIST_DEBOUNCE_MS = 150;
-const MAX_TICKER_MESSAGES = 50;
-const MAX_TICKER_MESSAGE_LENGTH = 280;
-const MAX_POPUP_DURATION_SECONDS = 600;
-const MAX_SCENE_NAME_LENGTH = 80;
-const MAX_SLATE_TITLE_LENGTH = 64;
-const MAX_SLATE_TEXT_LENGTH = 200;
-const MAX_SLATE_NOTES = 6;
-
 const FALLBACK_HIGHLIGHTS = ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
 const DEFAULT_HIGHLIGHTS = Array.isArray(CONFIG_DEFAULT_HIGHLIGHTS) && CONFIG_DEFAULT_HIGHLIGHTS.length
   ? CONFIG_DEFAULT_HIGHLIGHTS.slice()
@@ -470,38 +470,6 @@ app.use('/ticker', express.static(PUBLIC_TICKER, {
 }));
 
 // ---- State persistence helpers
-function sanitiseMessages(list, options = {}) {
-  if (!Array.isArray(list)) return [];
-  const {
-    strict = false,
-    maxMessages = MAX_TICKER_MESSAGES,
-    maxLength = MAX_TICKER_MESSAGE_LENGTH
-  } = options;
-
-  const cleaned = [];
-  for (const entry of list) {
-    if (cleaned.length >= maxMessages) {
-      if (strict) {
-        throw new Error(`Too many ticker messages (maximum ${maxMessages}).`);
-      }
-      break;
-    }
-
-    const trimmed = String(entry ?? '').trim();
-    if (!trimmed) continue;
-
-    if (trimmed.length > maxLength) {
-      if (strict) {
-        throw new Error(`Ticker messages must be ${maxLength} characters or fewer.`);
-      }
-      cleaned.push(trimmed.slice(0, maxLength));
-    } else {
-      cleaned.push(trimmed);
-    }
-  }
-  return cleaned;
-}
-
 function sanitisePopupInput(input) {
   const result = {};
   if (input && typeof input === 'object') {
