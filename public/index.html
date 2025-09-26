@@ -2910,8 +2910,27 @@ function normalisePopupData(data) {
       if (popupText) {
         parts.push(scene.popup.isActive ? 'popup active' : 'popup ready');
       }
-      if (scene?.overlay?.theme) {
-        parts.push(`theme: ${scene.overlay.theme}`);
+      const overlayMeta = scene?.overlay;
+      if (overlayMeta?.theme) {
+        parts.push(`theme: ${overlayMeta.theme}`);
+      }
+      if (overlayMeta?.label) {
+        parts.push(`label: ${overlayMeta.label}`);
+      }
+      if (overlayMeta?.accent) {
+        parts.push(`accent ${overlayMeta.accent}`);
+      }
+      if (overlayMeta?.highlight) {
+        const highlightCount = overlayMeta.highlight.split(',').map(part => part.trim()).filter(Boolean).length;
+        if (highlightCount) {
+          parts.push(`${highlightCount} highlight${highlightCount === 1 ? '' : 's'}`);
+        }
+      }
+      if (Number.isFinite(overlayMeta?.scale) && overlayMeta.scale !== DEFAULT_OVERLAY.scale) {
+        parts.push(`scale ${overlayMeta.scale}x`);
+      }
+      if (Number.isFinite(overlayMeta?.popupScale) && overlayMeta.popupScale !== DEFAULT_OVERLAY.popupScale) {
+        parts.push(`popup ${overlayMeta.popupScale}x`);
       }
       if (scene?.slate) {
         if (scene.slate.isEnabled) {
@@ -3313,13 +3332,33 @@ function normalisePopupData(data) {
       }
 
       let overlay = null;
-      const rawTheme = entry.overlay && typeof entry.overlay === 'object' ? entry.overlay.theme : null;
-      if (typeof rawTheme === 'string') {
-        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
-          ? sharedNormaliseTheme(rawTheme)
-          : rawTheme.trim().toLowerCase();
-        if (normalisedTheme && THEME_OPTIONS.includes(normalisedTheme)) {
-          overlay = { theme: normalisedTheme };
+      if (entry.overlay && typeof entry.overlay === 'object') {
+        const sourceOverlay = entry.overlay;
+        const normalisedOverlay = normaliseOverlayData(sourceOverlay);
+        const overlayCandidate = {};
+        const stringKeys = ['label', 'accent', 'highlight', 'position', 'mode', 'theme'];
+        for (const key of stringKeys) {
+          if (!Object.prototype.hasOwnProperty.call(sourceOverlay, key)) continue;
+          const value = typeof normalisedOverlay[key] === 'string'
+            ? normalisedOverlay[key].trim()
+            : '';
+          if (!value) continue;
+          overlayCandidate[key] = key === 'label' ? value.slice(0, 48) : value;
+        }
+        if (Object.prototype.hasOwnProperty.call(sourceOverlay, 'scale') && Number.isFinite(normalisedOverlay.scale)) {
+          overlayCandidate.scale = normalisedOverlay.scale;
+        }
+        if (Object.prototype.hasOwnProperty.call(sourceOverlay, 'popupScale') && Number.isFinite(normalisedOverlay.popupScale)) {
+          overlayCandidate.popupScale = normalisedOverlay.popupScale;
+        }
+        if (Object.prototype.hasOwnProperty.call(sourceOverlay, 'accentAnim') && typeof normalisedOverlay.accentAnim === 'boolean') {
+          overlayCandidate.accentAnim = normalisedOverlay.accentAnim;
+        }
+        if (Object.prototype.hasOwnProperty.call(sourceOverlay, 'sparkle') && typeof normalisedOverlay.sparkle === 'boolean') {
+          overlayCandidate.sparkle = normalisedOverlay.sparkle;
+        }
+        if (Object.keys(overlayCandidate).length) {
+          overlay = overlayCandidate;
         }
       }
 
@@ -4320,10 +4359,45 @@ function normalisePopupData(data) {
           position: overlayPrefs.position,
           mode: overlayPrefs.mode,
           accentAnim: overlayPrefs.accentAnim,
-          sparkle: overlayPrefs.sparkle
+          sparkle: overlayPrefs.sparkle,
+          label: typeof overlayPrefs.label === 'string' ? overlayPrefs.label : undefined,
+          accent: typeof overlayPrefs.accent === 'string' ? overlayPrefs.accent : undefined,
+          highlight: typeof overlayPrefs.highlight === 'string' ? overlayPrefs.highlight : undefined,
+          scale: overlayPrefs.scale,
+          popupScale: overlayPrefs.popupScale
         },
         updatedAt: Date.now()
       };
+      if (typeof payload.overlay.label === 'string') {
+        const trimmed = payload.overlay.label.trim();
+        if (trimmed) {
+          payload.overlay.label = trimmed.slice(0, 48);
+        } else {
+          delete payload.overlay.label;
+        }
+      }
+      if (typeof payload.overlay.accent === 'string') {
+        const trimmed = payload.overlay.accent.trim();
+        if (trimmed) {
+          payload.overlay.accent = trimmed;
+        } else {
+          delete payload.overlay.accent;
+        }
+      }
+      if (typeof payload.overlay.highlight === 'string') {
+        const trimmed = payload.overlay.highlight.trim();
+        if (trimmed) {
+          payload.overlay.highlight = trimmed;
+        } else {
+          delete payload.overlay.highlight;
+        }
+      }
+      if (!Number.isFinite(payload.overlay.scale)) {
+        delete payload.overlay.scale;
+      }
+      if (!Number.isFinite(payload.overlay.popupScale)) {
+        delete payload.overlay.popupScale;
+      }
       if (!payload.overlay.theme) {
         delete payload.overlay.theme;
       }
