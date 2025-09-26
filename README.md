@@ -16,8 +16,15 @@ This project exposes a lightweight dashboard and overlay for managing the ticker
 ## Getting Started
 
 1. Install dependencies: `npm install`
-2. Run the test suite: `npm test`
-3. Launch the server: `npm start`
+2. Run the linters: `npm run lint`
+3. Format the codebase: `npm run format`
+4. Run the test suite: `npm test`
+5. Launch the server: `npm start`
+
+The lint script covers both the Node.js backend and the browser modules under
+`public/`, while `npm run lint -- --fix` will attempt to auto-resolve any
+reporting issues. The `format` script applies the shared Prettier configuration;
+use `npm run format:check` to verify formatting without writing changes.
 
 With the server running on <http://127.0.0.1:3000>:
 
