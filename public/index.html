@@ -337,45 +337,148 @@
     }
     .overlay-chip strong { color: var(--text); font-weight: 600; }
 
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-    }
-
-    .status-actions {
+    .status-ribbon {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 12px;
-      margin-top: 12px;
+      padding: 10px 16px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(24, 28, 40, 0.5), rgba(14, 16, 26, 0.32));
+      border: 1px solid rgba(124, 92, 255, 0.12);
+      box-shadow: 0 8px 22px rgba(6, 8, 18, 0.22);
     }
 
-    .status-actions .btn {
-      min-width: 140px;
+    .status-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(20, 24, 36, 0.32);
+      border: 1px solid rgba(124, 92, 255, 0.14);
+      font-size: 12px;
+      letter-spacing: 0.2px;
+      color: var(--subtle);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
     }
 
-    .status-card {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      background: rgba(20, 24, 36, 0.9);
-      border: 1px solid rgba(118, 136, 190, 0.18);
-      border-radius: var(--radius);
-      padding: 18px;
-    }
-
-    .status-item { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--subtle); }
     .status-dot {
-      width: 10px; height: 10px; border-radius: 50%;
-      background: rgba(149, 160, 196, 0.5);
-      box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.25);
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: rgba(149, 160, 196, 0.55);
+      box-shadow: 0 0 0 0 rgba(61, 220, 151, 0.22);
       transition: background 0.2s ease, box-shadow 0.2s ease;
     }
-    .status-dot.active { background: var(--success); box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.22); }
-    .status-value { color: var(--text); font-weight: 600; }
+
+    .status-dot.active {
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.18);
+    }
+
+    .status-value {
+      color: var(--text);
+      font-weight: 600;
+    }
+
     .status-value.is-active { color: color-mix(in srgb, var(--success) 55%, var(--accent) 45%); }
     .status-value.is-inactive { color: var(--subtle); }
     .status-value.is-full { color: var(--danger); }
+
+    .config-drawer {
+      margin-top: 18px;
+      border-radius: 16px;
+      background: rgba(14, 18, 28, 0.82);
+      border: 1px solid rgba(118, 136, 190, 0.24);
+      overflow: hidden;
+      box-shadow: 0 16px 34px rgba(6, 8, 20, 0.38);
+    }
+
+    .config-drawer summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      color: var(--text);
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      position: relative;
+    }
+
+    .config-drawer summary::-webkit-details-marker { display: none; }
+
+    .config-drawer summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+      border-radius: inherit;
+    }
+
+    .config-drawer summary::after {
+      content: '';
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      width: 10px;
+      height: 10px;
+      border-right: 2px solid rgba(159, 166, 204, 0.8);
+      border-bottom: 2px solid rgba(159, 166, 204, 0.8);
+      transform: translateY(-50%) rotate(45deg);
+      transition: transform 0.2s ease;
+    }
+
+    .config-drawer[open] summary::after {
+      transform: translateY(-50%) rotate(225deg);
+    }
+
+    .config-drawer__summary-sub {
+      font-size: 12px;
+      font-weight: 400;
+      color: rgba(201, 208, 230, 0.7);
+    }
+
+    .config-drawer__content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 18px 20px 20px;
+      background: rgba(10, 12, 20, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+
+    .config-drawer__field {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .config-drawer__toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      cursor: pointer;
+    }
+
+    .config-drawer__toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+    }
+
+    .config-drawer__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .config-drawer__actions .btn {
+      min-width: 140px;
+    }
 
     .section-title { font-size: 18px; font-weight: 600; letter-spacing: 0.2px; }
     .section-sub { font-size: 13px; color: rgba(201, 208, 230, 0.75); }
@@ -1398,30 +1501,35 @@
         </div>
       </div>
 
-      <div class="status-grid">
-        <div class="status-card">
-          <div class="status-item"><span class="status-dot" id="statusActive"></span><span>State</span><span class="status-value" id="statusActiveText">Inactive</span></div>
-          <div class="status-item"><span>Messages</span><span class="status-value" id="statusMessageCount">0</span></div>
-          <div class="status-item"><span class="status-dot" id="statusBrbDot"></span><span>BRB</span><span class="status-value" id="statusBrb">Hidden</span></div>
-        </div>
-        <div class="status-card">
-          <div class="status-item"><span>Last Update</span><span class="status-value" id="statusUpdated">–</span></div>
-          <div class="status-item"><span>Server</span><span class="status-value" id="statusServer">Checking…</span></div>
-        </div>
-        <div class="status-card">
-          <div class="status-item" style="flex-wrap: wrap; gap: 6px;">
-            <span>Server URL</span>
-            <input type="text" id="serverUrl" placeholder="http://127.0.0.1:3000" style="flex:1; min-width: 160px;" />
-          </div>
-          <div class="status-item"><label><input type="checkbox" id="autoStart" /> Auto-start when messages exist</label></div>
-        </div>
+      <div class="status-ribbon" aria-live="polite">
+        <div class="status-item"><span class="status-dot" id="statusActive"></span><span>State</span><span class="status-value" id="statusActiveText">Inactive</span></div>
+        <div class="status-item"><span>Messages</span><span class="status-value" id="statusMessageCount">0</span></div>
+        <div class="status-item"><span class="status-dot" id="statusBrbDot"></span><span>BRB</span><span class="status-value" id="statusBrb">Hidden</span></div>
+        <div class="status-item"><span>Server</span><span class="status-value" id="statusServer">Checking…</span></div>
+        <div class="status-item"><span>Last Update</span><span class="status-value" id="statusUpdated">–</span></div>
       </div>
 
-      <div class="status-actions">
-        <button type="button" class="btn btn-ghost" id="exportState">Export state</button>
-        <button type="button" class="btn btn-ghost" id="importState">Import state</button>
-        <input type="file" id="importStateInput" accept="application/json,.json" hidden />
-      </div>
+      <details class="config-drawer" id="connectionDrawer">
+        <summary>
+          <span>Connection &amp; Data</span>
+          <span class="config-drawer__summary-sub">Server URL, auto-start, and state management</span>
+        </summary>
+        <div class="config-drawer__content">
+          <div class="config-drawer__field">
+            <label for="serverUrl">Server URL</label>
+            <input type="text" id="serverUrl" placeholder="http://127.0.0.1:3000" />
+          </div>
+          <label class="config-drawer__toggle" for="autoStart">
+            <input type="checkbox" id="autoStart" />
+            <span>Auto-start when messages exist</span>
+          </label>
+          <div class="config-drawer__actions">
+            <button type="button" class="btn btn-ghost" id="exportState">Export state</button>
+            <button type="button" class="btn btn-ghost" id="importState">Import state</button>
+            <input type="file" id="importStateInput" accept="application/json,.json" hidden />
+          </div>
+        </div>
+      </details>
     </div>
 
     <div class="layout-grid">
