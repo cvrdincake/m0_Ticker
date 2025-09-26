@@ -383,6 +383,33 @@
       font-weight: 600;
     }
 
+    .status-value--success { color: var(--success); }
+    .status-value--warning { color: #facc6b; }
+    .status-value--error,
+    .status-value--offline { color: var(--danger); }
+    .status-value--neutral { color: var(--subtle); }
+
+    .status-dot--success {
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(61, 220, 151, 0.18);
+    }
+
+    .status-dot--warning {
+      background: #facc6b;
+      box-shadow: 0 0 0 4px rgba(250, 204, 107, 0.18);
+    }
+
+    .status-dot--error,
+    .status-dot--offline {
+      background: var(--danger);
+      box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.2);
+    }
+
+    .status-dot--neutral {
+      background: rgba(149, 160, 196, 0.55);
+      box-shadow: none;
+    }
+
     .status-value.is-active { color: color-mix(in srgb, var(--success) 55%, var(--accent) 45%); }
     .status-value.is-inactive { color: var(--subtle); }
     .status-value.is-full { color: var(--danger); }
@@ -1523,7 +1550,11 @@
         <div class="status-item"><span class="status-dot" id="statusActive"></span><span>State</span><span class="status-value" id="statusActiveText">Inactive</span></div>
         <div class="status-item"><span>Messages</span><span class="status-value" id="statusMessageCount">0</span></div>
         <div class="status-item"><span class="status-dot" id="statusBrbDot"></span><span>BRB</span><span class="status-value" id="statusBrb">Hidden</span></div>
-        <div class="status-item"><span>Server</span><span class="status-value" id="statusServer">Checking…</span></div>
+        <div class="status-item">
+          <span class="status-dot status-dot--warning" id="statusServerDot"></span>
+          <span>Server</span>
+          <span class="status-value status-value--warning" id="statusServer">Checking…</span>
+        </div>
         <div class="status-item"><span>Last Update</span><span class="status-value" id="statusUpdated">–</span></div>
       </div>
 
@@ -2352,6 +2383,7 @@
       stateExport: document.getElementById('exportState'),
       stateImport: document.getElementById('importState'),
       stateImportInput: document.getElementById('importStateInput'),
+      statusServerDot: document.getElementById('statusServerDot'),
       statusServer: document.getElementById('statusServer'),
       statusActive: document.getElementById('statusActive'),
       statusActiveText: document.getElementById('statusActiveText'),
@@ -2617,6 +2649,208 @@
     let highlightRegex = null;
     let streamPrimed = false;
     let streamFallbackTimer = null;
+    let connectionRetryTimer = null;
+    let connectionRetryAttempt = 0;
+    let healthCheckTimer = null;
+    let pollingTimer = null;
+    let currentServerStatus = 'checking';
+    let isPollingActive = false;
+    let handlersRegistered = false;
+    let initStarted = false;
+
+    const HEALTH_CHECK_INTERVAL_MS = 30000;
+    const HEALTH_CHECK_TIMEOUT_MS = 5000;
+    const STREAM_BACKOFF_BASE_MS = 1000;
+    const STREAM_BACKOFF_MAX_MS = 15000;
+    const STREAM_MAX_FAILURES_BEFORE_POLLING = 3;
+    const STREAM_PRIME_TIMEOUT_MS = 1500;
+    const POLLING_INTERVAL_MS = 6000;
+
+    const SERVER_STATUS_CONFIG = {
+      checking: { text: 'Checking…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
+      online: { text: 'Online', valueClass: 'status-value--success', dotClass: 'status-dot--success' },
+      reconnecting: { text: 'Reconnecting…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
+      offline: { text: 'Offline', valueClass: 'status-value--offline', dotClass: 'status-dot--offline' },
+      polling: { text: 'Polling…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
+      invalid: { text: 'Invalid URL', valueClass: 'status-value--error', dotClass: 'status-dot--error' },
+      error: { text: 'Stream error', valueClass: 'status-value--error', dotClass: 'status-dot--error' },
+      degraded: { text: 'Degraded', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' }
+    };
+
+    const DEFAULT_SERVER_STATUS = { text: 'Status unknown', valueClass: 'status-value--neutral', dotClass: 'status-dot--neutral' };
+
+    const STATUS_VALUE_CLASSNAMES = [
+      'status-value--success',
+      'status-value--warning',
+      'status-value--error',
+      'status-value--offline',
+      'status-value--neutral'
+    ];
+
+    const STATUS_DOT_CLASSNAMES = [
+      'status-dot--success',
+      'status-dot--warning',
+      'status-dot--error',
+      'status-dot--offline',
+      'status-dot--neutral'
+    ];
+
+    function applyServerStatus(status, options = {}) {
+      const { message, force = false } = options;
+      if (!force && isPollingActive && status !== 'polling') {
+        return;
+      }
+      const config = SERVER_STATUS_CONFIG[status] || DEFAULT_SERVER_STATUS;
+      if (!force && currentServerStatus === status && !message) {
+        return;
+      }
+      currentServerStatus = status;
+      const finalMessage = message || config.text || DEFAULT_SERVER_STATUS.text;
+    if (el.statusServer) {
+        el.statusServer.textContent = finalMessage;
+        el.statusServer.dataset.status = status;
+        el.statusServer.style.removeProperty('color');
+        el.statusServer.classList.remove(...STATUS_VALUE_CLASSNAMES);
+        const valueClass = config.valueClass || DEFAULT_SERVER_STATUS.valueClass;
+        if (valueClass) {
+          el.statusServer.classList.add(valueClass);
+        }
+      }
+    if (el.statusServerDot) {
+        el.statusServerDot.dataset.status = status;
+        el.statusServerDot.classList.remove(...STATUS_DOT_CLASSNAMES);
+        const dotClass = config.dotClass || DEFAULT_SERVER_STATUS.dotClass;
+        if (dotClass) {
+          el.statusServerDot.classList.add(dotClass);
+        }
+      }
+    }
+
+    function clearReconnectTimer() {
+      if (connectionRetryTimer) {
+        clearTimeout(connectionRetryTimer);
+        connectionRetryTimer = null;
+      }
+    }
+
+    function stopHealthChecks() {
+      if (healthCheckTimer) {
+        clearInterval(healthCheckTimer);
+        healthCheckTimer = null;
+      }
+    }
+
+    function startHealthChecks() {
+      stopHealthChecks();
+      healthCheckTimer = setInterval(async () => {
+        const result = await checkServerHealth();
+        if (!result.ok) {
+          if (!isPollingActive) {
+            const nextStatus = currentServerStatus === 'online' ? 'degraded' : 'offline';
+            const message = currentServerStatus === 'online' ? 'Health check failed' : undefined;
+            applyServerStatus(nextStatus, { message, force: true });
+          }
+        } else if (!isPollingActive && currentServerStatus === 'degraded') {
+          applyServerStatus('online', { force: true });
+        }
+      }, HEALTH_CHECK_INTERVAL_MS);
+    }
+
+    function stopPolling() {
+      if (pollingTimer) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+      }
+      isPollingActive = false;
+    }
+
+    function startPolling(reason = 'sse-failure') {
+      if (pollingTimer) {
+        return;
+      }
+      isPollingActive = true;
+      applyServerStatus('polling', { force: true });
+      const poll = () => {
+        void fetchState({ silent: true });
+      };
+      poll();
+      pollingTimer = setInterval(poll, POLLING_INTERVAL_MS);
+      console.warn('[Ticker] Falling back to polling mode', { reason });
+    }
+
+    function validateServerUrlFormat(value) {
+      if (typeof value !== 'string' || !value.trim()) {
+        return { ok: false, reason: 'empty' };
+      }
+      try {
+        const parsed = new URL(value);
+        if (!/^https?:$/.test(parsed.protocol)) {
+          return { ok: false, reason: 'protocol', url: value };
+        }
+        const pathname = parsed.pathname.replace(/\/+$/, '');
+        const normalised = `${parsed.origin}${pathname || ''}`;
+        return { ok: true, url: normalised || parsed.origin };
+      } catch (error) {
+        return { ok: false, reason: 'invalid', error };
+      }
+    }
+
+    function getValidatedServerBase() {
+      const base = serverBase();
+      const validation = validateServerUrlFormat(base);
+      return { base, ...validation };
+    }
+
+    async function checkServerHealth() {
+      const { ok, url, reason } = getValidatedServerBase();
+      if (!ok || !url) {
+        return { ok: false, reason: reason || 'invalid-url', url: url || null };
+      }
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      let timeoutId = null;
+      if (controller) {
+        timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+      }
+      try {
+        const response = await fetch(`${url}/health`, {
+          cache: 'no-store',
+          signal: controller ? controller.signal : undefined
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        try {
+          await response.json();
+        } catch (err) {
+          // Ignore parse errors from lightweight health responses.
+        }
+        return { ok: true, url };
+      } catch (error) {
+        return { ok: false, url, error };
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+      }
+    }
+
+    function scheduleReconnect(reason = 'unknown') {
+      if (connectionRetryTimer) {
+        return;
+      }
+      const delay = Math.min(
+        STREAM_BACKOFF_BASE_MS * Math.pow(2, connectionRetryAttempt),
+        STREAM_BACKOFF_MAX_MS
+      );
+      connectionRetryAttempt = Math.min(connectionRetryAttempt + 1, 32);
+      if (connectionRetryAttempt >= STREAM_MAX_FAILURES_BEFORE_POLLING && !isPollingActive) {
+        startPolling(reason);
+      }
+      applyServerStatus('reconnecting', { force: true });
+      connectionRetryTimer = setTimeout(() => {
+        connectionRetryTimer = null;
+        void connectStream({ isRetry: true, reason });
+      }, delay);
+      console.warn('[Ticker] Event stream reconnect scheduled', { attempt: connectionRetryAttempt, delay, reason });
+    }
 
     function toast(message) {
       el.toast.textContent = message;
@@ -2670,7 +2904,7 @@
         base = fallbackOrigin || DEFAULT_SERVER_URL;
       }
 
-      if (el.serverUrl && el.serverUrl.value !== base) {
+    if (el.serverUrl && el.serverUrl.value !== base) {
         el.serverUrl.value = base;
         try {
           if (typeof saveLocal === 'function') {
@@ -2916,13 +3150,13 @@
     }
 
     function showSlatePreview() {
-      if (el.slatePreview) {
+    if (el.slatePreview) {
         el.slatePreview.classList.add('is-visible');
       }
     }
 
     function hideSlatePreview() {
-      if (el.slatePreview) {
+    if (el.slatePreview) {
         el.slatePreview.classList.remove('is-visible');
       }
       destroySlatePreviewAnimator();
@@ -2934,9 +3168,9 @@
       el.slatePreview.classList.remove('is-empty');
       el.slatePreview.dataset.type = card.type || '';
       el.slatePreviewContent.dataset.type = card.type || '';
-      if (el.slatePreviewPill) el.slatePreviewPill.textContent = card.pill || 'Slate';
-      if (el.slatePreviewTitle) el.slatePreviewTitle.textContent = card.title || '';
-      if (el.slatePreviewSubtitle) {
+    if (el.slatePreviewPill) el.slatePreviewPill.textContent = card.pill || 'Slate';
+    if (el.slatePreviewTitle) el.slatePreviewTitle.textContent = card.title || '';
+    if (el.slatePreviewSubtitle) {
         if (card.subtitle) {
           el.slatePreviewSubtitle.textContent = card.subtitle;
           el.slatePreviewSubtitle.classList.remove('is-hidden');
@@ -2945,7 +3179,7 @@
           el.slatePreviewSubtitle.classList.add('is-hidden');
         }
       }
-      if (el.slatePreviewMeta) {
+    if (el.slatePreviewMeta) {
         if (card.meta) {
           el.slatePreviewMeta.textContent = card.meta;
           el.slatePreviewMeta.classList.remove('is-hidden');
@@ -3071,21 +3305,21 @@
     }
 
     function renderSlateControls() {
-      if (el.slateEnabled) el.slateEnabled.checked = !!slateState.isEnabled;
-      if (el.slateShowClock) el.slateShowClock.checked = !!slateState.showClock;
+    if (el.slateEnabled) el.slateEnabled.checked = !!slateState.isEnabled;
+    if (el.slateShowClock) el.slateShowClock.checked = !!slateState.showClock;
       const rotation = clampSlateRotation(slateState.rotationSeconds);
-      if (el.slateRotation) el.slateRotation.value = rotation;
-      if (el.slateRotationNumber) el.slateRotationNumber.value = rotation;
-      if (el.slateClockLabel) el.slateClockLabel.value = slateState.clockLabel || '';
-      if (el.slateClockSubtitle) el.slateClockSubtitle.value = slateState.clockSubtitle || '';
-      if (el.slateNextLabel) el.slateNextLabel.value = slateState.nextLabel || '';
-      if (el.slateNextTitle) el.slateNextTitle.value = slateState.nextTitle || '';
-      if (el.slateNextSubtitle) el.slateNextSubtitle.value = slateState.nextSubtitle || '';
-      if (el.slateSponsorLabel) el.slateSponsorLabel.value = slateState.sponsorLabel || '';
-      if (el.slateSponsorName) el.slateSponsorName.value = slateState.sponsorName || '';
-      if (el.slateSponsorTagline) el.slateSponsorTagline.value = slateState.sponsorTagline || '';
-      if (el.slateNotesLabel) el.slateNotesLabel.value = slateState.notesLabel || '';
-      if (el.slateNotes) el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
+    if (el.slateRotation) el.slateRotation.value = rotation;
+    if (el.slateRotationNumber) el.slateRotationNumber.value = rotation;
+    if (el.slateClockLabel) el.slateClockLabel.value = slateState.clockLabel || '';
+    if (el.slateClockSubtitle) el.slateClockSubtitle.value = slateState.clockSubtitle || '';
+    if (el.slateNextLabel) el.slateNextLabel.value = slateState.nextLabel || '';
+    if (el.slateNextTitle) el.slateNextTitle.value = slateState.nextTitle || '';
+    if (el.slateNextSubtitle) el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+    if (el.slateSponsorLabel) el.slateSponsorLabel.value = slateState.sponsorLabel || '';
+    if (el.slateSponsorName) el.slateSponsorName.value = slateState.sponsorName || '';
+    if (el.slateSponsorTagline) el.slateSponsorTagline.value = slateState.sponsorTagline || '';
+    if (el.slateNotesLabel) el.slateNotesLabel.value = slateState.notesLabel || '';
+    if (el.slateNotes) el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
       updateSlatePreview();
     }
 
@@ -3103,10 +3337,10 @@
 
     function updateSlateRotationInput(value) {
       const clamped = clampSlateRotation(value);
-      if (el.slateRotation && Number(el.slateRotation.value) !== clamped) {
+    if (el.slateRotation && Number(el.slateRotation.value) !== clamped) {
         el.slateRotation.value = clamped;
       }
-      if (el.slateRotationNumber && Number(el.slateRotationNumber.value) !== clamped) {
+    if (el.slateRotationNumber && Number(el.slateRotationNumber.value) !== clamped) {
         el.slateRotationNumber.value = clamped;
       }
       if (slateState.rotationSeconds === clamped) return;
@@ -3570,40 +3804,40 @@
     }
 
     function updateQueueControls(queueFull = state.messages.length >= MAX_MESSAGES) {
-      if (el.newMessage) {
+    if (el.newMessage) {
         el.newMessage.disabled = queueFull;
         el.newMessage.placeholder = queueFull
           ? `Queue full — max ${MAX_MESSAGES} messages`
           : MESSAGE_PLACEHOLDER;
       }
-      if (el.addMessageButton) {
+    if (el.addMessageButton) {
         el.addMessageButton.disabled = queueFull;
       }
     }
 
     function updateAccentInputsFromPrefs() {
       const accent = overlayPrefs.accent || '';
-      if (el.overlayAccent) {
+    if (el.overlayAccent) {
         el.overlayAccent.value = accent;
       }
-      if (el.overlayAccentPicker) {
+    if (el.overlayAccentPicker) {
         el.overlayAccentPicker.value = parseHexForPicker(accent) || ACCENT_FALLBACK_HEX;
       }
       const secondary = overlayPrefs.accentSecondary || '';
-      if (el.overlayAccentSecondary) {
+    if (el.overlayAccentSecondary) {
         el.overlayAccentSecondary.value = secondary;
       }
-      if (el.overlayAccentSecondaryPicker) {
+    if (el.overlayAccentSecondaryPicker) {
         el.overlayAccentSecondaryPicker.value = parseHexForPicker(secondary) || ACCENT_SECONDARY_FALLBACK_HEX;
       }
     }
 
     function setAccentError(message) {
       const hasError = Boolean(message);
-      if (el.overlayAccentGroup) {
+    if (el.overlayAccentGroup) {
         el.overlayAccentGroup.classList.toggle('has-error', hasError);
       }
-      if (el.overlayAccentHint) {
+    if (el.overlayAccentHint) {
         el.overlayAccentHint.textContent = hasError ? message : ACCENT_HINT_DEFAULT;
         el.overlayAccentHint.classList.toggle('is-error', hasError);
       }
@@ -3611,10 +3845,10 @@
 
     function setAccentSecondaryError(message) {
       const hasError = Boolean(message);
-      if (el.overlayAccentSecondaryGroup) {
+    if (el.overlayAccentSecondaryGroup) {
         el.overlayAccentSecondaryGroup.classList.toggle('has-error', hasError);
       }
-      if (el.overlayAccentSecondaryHint) {
+    if (el.overlayAccentSecondaryHint) {
         el.overlayAccentSecondaryHint.textContent = hasError ? message : ACCENT_SECONDARY_HINT_DEFAULT;
         el.overlayAccentSecondaryHint.classList.toggle('is-error', hasError);
       }
@@ -3663,8 +3897,8 @@
       updateHighlightHint(overlayPrefs.highlight);
       el.scaleRange.value = overlayPrefs.scale;
       el.scaleNumber.value = overlayPrefs.scale;
-      if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
-      if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
+    if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
+    if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
       el.accentAnim.checked = overlayPrefs.accentAnim;
       el.sparkle.checked = overlayPrefs.sparkle;
       Array.from(el.positionButtons.querySelectorAll('.segment-button')).forEach(btn => {
@@ -3673,7 +3907,7 @@
       Array.from(el.modeButtons.querySelectorAll('.segment-button')).forEach(btn => {
         btn.classList.toggle('is-active', btn.dataset.mode === overlayPrefs.mode);
       });
-      if (el.themeButtons) {
+    if (el.themeButtons) {
         Array.from(el.themeButtons.querySelectorAll('.segment-button')).forEach(btn => {
           btn.classList.toggle('is-active', btn.dataset.theme === overlayPrefs.theme);
         });
@@ -3945,7 +4179,7 @@
           el.popupCountdownTarget.disabled = true;
         }
       }
-      if (el.popupCountdownTarget && el.popupCountdownEnabled) {
+    if (el.popupCountdownTarget && el.popupCountdownEnabled) {
         const countdownActive = el.popupCountdownEnabled.checked;
         el.popupCountdownTarget.disabled = popupSaveInFlight || !countdownActive;
       }
@@ -3984,18 +4218,18 @@
     function renderPopupControls() {
       if (!el.popupText) return;
       const isLive = popupState.isActive && !!popupState.text;
-      if (el.popupPanel) el.popupPanel.classList.toggle('is-live', isLive);
-      if (el.popupActiveLabel) el.popupActiveLabel.classList.toggle('is-live', isLive);
+    if (el.popupPanel) el.popupPanel.classList.toggle('is-live', isLive);
+    if (el.popupActiveLabel) el.popupActiveLabel.classList.toggle('is-live', isLive);
       el.popupText.value = popupState.text;
       el.popupActive.checked = isLive;
-      if (el.popupDuration) {
+    if (el.popupDuration) {
         el.popupDuration.value = popupState.durationSeconds ? String(popupState.durationSeconds) : '';
       }
-      if (el.popupCountdownEnabled) {
+    if (el.popupCountdownEnabled) {
         const hasCountdown = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget);
         el.popupCountdownEnabled.checked = hasCountdown && !!popupState.text;
       }
-      if (el.popupCountdownTarget) {
+    if (el.popupCountdownTarget) {
         el.popupCountdownTarget.value = popupState.countdownEnabled && Number.isFinite(popupState.countdownTarget)
           ? formatDatetimeLocal(popupState.countdownTarget)
           : '';
@@ -4006,32 +4240,32 @@
       const disabled = popupSaveInFlight;
       el.popupText.disabled = disabled;
       el.popupActive.disabled = disabled;
-      if (el.popupDuration) el.popupDuration.disabled = disabled;
-      if (el.popupCountdownEnabled) el.popupCountdownEnabled.disabled = disabled;
-      if (el.popupCountdownTarget) {
+    if (el.popupDuration) el.popupDuration.disabled = disabled;
+    if (el.popupCountdownEnabled) el.popupCountdownEnabled.disabled = disabled;
+    if (el.popupCountdownTarget) {
         const countdownEnabled = el.popupCountdownEnabled && el.popupCountdownEnabled.checked;
         el.popupCountdownTarget.disabled = disabled || !countdownEnabled;
       }
-      if (el.savePopup) el.savePopup.disabled = disabled;
-      if (el.clearPopup) el.clearPopup.disabled = disabled;
+    if (el.savePopup) el.savePopup.disabled = disabled;
+    if (el.clearPopup) el.clearPopup.disabled = disabled;
     }
 
     function renderBrbControls() {
       const isLive = brbState.isActive && !!brbState.text;
-      if (el.brbPanel) el.brbPanel.classList.toggle('is-live', isLive);
-      if (el.brbActiveLabel) el.brbActiveLabel.classList.toggle('is-live', isLive);
-      if (el.brbText) {
+    if (el.brbPanel) el.brbPanel.classList.toggle('is-live', isLive);
+    if (el.brbActiveLabel) el.brbActiveLabel.classList.toggle('is-live', isLive);
+    if (el.brbText) {
         el.brbText.value = brbState.text;
         el.brbText.disabled = brbSaveInFlight;
       }
-      if (el.brbActive) {
+    if (el.brbActive) {
         el.brbActive.checked = isLive;
         el.brbActive.disabled = brbSaveInFlight;
       }
-      if (el.brbSave) el.brbSave.disabled = brbSaveInFlight;
-      if (el.brbClear) el.brbClear.disabled = brbSaveInFlight;
+    if (el.brbSave) el.brbSave.disabled = brbSaveInFlight;
+    if (el.brbClear) el.brbClear.disabled = brbSaveInFlight;
 
-      if (el.brbStatus) {
+    if (el.brbStatus) {
         const parts = [];
         parts.push(isLive ? 'BRB live' : 'BRB hidden');
         if (brbState.updatedAt) {
@@ -4041,10 +4275,10 @@
       }
 
       const brbActive = isLive;
-      if (el.statusBrb) {
+    if (el.statusBrb) {
         el.statusBrb.textContent = brbActive ? 'Active' : 'Hidden';
       }
-      if (el.statusBrbDot) {
+    if (el.statusBrbDot) {
         el.statusBrbDot.classList.toggle('active', brbActive);
       }
     }
@@ -4223,16 +4457,14 @@
           const slateData = await slateRes.json();
           applySlateData(slateData);
         }
-        el.statusServer.textContent = 'Online';
-        el.statusServer.style.color = '#9de2c2';
+        applyServerStatus('online');
         if (!silent) {
           renderOverlayControls();
           updateOverlayChip();
         }
       } catch (err) {
         console.error('Failed to fetch state', err);
-        el.statusServer.textContent = 'Unreachable';
-        el.statusServer.style.color = '#ff9a9a';
+        applyServerStatus('offline', { message: 'Unreachable' });
         if (!silent) toast('Server unreachable');
       } finally {
         fetchInFlight = false;
@@ -4274,13 +4506,11 @@
         if (data && data.state) {
           applyTickerData(data.state);
         }
-        el.statusServer.textContent = 'Online';
-        el.statusServer.style.color = '#9de2c2';
+        applyServerStatus('online');
       } catch (err) {
         console.error('Failed to save state', err);
         toast(err.message || 'Failed to save ticker state');
-        el.statusServer.textContent = 'Error';
-        el.statusServer.style.color = '#ff9a9a';
+        applyServerStatus('error', { message: 'Error' });
       }
     }
 
@@ -4337,7 +4567,7 @@
       el.popupActive.checked = isActive;
 
       let durationSeconds = popupState.durationSeconds;
-      if (el.popupDuration) {
+    if (el.popupDuration) {
         const rawDuration = el.popupDuration.value.trim();
         if (!rawDuration) {
           durationSeconds = null;
@@ -4387,7 +4617,7 @@
       } else {
         countdownTarget = null;
       }
-      if (el.popupCountdownEnabled && !countdownEnabled) {
+    if (el.popupCountdownEnabled && !countdownEnabled) {
         el.popupCountdownEnabled.checked = false;
       }
 
@@ -4469,11 +4699,11 @@
       const base = serverBase();
       const raw = el.brbText ? el.brbText.value || '' : '';
       const text = raw.trim().slice(0, MAX_BRB_LENGTH);
-      if (el.brbText && raw !== text) {
+    if (el.brbText && raw !== text) {
         el.brbText.value = text;
       }
       const isActive = el.brbActive && el.brbActive.checked && !!text;
-      if (el.brbActive) {
+    if (el.brbActive) {
         el.brbActive.checked = isActive;
       }
 
@@ -4523,46 +4753,96 @@
       }
     }
 
-    function disconnectStream() {
+    function disconnectStream(options = {}) {
+      const { preservePolling = false } = options;
       if (eventSource) {
-        eventSource.close();
+        try {
+          eventSource.close();
+        } catch (err) {
+          // Ignore close errors.
+        }
         eventSource = null;
       }
       if (streamFallbackTimer) {
         clearTimeout(streamFallbackTimer);
         streamFallbackTimer = null;
       }
+      clearReconnectTimer();
+      stopHealthChecks();
+      if (!preservePolling) {
+        stopPolling();
+      }
+      streamPrimed = false;
     }
 
-    function connectStream() {
-      disconnectStream();
-      const base = serverBase();
+    async function connectStream(options = {}) {
+      const { isRetry = false, reason = 'manual' } = options;
+      disconnectStream({ preservePolling: true });
+      const validation = getValidatedServerBase();
+      if (!validation.ok || !validation.url) {
+        applyServerStatus('invalid', { message: 'Invalid URL', force: true });
+        stopPolling();
+        return;
+      }
+
+      clearReconnectTimer();
+      applyServerStatus(isRetry ? 'reconnecting' : 'checking', {
+        message: isRetry ? 'Reconnecting…' : 'Connecting…',
+        force: true
+      });
+
+      const health = await checkServerHealth();
+      if (!health.ok || !health.url) {
+        console.warn('[Ticker] Health check failed before stream connection', health);
+        const status = health.reason === 'invalid-url' ? 'invalid' : 'offline';
+        const message = status === 'invalid' ? 'Invalid URL' : 'Offline';
+        applyServerStatus(status, { message, force: true });
+        if (status !== 'invalid') {
+          scheduleReconnect('health-check');
+        }
+        return;
+      }
+
+      if (typeof EventSource !== 'function') {
+        console.warn('[Ticker] EventSource unsupported, using polling fallback.');
+        startPolling('unsupported');
+        return;
+      }
+
       try {
-        const url = `${base}/ticker/stream`;
-        const source = new EventSource(url);
+        const streamUrl = `${health.url}/ticker/stream`;
+        const source = new EventSource(streamUrl);
         eventSource = source;
-        el.statusServer.textContent = 'Connecting…';
-        el.statusServer.style.color = '#facc6b';
         streamPrimed = false;
+
         if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
         streamFallbackTimer = setTimeout(() => {
           streamFallbackTimer = null;
           if (!streamPrimed) {
-            fetchState({ silent: true });
+            void fetchState({ silent: true });
           }
-        }, 1500);
+        }, STREAM_PRIME_TIMEOUT_MS);
 
         source.addEventListener('open', () => {
-          el.statusServer.textContent = 'Online';
-          el.statusServer.style.color = '#9de2c2';
+          connectionRetryAttempt = 0;
+          clearReconnectTimer();
+          stopPolling();
+          applyServerStatus('online', { force: true });
+          startHealthChecks();
         });
 
         source.addEventListener('error', () => {
-          el.statusServer.textContent = 'Reconnecting…';
-          el.statusServer.style.color = '#facc6b';
+          source.close();
+          eventSource = null;
+          stopHealthChecks();
+          applyServerStatus('reconnecting', { force: true });
           if (!streamPrimed) {
-            fetchState({ silent: true });
+            void fetchState({ silent: true });
           }
+          if (!isPollingActive) {
+            startPolling('stream-error');
+          }
+          scheduleReconnect('stream-error');
         });
 
         source.addEventListener('ticker', event => {
@@ -4640,9 +4920,14 @@
         });
       } catch (err) {
         console.error('Failed to connect to event stream', err);
-        el.statusServer.textContent = 'Stream error';
-        el.statusServer.style.color = '#ff9a9a';
-        fetchState({ silent: true });
+        eventSource = null;
+        stopHealthChecks();
+        applyServerStatus('error', { message: 'Stream error', force: true });
+        if (!isPollingActive) {
+          startPolling('stream-error');
+        }
+        scheduleReconnect(reason || 'exception');
+        void fetchState({ silent: true });
       }
     }
 
@@ -4791,10 +5076,13 @@
 
     function addMessage(text) {
       const trimmed = String(text || '').trim();
-      if (!trimmed) return;
+      if (!trimmed) {
+        toast('Enter a message before adding');
+        return false;
+      }
       if (state.messages.length >= MAX_MESSAGES) {
         toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
-        return;
+        return false;
       }
       let finalText = trimmed;
       if (finalText.length > MAX_MESSAGE_LENGTH) {
@@ -4802,11 +5090,12 @@
         toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
       }
       state.messages.push(finalText);
-      if (el.autoStart.checked) state.isActive = true;
+    if (el.autoStart.checked) state.isActive = true;
       clearEditing();
       renderMessages();
       renderTicker();
       queueSave();
+      return true;
     }
 
     function removeMessage(index) {
@@ -4837,11 +5126,11 @@
 
     function updatePresetModalError(message) {
       const hasError = Boolean(message);
-      if (el.presetModalHint) {
+    if (el.presetModalHint) {
         el.presetModalHint.textContent = hasError ? message : PRESET_NAME_HINT;
         el.presetModalHint.classList.toggle('is-error', hasError);
       }
-      if (el.presetModalName) {
+    if (el.presetModalName) {
         el.presetModalName.classList.toggle('has-error', hasError);
       }
     }
@@ -4860,11 +5149,11 @@
         message,
         trigger: triggerButton || null
       };
-      if (el.presetModalPreview) {
+    if (el.presetModalPreview) {
         const previewHtml = formatMessage(message) || '<span class="small">Message will be sanitised before saving.</span>';
         el.presetModalPreview.innerHTML = previewHtml;
       }
-      if (el.presetModalName) {
+    if (el.presetModalName) {
         el.presetModalName.value = defaultName || 'Message preset';
         requestAnimationFrame(() => {
           try {
@@ -4885,16 +5174,16 @@
       const { restoreFocus = false } = options;
       const trigger = pendingPresetMessage && pendingPresetMessage.trigger;
       pendingPresetMessage = null;
-      if (el.presetModal) {
+    if (el.presetModal) {
         el.presetModal.classList.remove('is-visible');
         el.presetModal.setAttribute('aria-hidden', 'true');
       }
       document.body.classList.remove('is-modal-open');
-      if (el.presetModalName) {
+    if (el.presetModalName) {
         el.presetModalName.value = '';
         el.presetModalName.classList.remove('has-error');
       }
-      if (el.presetModalPreview) {
+    if (el.presetModalPreview) {
         el.presetModalPreview.innerHTML = '<span class="small">Select a message to begin.</span>';
       }
       updatePresetModalError('');
@@ -5041,8 +5330,8 @@
             return Math.max(0.6, Math.min(1.5, Math.round(numeric * 100) / 100));
           })();
       overlayPrefs.popupScale = next;
-      if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
-      if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
+    if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
+    if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
       updateOverlayChip();
       saveLocal();
       renderPopupPreviewScale();
@@ -5457,7 +5746,7 @@
         persistScenes('Scene saved');
       }
       renderScenes();
-      if (el.sceneName) el.sceneName.value = '';
+    if (el.sceneName) el.sceneName.value = '';
     }
 
     function handleSceneAction(event) {
@@ -5483,160 +5772,194 @@
       }
     }
 
-    el.overlayChip.addEventListener('click', async () => {
-      const url = buildOverlayUrl();
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Overlay URL copied');
-      } catch (err) {
-        console.warn('Clipboard copy failed', err);
-        toast('Copy failed');
-      }
-    });
+    function registerEventHandlers() {
+      if (handlersRegistered) return;
+      handlersRegistered = true;
 
-    el.copyOverlay.addEventListener('click', async () => {
-      const url = buildOverlayUrl();
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Overlay URL copied');
-      } catch (err) {
-        toast('Copy failed');
-      }
-    });
-
-    el.openOverlay.addEventListener('click', () => {
-      window.open(buildOverlayUrl(), '_blank');
-    });
-
-    el.reloadPreview.addEventListener('click', () => {
-      const url = buildOverlayUrl();
-      lastPreviewUrl = url;
-      schedulePreviewUpdate(url);
-    });
-
-    el.serverUrl.addEventListener('change', () => {
-      saveLocal();
-      connectStream();
-      fetchState({ silent: true });
-      updateOverlayChip();
-    });
-
-    el.stateExport.addEventListener('click', async () => {
-      if (!confirm('Export the full dashboard state as a JSON download?')) {
-        return;
-      }
-      const base = serverBase();
-      try {
-        const res = await fetch(`${base}/ticker/state/export`, { cache: 'no-store' });
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ticker-state.json';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 500);
-        toast('State exported');
-      } catch (err) {
-        console.error('State export failed', err);
-        toast('Failed to export state');
-      }
-    });
-
-    el.stateImport.addEventListener('click', () => {
-      if (!el.stateImportInput) return;
-      el.stateImportInput.value = '';
-      el.stateImportInput.click();
-    });
-
-    el.stateImportInput.addEventListener('change', async () => {
-      const file = el.stateImportInput.files && el.stateImportInput.files[0];
-      if (!file) return;
-      if (!confirm(`Import "${file.name}" and replace the current dashboard state?`)) {
-        el.stateImportInput.value = '';
-        return;
-      }
-      try {
-        const text = await file.text();
-        let parsed;
-        try {
-          parsed = JSON.parse(text);
-        } catch (err) {
-          throw new Error('Selected file is not valid JSON');
-        }
-        const base = serverBase();
-        const res = await fetch(`${base}/ticker/state/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(parsed)
-        });
-        let data = null;
-        try {
-          data = await res.json();
-        } catch (err) {
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
+      if (el.overlayChip) {
+        el.overlayChip.addEventListener('click', async () => {
+          const url = buildOverlayUrl();
+          try {
+            await navigator.clipboard.writeText(url);
+            toast('Overlay URL copied');
+          } catch (err) {
+            console.warn('Clipboard copy failed', err);
+            toast('Copy failed');
           }
-        }
-        if (!res.ok || !data || data.ok !== true) {
-          const message = data?.error || data?.message || `Import failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        await fetchState({ silent: false });
-        toast('State imported');
-      } catch (err) {
-        console.error('State import failed', err);
-        toast(err.message || 'Failed to import state');
-      } finally {
-        el.stateImportInput.value = '';
+        });
       }
-    });
 
-    el.autoStart.addEventListener('change', () => {
-      saveLocal();
-    });
-
-    el.duration.addEventListener('change', () => {
-      state.displayDuration = clampDuration(el.duration.value);
-      renderTicker();
-      queueSave();
-    });
-
-    el.interval.addEventListener('change', () => {
-      state.intervalMinutes = clampMinutesValue(el.interval.value);
-      renderTicker();
-      queueSave();
-    });
-
-    el.startBtn.addEventListener('click', () => {
-      if (!state.messages.length) {
-        toast('Add at least one message first');
-        return;
+      if (el.copyOverlay) {
+        el.copyOverlay.addEventListener('click', async () => {
+          const url = buildOverlayUrl();
+          try {
+            await navigator.clipboard.writeText(url);
+            toast('Overlay URL copied');
+          } catch (err) {
+            toast('Copy failed');
+          }
+        });
       }
-      state.isActive = true;
-      renderTicker();
-      queueSave();
-    });
 
-    el.stopBtn.addEventListener('click', () => {
-      state.isActive = false;
-      renderTicker();
-      queueSave();
-    });
+      if (el.openOverlay) {
+        el.openOverlay.addEventListener('click', () => {
+          window.open(buildOverlayUrl(), '_blank');
+        });
+      }
 
-    el.refreshBtn.addEventListener('click', () => fetchState({ silent: true }));
+      if (el.reloadPreview) {
+        el.reloadPreview.addEventListener('click', () => {
+          const url = buildOverlayUrl();
+          lastPreviewUrl = url;
+          schedulePreviewUpdate(url);
+        });
+      }
 
-    el.overlayLabel.addEventListener('input', () => {
-      overlayPrefs.label = el.overlayLabel.value.trim() || 'LIVE';
-      updateOverlayChip();
-      saveLocal();
-      queueOverlaySave();
-    });
+      if (el.serverUrl) {
+        el.serverUrl.addEventListener('change', () => {
+          saveLocal();
+          void connectStream({ reason: 'server-url-change' });
+          void fetchState({ silent: true });
+          updateOverlayChip();
+        });
+      }
 
-    const ACCENT_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer.`;
-    const ACCENT_SECONDARY_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer. Clear the field to remove this colour.`;
+      if (el.stateExport) {
+        el.stateExport.addEventListener('click', async () => {
+          if (!confirm('Export the full dashboard state as a JSON download?')) {
+            return;
+          }
+          const base = serverBase();
+          try {
+            const res = await fetch(`${base}/ticker/state/export`, { cache: 'no-store' });
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}`);
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'ticker-state.json';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 500);
+            toast('State exported');
+          } catch (err) {
+            console.error('State export failed', err);
+            toast('Failed to export state');
+          }
+        });
+      }
+
+      if (el.stateImport) {
+        el.stateImport.addEventListener('click', () => {
+          if (!el.stateImportInput) return;
+          el.stateImportInput.value = '';
+          el.stateImportInput.click();
+        });
+      }
+
+      if (el.stateImportInput) {
+        el.stateImportInput.addEventListener('change', async () => {
+          const file = el.stateImportInput.files && el.stateImportInput.files[0];
+          if (!file) return;
+          if (!confirm(`Import "${file.name}" and replace the current dashboard state?`)) {
+            el.stateImportInput.value = '';
+            return;
+          }
+          try {
+            const text = await file.text();
+            let parsed;
+            try {
+              parsed = JSON.parse(text);
+            } catch (err) {
+              throw new Error('Selected file is not valid JSON');
+            }
+            const base = serverBase();
+            const res = await fetch(`${base}/ticker/state/import`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(parsed)
+            });
+            let data = null;
+            try {
+              data = await res.json();
+            } catch (err) {
+              if (!res.ok) {
+                throw new Error(`HTTP ${res.status}`);
+              }
+            }
+            if (!res.ok || !data || data.ok !== true) {
+              const message = data?.error || data?.message || `Import failed (HTTP ${res.status})`;
+              throw new Error(message);
+            }
+            await fetchState({ silent: false });
+            toast('State imported');
+          } catch (err) {
+            console.error('State import failed', err);
+            toast(err.message || 'Failed to import state');
+          } finally {
+            el.stateImportInput.value = '';
+          }
+        });
+      }
+
+      if (el.autoStart) {
+        el.autoStart.addEventListener('change', () => {
+          saveLocal();
+        });
+      }
+
+      if (el.duration) {
+        el.duration.addEventListener('change', () => {
+          state.displayDuration = clampDuration(el.duration.value);
+          renderTicker();
+          queueSave();
+        });
+      }
+
+      if (el.interval) {
+        el.interval.addEventListener('change', () => {
+          state.intervalMinutes = clampMinutesValue(el.interval.value);
+          renderTicker();
+          queueSave();
+        });
+      }
+
+      if (el.startBtn) {
+        el.startBtn.addEventListener('click', () => {
+          if (!state.messages.length) {
+            toast('Add at least one message first');
+            return;
+          }
+          state.isActive = true;
+          renderTicker();
+          queueSave();
+        });
+      }
+
+      if (el.stopBtn) {
+        el.stopBtn.addEventListener('click', () => {
+          state.isActive = false;
+          renderTicker();
+          queueSave();
+        });
+      }
+
+      if (el.refreshBtn) {
+        el.refreshBtn.addEventListener('click', () => void fetchState({ silent: true }));
+      }
+
+      if (el.overlayLabel) {
+        el.overlayLabel.addEventListener('input', () => {
+          overlayPrefs.label = el.overlayLabel.value.trim() || 'LIVE';
+          updateOverlayChip();
+          saveLocal();
+          queueOverlaySave();
+        });
+      }
+
+      const ACCENT_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer.`;
+      const ACCENT_SECONDARY_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer. Clear the field to remove this colour.`;
 
     function commitAccentInput(nextValue) {
       if (!el.overlayAccent) return;
@@ -5736,506 +6059,557 @@
       applyPreviewTheme();
     }
 
-    if (el.overlayAccent) {
-      el.overlayAccent.addEventListener('input', () => commitAccentInput());
-      el.overlayAccent.addEventListener('change', () => commitAccentInput());
-      el.overlayAccent.addEventListener('blur', () => commitAccentInput());
-    }
-    if (el.overlayAccentPicker) {
-      el.overlayAccentPicker.addEventListener('input', event => {
-        setAccentError('');
-        commitAccentInput(event.target.value);
-      });
-    }
-
-    if (el.overlayAccentSecondary) {
-      el.overlayAccentSecondary.addEventListener('input', () => commitAccentSecondaryInput());
-      el.overlayAccentSecondary.addEventListener('change', () => commitAccentSecondaryInput());
-      el.overlayAccentSecondary.addEventListener('blur', () => commitAccentSecondaryInput());
-    }
-    if (el.overlayAccentSecondaryPicker) {
-      el.overlayAccentSecondaryPicker.addEventListener('input', event => {
-        setAccentSecondaryError('');
-        commitAccentSecondaryInput(event.target.value);
-      });
-    }
-
-    el.highlightWords.addEventListener('input', () => {
-      const raw = el.highlightWords.value;
-      updateHighlightHint(raw);
-      const normalised = normaliseHighlightInputFn(raw);
-      const changed = overlayPrefs.highlight !== normalised;
-      overlayPrefs.highlight = normalised;
-      if (changed) {
-        updateHighlightRegex();
-        renderMessages();
-        renderPopupControls();
-        updateOverlayChip();
-        saveLocal();
-        queueOverlaySave();
+      if (el.overlayAccent) {
+        el.overlayAccent.addEventListener('input', () => commitAccentInput());
+        el.overlayAccent.addEventListener('change', () => commitAccentInput());
+        el.overlayAccent.addEventListener('blur', () => commitAccentInput());
       }
-    });
-    el.highlightWords.addEventListener('blur', () => {
-      el.highlightWords.value = overlayPrefs.highlight;
-      updateHighlightHint(overlayPrefs.highlight);
-    });
-
-    if (el.slateEnabled) {
-      el.slateEnabled.addEventListener('change', () => {
-        updateSlateBoolean('isEnabled', el.slateEnabled.checked);
-      });
-    }
-    if (el.slateShowClock) {
-      el.slateShowClock.addEventListener('change', () => {
-        updateSlateBoolean('showClock', el.slateShowClock.checked);
-      });
-    }
-    if (el.slateRotation) {
-      el.slateRotation.addEventListener('input', () => {
-        updateSlateRotationInput(el.slateRotation.value);
-      });
-      el.slateRotation.addEventListener('change', () => {
-        updateSlateRotationInput(el.slateRotation.value);
-      });
-    }
-    if (el.slateRotationNumber) {
-      const commitRotationNumber = () => {
-        updateSlateRotationInput(el.slateRotationNumber.value);
-      };
-      el.slateRotationNumber.addEventListener('input', commitRotationNumber);
-      el.slateRotationNumber.addEventListener('change', commitRotationNumber);
-      el.slateRotationNumber.addEventListener('blur', () => {
-        el.slateRotationNumber.value = String(clampSlateRotation(el.slateRotationNumber.value));
-      });
-    }
-    if (el.slateClockLabel) {
-      el.slateClockLabel.addEventListener('input', () => {
-        updateSlateTextField('clockLabel', el.slateClockLabel.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateClockLabel.addEventListener('blur', () => {
-        el.slateClockLabel.value = slateState.clockLabel || '';
-      });
-    }
-    if (el.slateClockSubtitle) {
-      el.slateClockSubtitle.addEventListener('input', () => {
-        updateSlateTextField('clockSubtitle', el.slateClockSubtitle.value, MAX_SLATE_TEXT_LENGTH);
-      });
-      el.slateClockSubtitle.addEventListener('blur', () => {
-        el.slateClockSubtitle.value = slateState.clockSubtitle || '';
-      });
-    }
-    if (el.slateNextLabel) {
-      el.slateNextLabel.addEventListener('input', () => {
-        updateSlateTextField('nextLabel', el.slateNextLabel.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateNextLabel.addEventListener('blur', () => {
-        el.slateNextLabel.value = slateState.nextLabel || '';
-      });
-    }
-    if (el.slateNextTitle) {
-      el.slateNextTitle.addEventListener('input', () => {
-        updateSlateTextField('nextTitle', el.slateNextTitle.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateNextTitle.addEventListener('blur', () => {
-        el.slateNextTitle.value = slateState.nextTitle || '';
-      });
-    }
-    if (el.slateNextSubtitle) {
-      el.slateNextSubtitle.addEventListener('input', () => {
-        updateSlateTextField('nextSubtitle', el.slateNextSubtitle.value, MAX_SLATE_TEXT_LENGTH);
-      });
-      el.slateNextSubtitle.addEventListener('blur', () => {
-        el.slateNextSubtitle.value = slateState.nextSubtitle || '';
-      });
-    }
-    if (el.slateSponsorLabel) {
-      el.slateSponsorLabel.addEventListener('input', () => {
-        updateSlateTextField('sponsorLabel', el.slateSponsorLabel.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateSponsorLabel.addEventListener('blur', () => {
-        el.slateSponsorLabel.value = slateState.sponsorLabel || '';
-      });
-    }
-    if (el.slateSponsorName) {
-      el.slateSponsorName.addEventListener('input', () => {
-        updateSlateTextField('sponsorName', el.slateSponsorName.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateSponsorName.addEventListener('blur', () => {
-        el.slateSponsorName.value = slateState.sponsorName || '';
-      });
-    }
-    if (el.slateSponsorTagline) {
-      el.slateSponsorTagline.addEventListener('input', () => {
-        updateSlateTextField('sponsorTagline', el.slateSponsorTagline.value, MAX_SLATE_TEXT_LENGTH);
-      });
-      el.slateSponsorTagline.addEventListener('blur', () => {
-        el.slateSponsorTagline.value = slateState.sponsorTagline || '';
-      });
-    }
-    if (el.slateNotesLabel) {
-      el.slateNotesLabel.addEventListener('input', () => {
-        updateSlateTextField('notesLabel', el.slateNotesLabel.value, MAX_SLATE_TITLE_LENGTH);
-      });
-      el.slateNotesLabel.addEventListener('blur', () => {
-        el.slateNotesLabel.value = slateState.notesLabel || '';
-      });
-    }
-    if (el.slateNotes) {
-      el.slateNotes.addEventListener('input', () => {
-        updateSlateNotes(el.slateNotes.value);
-      });
-      el.slateNotes.addEventListener('blur', () => {
-        el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
-      });
-    }
-    if (el.slatePreviewDots) {
-      el.slatePreviewDots.addEventListener('click', event => {
-        const dot = event.target.closest('.slate-preview-dot');
-        if (!dot) return;
-        const index = Number(dot.dataset.index);
-        if (!Number.isFinite(index) || index < 0 || index >= slatePreviewCards.length) return;
-        slatePreviewIndex = index;
-        playSlatePreviewCard(index, { animate: true, updateDots: true });
-      });
-    }
-
-    el.popupText.addEventListener('input', () => {
-      updatePopupPreview();
-      if (!el.popupText.value.trim()) {
-        el.popupActive.checked = false;
+      if (el.overlayAccentPicker) {
+        el.overlayAccentPicker.addEventListener('input', event => {
+          setAccentError('');
+          commitAccentInput(event.target.value);
+        });
       }
-    });
 
-    if (el.popupDuration) {
-      el.popupDuration.addEventListener('change', () => {
-        queuePopupSave();
-      });
-    }
+      if (el.overlayAccentSecondary) {
+        el.overlayAccentSecondary.addEventListener('input', () => commitAccentSecondaryInput());
+        el.overlayAccentSecondary.addEventListener('change', () => commitAccentSecondaryInput());
+        el.overlayAccentSecondary.addEventListener('blur', () => commitAccentSecondaryInput());
+      }
+      if (el.overlayAccentSecondaryPicker) {
+        el.overlayAccentSecondaryPicker.addEventListener('input', event => {
+          setAccentSecondaryError('');
+          commitAccentSecondaryInput(event.target.value);
+        });
+      }
 
-    if (el.popupCountdownTarget) {
-      el.popupCountdownTarget.addEventListener('input', () => {
-        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+      if (el.highlightWords) {
+        el.highlightWords.addEventListener('input', () => {
+          const raw = el.highlightWords.value;
+          updateHighlightHint(raw);
+          const normalised = normaliseHighlightInputFn(raw);
+          const changed = overlayPrefs.highlight !== normalised;
+          overlayPrefs.highlight = normalised;
+          if (changed) {
+            updateHighlightRegex();
+            renderMessages();
+            renderPopupControls();
+            updateOverlayChip();
+            saveLocal();
+            queueOverlaySave();
+          }
+        });
+        el.highlightWords.addEventListener('blur', () => {
+          el.highlightWords.value = overlayPrefs.highlight;
+          updateHighlightHint(overlayPrefs.highlight);
+        });
+      }
+
+      if (el.slateEnabled) {
+        el.slateEnabled.addEventListener('change', () => {
+          updateSlateBoolean('isEnabled', el.slateEnabled.checked);
+        });
+      }
+      if (el.slateShowClock) {
+        el.slateShowClock.addEventListener('change', () => {
+          updateSlateBoolean('showClock', el.slateShowClock.checked);
+        });
+      }
+      if (el.slateRotation) {
+        el.slateRotation.addEventListener('input', () => {
+          updateSlateRotationInput(el.slateRotation.value);
+        });
+        el.slateRotation.addEventListener('change', () => {
+          updateSlateRotationInput(el.slateRotation.value);
+        });
+      }
+      if (el.slateRotationNumber) {
+        const commitRotationNumber = () => {
+          updateSlateRotationInput(el.slateRotationNumber.value);
+        };
+        el.slateRotationNumber.addEventListener('input', commitRotationNumber);
+        el.slateRotationNumber.addEventListener('change', commitRotationNumber);
+        el.slateRotationNumber.addEventListener('blur', () => {
+          el.slateRotationNumber.value = String(clampSlateRotation(el.slateRotationNumber.value));
+        });
+      }
+      if (el.slateClockLabel) {
+        el.slateClockLabel.addEventListener('input', () => {
+          updateSlateTextField('clockLabel', el.slateClockLabel.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateClockLabel.addEventListener('blur', () => {
+          el.slateClockLabel.value = slateState.clockLabel || '';
+        });
+      }
+      if (el.slateClockSubtitle) {
+        el.slateClockSubtitle.addEventListener('input', () => {
+          updateSlateTextField('clockSubtitle', el.slateClockSubtitle.value, MAX_SLATE_TEXT_LENGTH);
+        });
+        el.slateClockSubtitle.addEventListener('blur', () => {
+          el.slateClockSubtitle.value = slateState.clockSubtitle || '';
+        });
+      }
+      if (el.slateNextLabel) {
+        el.slateNextLabel.addEventListener('input', () => {
+          updateSlateTextField('nextLabel', el.slateNextLabel.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateNextLabel.addEventListener('blur', () => {
+          el.slateNextLabel.value = slateState.nextLabel || '';
+        });
+      }
+      if (el.slateNextTitle) {
+        el.slateNextTitle.addEventListener('input', () => {
+          updateSlateTextField('nextTitle', el.slateNextTitle.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateNextTitle.addEventListener('blur', () => {
+          el.slateNextTitle.value = slateState.nextTitle || '';
+        });
+      }
+      if (el.slateNextSubtitle) {
+        el.slateNextSubtitle.addEventListener('input', () => {
+          updateSlateTextField('nextSubtitle', el.slateNextSubtitle.value, MAX_SLATE_TEXT_LENGTH);
+        });
+        el.slateNextSubtitle.addEventListener('blur', () => {
+          el.slateNextSubtitle.value = slateState.nextSubtitle || '';
+        });
+      }
+      if (el.slateSponsorLabel) {
+        el.slateSponsorLabel.addEventListener('input', () => {
+          updateSlateTextField('sponsorLabel', el.slateSponsorLabel.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateSponsorLabel.addEventListener('blur', () => {
+          el.slateSponsorLabel.value = slateState.sponsorLabel || '';
+        });
+      }
+      if (el.slateSponsorName) {
+        el.slateSponsorName.addEventListener('input', () => {
+          updateSlateTextField('sponsorName', el.slateSponsorName.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateSponsorName.addEventListener('blur', () => {
+          el.slateSponsorName.value = slateState.sponsorName || '';
+        });
+      }
+      if (el.slateSponsorTagline) {
+        el.slateSponsorTagline.addEventListener('input', () => {
+          updateSlateTextField('sponsorTagline', el.slateSponsorTagline.value, MAX_SLATE_TEXT_LENGTH);
+        });
+        el.slateSponsorTagline.addEventListener('blur', () => {
+          el.slateSponsorTagline.value = slateState.sponsorTagline || '';
+        });
+      }
+      if (el.slateNotesLabel) {
+        el.slateNotesLabel.addEventListener('input', () => {
+          updateSlateTextField('notesLabel', el.slateNotesLabel.value, MAX_SLATE_TITLE_LENGTH);
+        });
+        el.slateNotesLabel.addEventListener('blur', () => {
+          el.slateNotesLabel.value = slateState.notesLabel || '';
+        });
+      }
+      if (el.slateNotes) {
+        el.slateNotes.addEventListener('input', () => {
+          updateSlateNotes(el.slateNotes.value);
+        });
+        el.slateNotes.addEventListener('blur', () => {
+          el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
+        });
+      }
+      if (el.slatePreviewDots) {
+        el.slatePreviewDots.addEventListener('click', event => {
+          const dot = event.target.closest('.slate-preview-dot');
+          if (!dot) return;
+          const index = Number(dot.dataset.index);
+          if (!Number.isFinite(index) || index < 0 || index >= slatePreviewCards.length) return;
+          slatePreviewIndex = index;
+          playSlatePreviewCard(index, { animate: true, updateDots: true });
+        });
+      }
+
+      if (el.popupText) {
+        el.popupText.addEventListener('input', () => {
           updatePopupPreview();
-        }
-      });
-      el.popupCountdownTarget.addEventListener('change', () => {
-        if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
-          queuePopupSave();
-        }
-      });
-    }
+          if (!el.popupText.value.trim() && el.popupActive) {
+            el.popupActive.checked = false;
+          }
+        });
+      }
 
-    if (el.popupCountdownEnabled) {
-      el.popupCountdownEnabled.addEventListener('change', () => {
-        if (el.popupCountdownEnabled.checked) {
-          if (!el.popupText.value.trim()) {
-            el.popupCountdownEnabled.checked = false;
-            toast('Enter popup text before enabling the countdown');
+      if (el.popupDuration) {
+        el.popupDuration.addEventListener('change', () => {
+          queuePopupSave();
+        });
+      }
+
+      if (el.popupCountdownTarget) {
+        el.popupCountdownTarget.addEventListener('input', () => {
+          if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+            updatePopupPreview();
+          }
+        });
+        el.popupCountdownTarget.addEventListener('change', () => {
+          if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+            queuePopupSave();
+          }
+        });
+      }
+
+      if (el.popupCountdownEnabled) {
+        el.popupCountdownEnabled.addEventListener('change', () => {
+          if (el.popupCountdownEnabled.checked) {
+            if (!el.popupText.value.trim()) {
+              el.popupCountdownEnabled.checked = false;
+              toast('Enter popup text before enabling the countdown');
+              return;
+            }
+            if (!el.popupCountdownTarget || !el.popupCountdownTarget.value) {
+              toast('Select a countdown target time');
+            }
+          }
+          updatePopupPreview();
+          if (el.popupCountdownTarget) {
+            el.popupCountdownTarget.disabled = popupSaveInFlight || !el.popupCountdownEnabled.checked;
+          }
+          const hasTarget = el.popupCountdownTarget && el.popupCountdownTarget.value;
+          if (!el.popupCountdownEnabled.checked || hasTarget) {
+            queuePopupSave();
+          }
+        });
+      }
+
+      if (el.popupActive) {
+        el.popupActive.addEventListener('change', () => {
+          if (el.popupActive.checked && (!el.popupText || !el.popupText.value.trim())) {
+            el.popupActive.checked = false;
+            toast('Enter popup text before enabling');
             return;
           }
-          if (!el.popupCountdownTarget || !el.popupCountdownTarget.value) {
-            toast('Select a countdown target time');
-          }
-        }
-        updatePopupPreview();
-        if (el.popupCountdownTarget) {
-          el.popupCountdownTarget.disabled = popupSaveInFlight || !el.popupCountdownEnabled.checked;
-        }
-        const hasTarget = el.popupCountdownTarget && el.popupCountdownTarget.value;
-        if (!el.popupCountdownEnabled.checked || hasTarget) {
           queuePopupSave();
-        }
-      });
-    }
-
-    el.popupActive.addEventListener('change', () => {
-      if (el.popupActive.checked && !el.popupText.value.trim()) {
-        el.popupActive.checked = false;
-        toast('Enter popup text before enabling');
-        return;
+        });
       }
-      queuePopupSave();
-    });
 
-    el.savePopup.addEventListener('click', () => {
-      queuePopupSave();
-    });
-
-    el.clearPopup.addEventListener('click', () => {
-      if (!el.popupText.value && !popupState.text) {
-        el.popupActive.checked = false;
-        updatePopupPreview();
-        updatePopupMeta();
-        return;
+      if (el.savePopup) {
+        el.savePopup.addEventListener('click', () => {
+          queuePopupSave();
+        });
       }
-      if (!confirm('Clear the popup message?')) {
-        return;
-      }
-      el.popupText.value = '';
-      el.popupActive.checked = false;
-      updatePopupPreview();
-      popupState = {
-        ...popupState,
-        text: '',
-        isActive: false,
-        durationSeconds: null,
-        countdownEnabled: false,
-        countdownTarget: null,
-        updatedAt: Date.now()
-      };
-      updatePopupMeta();
-      queuePopupSave();
-    });
 
-    if (el.brbText) {
-      el.brbText.addEventListener('input', () => {
-        if (!el.brbText.value.trim() && el.brbActive) {
-          el.brbActive.checked = false;
-        }
-      });
-    }
-
-    if (el.brbSave) {
-      el.brbSave.addEventListener('click', () => {
-        queueBrbSave();
-      });
-    }
-
-    if (el.brbClear) {
-      el.brbClear.addEventListener('click', () => {
-        const hasBrbInput = el.brbText && el.brbText.value.trim().length > 0;
-        const hasBrbState = brbState.text && brbState.text.trim().length > 0;
-        const brbActive = (el.brbActive && el.brbActive.checked) || brbState.isActive;
-
-        if (hasBrbInput || hasBrbState || brbActive) {
-          if (!confirm('Clear the BRB message?')) {
+      if (el.clearPopup) {
+        el.clearPopup.addEventListener('click', () => {
+          if ((!el.popupText || !el.popupText.value) && !popupState.text) {
+            if (el.popupActive) el.popupActive.checked = false;
+            updatePopupPreview();
+            updatePopupMeta();
             return;
           }
-        }
-
-        if (el.brbText) el.brbText.value = '';
-        if (el.brbActive) el.brbActive.checked = false;
-        brbState = { ...brbState, text: '', isActive: false, updatedAt: Date.now() };
-        renderBrbControls();
-        queueBrbSave();
-      });
-    }
-
-    if (el.brbActive) {
-      el.brbActive.addEventListener('change', () => {
-        if (el.brbActive.checked && (!el.brbText || !el.brbText.value.trim())) {
-          el.brbActive.checked = false;
-          toast('Enter BRB text before enabling');
-          return;
-        }
-        queueBrbSave();
-      });
-    }
-
-    el.scaleRange.addEventListener('input', () => updateScale(el.scaleRange.value));
-    el.scaleNumber.addEventListener('change', () => updateScale(el.scaleNumber.value));
-    if (el.popupScaleRange) {
-      el.popupScaleRange.addEventListener('input', () => updatePopupScale(el.popupScaleRange.value));
-    }
-    if (el.popupScaleNumber) {
-      el.popupScaleNumber.addEventListener('change', () => updatePopupScale(el.popupScaleNumber.value));
-    }
-
-    el.positionButtons.addEventListener('click', event => {
-      const button = event.target.closest('button[data-position]');
-      if (!button) return;
-      setPosition(button.dataset.position);
-    });
-
-    el.modeButtons.addEventListener('click', event => {
-      const button = event.target.closest('button[data-mode]');
-      if (!button) return;
-      setMode(button.dataset.mode);
-    });
-
-    if (el.themeButtons) {
-      el.themeButtons.addEventListener('click', event => {
-        const button = event.target.closest('button[data-theme]');
-        if (!button) return;
-        setTheme(button.dataset.theme);
-      });
-    }
-
-    el.accentAnim.addEventListener('change', () => {
-      overlayPrefs.accentAnim = el.accentAnim.checked;
-      updateOverlayChip();
-      saveLocal();
-      queueOverlaySave();
-    });
-
-    el.sparkle.addEventListener('change', () => {
-      overlayPrefs.sparkle = el.sparkle.checked;
-      updateOverlayChip();
-      saveLocal();
-      queueOverlaySave();
-    });
-
-    el.messageForm.addEventListener('submit', event => {
-      event.preventDefault();
-      addMessage(el.newMessage.value);
-      el.newMessage.value = '';
-      el.newMessage.focus();
-    });
-
-    el.clearMessages.addEventListener('click', () => {
-      if (!state.messages.length) return;
-      if (confirm('Clear all messages?')) {
-        state.messages = [];
-        state.isActive = false;
-        renderMessages();
-        renderTicker();
-        queueSave();
+          if (!confirm('Clear the popup message?')) {
+            return;
+          }
+          if (el.popupText) el.popupText.value = '';
+          if (el.popupActive) el.popupActive.checked = false;
+          updatePopupPreview();
+          popupState = {
+            ...popupState,
+            text: '',
+            isActive: false,
+            durationSeconds: null,
+            countdownEnabled: false,
+            countdownTarget: null,
+            updatedAt: Date.now()
+          };
+          updatePopupMeta();
+          queuePopupSave();
+        });
       }
-    });
 
-    el.exportMessages.addEventListener('click', () => {
-      const blob = new Blob([JSON.stringify({ messages: state.messages }, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'ticker-messages.json';
-      a.click();
-      URL.revokeObjectURL(url);
-    });
+      if (el.brbText) {
+        el.brbText.addEventListener('input', () => {
+          if (!el.brbText.value.trim() && el.brbActive) {
+            el.brbActive.checked = false;
+          }
+        });
+      }
 
-    el.importMessages.addEventListener('click', () => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'application/json';
-      input.onchange = async () => {
-        const file = input.files && input.files[0];
-        if (!file) return;
-        try {
-          const text = await file.text();
-          const data = JSON.parse(text);
-          if (Array.isArray(data.messages)) {
-            const result = sanitiseMessagesFn(data.messages, { includeMeta: true });
-            state.messages = result.messages;
-            if (el.autoStart.checked && state.messages.length) state.isActive = true;
+      if (el.brbSave) {
+        el.brbSave.addEventListener('click', () => {
+          queueBrbSave();
+        });
+      }
+
+      if (el.brbClear) {
+        el.brbClear.addEventListener('click', () => {
+          const hasBrbInput = el.brbText && el.brbText.value.trim().length > 0;
+          const hasBrbState = brbState.text && brbState.text.trim().length > 0;
+          const brbActive = (el.brbActive && el.brbActive.checked) || brbState.isActive;
+
+          if (hasBrbInput || hasBrbState || brbActive) {
+            if (!confirm('Clear the BRB message?')) {
+              return;
+            }
+          }
+
+          if (el.brbText) el.brbText.value = '';
+          if (el.brbActive) el.brbActive.checked = false;
+          brbState = { ...brbState, text: '', isActive: false, updatedAt: Date.now() };
+          renderBrbControls();
+          queueBrbSave();
+        });
+      }
+
+      if (el.brbActive) {
+        el.brbActive.addEventListener('change', () => {
+          if (el.brbActive.checked && (!el.brbText || !el.brbText.value.trim())) {
+            el.brbActive.checked = false;
+            toast('Enter BRB text before enabling');
+            return;
+          }
+          queueBrbSave();
+        });
+      }
+
+      if (el.scaleRange) {
+        el.scaleRange.addEventListener('input', () => updateScale(el.scaleRange.value));
+      }
+      if (el.scaleNumber) {
+        el.scaleNumber.addEventListener('change', () => updateScale(el.scaleNumber.value));
+      }
+      if (el.popupScaleRange) {
+        el.popupScaleRange.addEventListener('input', () => updatePopupScale(el.popupScaleRange.value));
+      }
+      if (el.popupScaleNumber) {
+        el.popupScaleNumber.addEventListener('change', () => updatePopupScale(el.popupScaleNumber.value));
+      }
+
+      if (el.positionButtons) {
+        el.positionButtons.addEventListener('click', event => {
+          const button = event.target.closest('button[data-position]');
+          if (!button) return;
+          setPosition(button.dataset.position);
+        });
+      }
+
+      if (el.modeButtons) {
+        el.modeButtons.addEventListener('click', event => {
+          const button = event.target.closest('button[data-mode]');
+          if (!button) return;
+          setMode(button.dataset.mode);
+        });
+      }
+
+      if (el.themeButtons) {
+        el.themeButtons.addEventListener('click', event => {
+          const button = event.target.closest('button[data-theme]');
+          if (!button) return;
+          setTheme(button.dataset.theme);
+        });
+      }
+
+      if (el.accentAnim) {
+        el.accentAnim.addEventListener('change', () => {
+          overlayPrefs.accentAnim = el.accentAnim.checked;
+          updateOverlayChip();
+          saveLocal();
+          queueOverlaySave();
+        });
+      }
+
+      if (el.sparkle) {
+        el.sparkle.addEventListener('change', () => {
+          overlayPrefs.sparkle = el.sparkle.checked;
+          updateOverlayChip();
+          saveLocal();
+          queueOverlaySave();
+        });
+      }
+
+      if (el.messageForm && el.newMessage) {
+        el.messageForm.addEventListener('submit', event => {
+          event.preventDefault();
+          const added = addMessage(el.newMessage.value);
+          if (added) {
+            el.newMessage.value = '';
+          }
+          el.newMessage.focus();
+        });
+      }
+
+      if (el.clearMessages) {
+        el.clearMessages.addEventListener('click', () => {
+          if (!state.messages.length) return;
+          if (confirm('Clear all messages?')) {
+            state.messages = [];
+            state.isActive = false;
             renderMessages();
             renderTicker();
             queueSave();
-            const notes = [];
-            if (result.truncated) notes.push(`limited to ${MAX_MESSAGES}`);
-            if (result.trimmed) notes.push(`trimmed to ${MAX_MESSAGE_LENGTH} chars`);
-            const summary = 'Messages imported';
-            toast(notes.length ? `${summary} • ${notes.join('; ')}` : summary);
-          } else {
-            toast('Invalid file format');
           }
-        } catch (err) {
-          console.error('Failed to import messages', err);
-          toast('Import failed');
-        }
-      };
-      input.click();
-    });
-
-    el.messageList.addEventListener('click', handleMessageAction);
-    el.messageList.addEventListener('input', event => {
-      const textarea = event.target.closest('.message-edit-input');
-      if (!textarea) return;
-      editingDraft = textarea.value;
-      const row = textarea.closest('.message-item');
-      if (row) {
-        const preview = row.querySelector('.message-preview');
-        if (preview) {
-          const html = formatMessage(editingDraft);
-          preview.innerHTML = html || '<span class="small">Preview updates as you type.</span>';
-        }
+        });
       }
-    });
 
-    el.savePreset.addEventListener('click', () => {
-      const name = el.presetName.value.trim();
-      if (!name) {
-        toast('Enter a preset name');
-        return;
+      if (el.exportMessages) {
+        el.exportMessages.addEventListener('click', () => {
+          const blob = new Blob([JSON.stringify({ messages: state.messages }, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'ticker-messages.json';
+          a.click();
+          URL.revokeObjectURL(url);
+        });
       }
-      if (name.length > MAX_PRESET_NAME_LENGTH) {
-        toast(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer`);
-        return;
-      }
-      if (!state.messages.length) {
-        toast('Nothing to save');
-        return;
-      }
-      const existing = presets.find(p => p.name.toLowerCase() === name.toLowerCase());
-      const payload = {
-        id: existing ? existing.id : generateClientId('preset'),
-        name,
-        messages: [...state.messages],
-        updatedAt: Date.now()
-      };
-      if (existing) {
-        Object.assign(existing, payload);
-      } else {
-        presets.unshift(payload);
-      }
-      el.presetName.value = '';
-      renderPresets();
-      persistPresets();
-    });
 
-    el.presetList.addEventListener('click', handlePresetAction);
-
-    if (el.presetModalCancel) {
-      el.presetModalCancel.addEventListener('click', () => closePresetModal({ restoreFocus: true }));
-    }
-    if (el.presetModalSave) {
-      el.presetModalSave.addEventListener('click', () => confirmPresetModal());
-    }
-    if (el.presetModalName) {
-      el.presetModalName.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          confirmPresetModal();
-        } else if (event.key === 'Escape') {
-          event.preventDefault();
-          closePresetModal({ restoreFocus: true });
-        }
-      });
-      el.presetModalName.addEventListener('input', () => updatePresetModalError(''));
-    }
-    if (el.presetModal) {
-      el.presetModal.addEventListener('click', event => {
-        if (event.target === el.presetModal) {
-          closePresetModal({ restoreFocus: true });
-        }
-      });
-    }
-    document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && isPresetModalOpen()) {
-        event.preventDefault();
-        closePresetModal({ restoreFocus: true });
+      if (el.importMessages) {
+        el.importMessages.addEventListener('click', () => {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'application/json';
+          input.onchange = async () => {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            try {
+              const text = await file.text();
+              const data = JSON.parse(text);
+              if (Array.isArray(data.messages)) {
+                const result = sanitiseMessagesFn(data.messages, { includeMeta: true });
+                state.messages = result.messages;
+                if (el.autoStart && el.autoStart.checked && state.messages.length) state.isActive = true;
+                renderMessages();
+                renderTicker();
+                queueSave();
+                const notes = [];
+                if (result.truncated) notes.push(`limited to ${MAX_MESSAGES}`);
+                if (result.trimmed) notes.push(`trimmed to ${MAX_MESSAGE_LENGTH} chars`);
+                const summary = 'Messages imported';
+                toast(notes.length ? `${summary} • ${notes.join('; ')}` : summary);
+              } else {
+                toast('Invalid file format');
+              }
+            } catch (err) {
+              console.error('Failed to import messages', err);
+              toast('Import failed');
+            }
+          };
+          input.click();
+        });
       }
-    });
 
-    if (el.saveScene) {
-      el.saveScene.addEventListener('click', () => {
-        saveScenePreset();
-      });
-    }
+      if (el.messageList) {
+        el.messageList.addEventListener('click', handleMessageAction);
+        el.messageList.addEventListener('input', event => {
+          const textarea = event.target.closest('.message-edit-input');
+          if (!textarea) return;
+          editingDraft = textarea.value;
+          const row = textarea.closest('.message-item');
+          if (row) {
+            const preview = row.querySelector('.message-preview');
+            if (preview) {
+              const html = formatMessage(editingDraft);
+              preview.innerHTML = html || '<span class="small">Preview updates as you type.</span>';
+            }
+          }
+        });
+      }
 
-    if (el.sceneName) {
-      el.sceneName.addEventListener('keydown', event => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
+      if (el.savePreset) {
+        el.savePreset.addEventListener('click', () => {
+          const name = el.presetName ? el.presetName.value.trim() : '';
+          if (!name) {
+            toast('Enter a preset name');
+            return;
+          }
+          if (name.length > MAX_PRESET_NAME_LENGTH) {
+            toast(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer`);
+            return;
+          }
+          if (!state.messages.length) {
+            toast('Nothing to save');
+            return;
+          }
+          const existing = presets.find(p => p.name.toLowerCase() === name.toLowerCase());
+          const payload = {
+            id: existing ? existing.id : generateClientId('preset'),
+            name,
+            messages: [...state.messages],
+            updatedAt: Date.now()
+          };
+          if (existing) {
+            Object.assign(existing, payload);
+          } else {
+            presets.unshift(payload);
+          }
+          if (el.presetName) {
+            el.presetName.value = '';
+          }
+          renderPresets();
+          persistPresets();
+        });
+      }
+
+      if (el.presetList) {
+        el.presetList.addEventListener('click', handlePresetAction);
+      }
+
+      if (el.presetModalCancel) {
+        el.presetModalCancel.addEventListener('click', () => closePresetModal({ restoreFocus: true }));
+      }
+      if (el.presetModalSave) {
+        el.presetModalSave.addEventListener('click', () => confirmPresetModal());
+      }
+      if (el.presetModalName) {
+        el.presetModalName.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            confirmPresetModal();
+          } else if (event.key === 'Escape') {
+            event.preventDefault();
+            closePresetModal({ restoreFocus: true });
+          }
+        });
+        el.presetModalName.addEventListener('input', () => updatePresetModalError(''));
+      }
+      if (el.presetModal) {
+        el.presetModal.addEventListener('click', event => {
+          if (event.target === el.presetModal) {
+            closePresetModal({ restoreFocus: true });
+          }
+        });
+      }
+      if (typeof document !== 'undefined') {
+        document.addEventListener('keydown', event => {
+          if (event.key === 'Escape' && isPresetModalOpen()) {
+            event.preventDefault();
+            closePresetModal({ restoreFocus: true });
+          }
+        });
+      }
+
+      if (el.saveScene) {
+        el.saveScene.addEventListener('click', () => {
           saveScenePreset();
-        }
-      });
+        });
+      }
+
+      if (el.sceneName) {
+        el.sceneName.addEventListener('keydown', event => {
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            saveScenePreset();
+          }
+        });
+      }
+
+      if (el.sceneList) {
+        el.sceneList.addEventListener('click', handleSceneAction);
+      }
+
+      if (typeof window !== 'undefined') {
+        window.addEventListener('beforeunload', () => disconnectStream());
+      }
     }
 
-    if (el.sceneList) {
-      el.sceneList.addEventListener('click', handleSceneAction);
-    }
-
-    function init() {
+    async function init() {
+      if (initStarted) return;
+      initStarted = true;
+      registerEventHandlers();
+      applyServerStatus('checking', { force: true });
       loadLocal();
       renderOverlayControls();
       updateHighlightRegex();
@@ -6246,11 +6620,14 @@
       renderPresets();
       renderScenes();
       updateOverlayChip();
-      connectStream();
+      void connectStream({ reason: 'initial' });
     }
 
-    init();
-    window.addEventListener('beforeunload', disconnectStream);
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init, { once: true });
+    } else {
+      void init();
+    }
   </script>
 </body>
 </html>
