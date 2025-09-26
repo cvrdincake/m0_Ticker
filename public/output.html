@@ -812,8 +812,25 @@
       clampScaleValue,
       clampPopupScaleValue,
       clampSlateRotationSeconds,
-      normaliseSlateNotes
+      normaliseSlateNotes,
+      normaliseServerBaseUrl: sharedNormaliseServerBaseUrl
     } = window.TickerShared || {};
+
+    const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
+    const normaliseServerBase = typeof sharedNormaliseServerBaseUrl === 'function'
+      ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+      : (value, fallback = DEFAULT_SERVER_URL) => {
+          const fallbackValue = typeof fallback === 'string' && fallback.trim()
+            ? fallback.trim()
+            : DEFAULT_SERVER_URL;
+          const raw = typeof value === 'string' ? value.trim() : '';
+          const target = raw || fallbackValue;
+          const cleaned = target
+            .replace(/(?:\/ticker)+\/?$/i, '')
+            .replace(/\/+$/g, '');
+          const fallbackClean = fallbackValue.replace(/\/+$/g, '');
+          return cleaned || fallbackClean;
+        };
 
     const SPECIAL_MAP = {
       '~~': 'rainbow',
@@ -2467,7 +2484,7 @@
     class TickerOverlay {
       constructor() {
         const params = new URLSearchParams(location.search);
-        this.server = (params.get('server') || 'http://127.0.0.1:3000').replace(/\/?$/, '');
+        this.server = normaliseServerBase(params.get('server'), DEFAULT_SERVER_URL);
         this.overlay = { ...DEFAULT_OVERLAY };
         this.overrides = {
           label: false,
