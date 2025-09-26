@@ -766,6 +766,20 @@
     };
 
     const sharedConfig = window.SharedConfig || {};
+
+    function normaliseThemeList(list) {
+      if (!Array.isArray(list)) return [];
+      const seen = new Set();
+      const normalised = [];
+      for (const entry of list) {
+        if (typeof entry !== 'string') continue;
+        const trimmed = entry.trim().toLowerCase();
+        if (!trimmed || seen.has(trimmed)) continue;
+        seen.add(trimmed);
+        normalised.push(trimmed);
+      }
+      return normalised;
+    }
     const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
       ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
       : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
@@ -780,7 +794,10 @@
     const MAX_SLATE_TEXT_LENGTH = 200;
     const MAX_SLATE_NOTES = 6;
     const HIDE_TRANSITION_FALLBACK_MS = 700;
-    const THEME_CLASSNAMES = (Array.isArray(OVERLAY_THEMES) ? OVERLAY_THEMES : ['midnight-glass', 'aurora-night', 'nexus-grid', 'zen-flow', 'duotone-fusion']).map(theme => `ticker--${theme}`);
+    const themeOptions = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
+      ? OVERLAY_THEMES.slice()
+      : normaliseThemeList(sharedConfig.OVERLAY_THEMES);
+    const THEME_CLASSNAMES = themeOptions.map(theme => `ticker--${theme}`);
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',

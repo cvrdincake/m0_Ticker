@@ -1441,44 +1441,44 @@
               </div>
               <div class="control-group">
                 <label for="slateClockLabel">Clock label</label>
-                <input type="text" id="slateClockLabel" maxlength="48" placeholder="UK TIME" />
+                <input type="text" id="slateClockLabel" placeholder="UK TIME" />
               </div>
               <div class="control-group">
                 <label for="slateClockSubtitle">Clock subtitle</label>
-                <input type="text" id="slateClockSubtitle" maxlength="200" placeholder="UK time" />
+                <input type="text" id="slateClockSubtitle" placeholder="UK time" />
               </div>
               <div class="control-group">
                 <label for="slateNextLabel">Next-up label</label>
-                <input type="text" id="slateNextLabel" maxlength="48" placeholder="Next up" />
+                <input type="text" id="slateNextLabel" placeholder="Next up" />
               </div>
               <div class="control-group">
                 <label for="slateNextTitle">Next-up title</label>
-                <input type="text" id="slateNextTitle" maxlength="64" placeholder="Guest interview" />
+                <input type="text" id="slateNextTitle" placeholder="Guest interview" />
               </div>
               <div class="control-group">
                 <label for="slateNextSubtitle">Next-up details</label>
-                <input type="text" id="slateNextSubtitle" maxlength="200" placeholder="Happening after the break" />
+                <input type="text" id="slateNextSubtitle" placeholder="Happening after the break" />
               </div>
               <div class="control-group">
                 <label for="slateSponsorLabel">Sponsor label</label>
-                <input type="text" id="slateSponsorLabel" maxlength="48" placeholder="Sponsor" />
+                <input type="text" id="slateSponsorLabel" placeholder="Sponsor" />
               </div>
               <div class="control-group">
                 <label for="slateSponsorName">Sponsor name</label>
-                <input type="text" id="slateSponsorName" maxlength="64" placeholder="Acme Co." />
+                <input type="text" id="slateSponsorName" placeholder="Acme Co." />
               </div>
               <div class="control-group">
                 <label for="slateSponsorTagline">Sponsor tagline</label>
-                <input type="text" id="slateSponsorTagline" maxlength="200" placeholder="Proudly supporting tonight's stream" />
+                <input type="text" id="slateSponsorTagline" placeholder="Proudly supporting tonight's stream" />
               </div>
               <div class="control-group">
                 <label for="slateNotesLabel">Spotlight label</label>
-                <input type="text" id="slateNotesLabel" maxlength="48" placeholder="Spotlight" />
+                <input type="text" id="slateNotesLabel" placeholder="Spotlight" />
               </div>
               <div class="control-group">
                 <label for="slateNotes">Spotlight notes (one per line)</label>
-                <textarea id="slateNotes" maxlength="1200" placeholder="Follow @channelhandle&#10;Share your questions with #AskLive"></textarea>
-                <p class="control-hint">Up to six lines (200 characters each) rotate alongside the clock card.</p>
+                <textarea id="slateNotes" placeholder="Follow @channelhandle&#10;Share your questions with #AskLive"></textarea>
+                <p class="control-hint" id="slateNotesHint">Up to six lines (200 characters each) rotate alongside the clock card.</p>
               </div>
             </div>
             <div class="slate-preview is-empty is-visible" id="slatePreview">
@@ -1576,6 +1576,7 @@
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
 
+    const sharedConfigWindow = window.SharedConfig || {};
     const normaliserExports = window.TickerClientNormalisers || {};
     const {
       DEFAULT_OVERLAY: BASE_DEFAULT_OVERLAY,
@@ -1599,6 +1600,20 @@
       sanitiseMessages
     } = normaliserExports;
 
+    function normaliseThemeList(list) {
+      if (!Array.isArray(list)) return [];
+      const seen = new Set();
+      const normalised = [];
+      for (const entry of list) {
+        if (typeof entry !== 'string') continue;
+        const trimmed = entry.trim().toLowerCase();
+        if (!trimmed || seen.has(trimmed)) continue;
+        seen.add(trimmed);
+        normalised.push(trimmed);
+      }
+      return normalised;
+    }
+
     const STORAGE_KEY = 'ticker-dashboard-v3';
     const MAX_MESSAGES = EXPORTED_MAX_MESSAGES || 50;
     const MAX_MESSAGE_LENGTH = EXPORTED_MAX_MESSAGE_LENGTH || 280;
@@ -1613,8 +1628,8 @@
     const THEME_OPTIONS = Array.isArray(BASE_THEME_OPTIONS) && BASE_THEME_OPTIONS.length
         ? BASE_THEME_OPTIONS.slice()
         : (Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
-            ? OVERLAY_THEMES
-            : ['midnight-glass', 'aurora-night', 'nexus-grid', 'zen-flow', 'duotone-fusion']);
+            ? OVERLAY_THEMES.slice()
+            : normaliseThemeList(sharedConfigWindow.OVERLAY_THEMES));
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
@@ -1866,6 +1881,7 @@
       slateSponsorTagline: document.getElementById('slateSponsorTagline'),
       slateNotesLabel: document.getElementById('slateNotesLabel'),
       slateNotes: document.getElementById('slateNotes'),
+      slateNotesHint: document.getElementById('slateNotesHint'),
       slatePreview: document.getElementById('slatePreview'),
       slatePreviewDots: document.getElementById('slatePreviewDots'),
       slatePreviewContent: document.getElementById('slatePreviewContent'),
@@ -1889,6 +1905,23 @@
       presetModalSave: document.getElementById('presetModalSave'),
       presetModalCancel: document.getElementById('presetModalCancel')
     };
+
+    const compositeSlateNotesLimit = MAX_SLATE_NOTES * MAX_SLATE_TEXT_LENGTH;
+
+    if (el.slateClockLabel) el.slateClockLabel.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateClockSubtitle) el.slateClockSubtitle.maxLength = MAX_SLATE_TEXT_LENGTH;
+    if (el.slateNextLabel) el.slateNextLabel.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateNextTitle) el.slateNextTitle.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateNextSubtitle) el.slateNextSubtitle.maxLength = MAX_SLATE_TEXT_LENGTH;
+    if (el.slateSponsorLabel) el.slateSponsorLabel.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateSponsorName) el.slateSponsorName.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateSponsorTagline) el.slateSponsorTagline.maxLength = MAX_SLATE_TEXT_LENGTH;
+    if (el.slateNotesLabel) el.slateNotesLabel.maxLength = MAX_SLATE_TITLE_LENGTH;
+    if (el.slateNotes) el.slateNotes.maxLength = compositeSlateNotesLimit;
+    if (el.slateNotesHint) {
+      el.slateNotesHint.textContent = `Up to ${MAX_SLATE_NOTES} lines (${MAX_SLATE_TEXT_LENGTH} characters each) rotate alongside the clock card.`;
+    }
+    if (el.sceneName) el.sceneName.maxLength = MAX_SCENE_NAME_LENGTH;
 
     let fetchInFlight = false;
     let fetchPending = false;

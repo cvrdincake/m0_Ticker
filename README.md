@@ -26,17 +26,4 @@ Set the following environment variables before starting `server.js` to change wh
 | --- | --- | --- |
 | `TICKER_DIR` | Directory served at `/ticker` for dashboard and overlay assets. | `<repo>/public` |
 | `TICKER_STATE_FILE` | Path to the JSON file used to persist combined ticker/popup/scene state. | `<repo>/ticker-state.json` |
-| `TICKER_STATE_BACKUPS` | Number of historical copies of the state file to keep (rotated as `ticker-state.json.bakN`). | `5` |
 
-`TICKER_DIR` and `TICKER_STATE_FILE` accept relative paths, which will be resolved against the current working directory when the server boots.
-
-## Restoring from a backup
-
-Every successful persist rotates the current `ticker-state.json` into a numbered backup (for example, `ticker-state.json.bak1`) before the new state is promoted. To restore from one of these backups:
-
-1. Stop the server so it does not rewrite the state file while you recover.
-2. Pick the backup you want to restore (higher numbers are older snapshots) and copy it back into place, e.g.:
-   ```bash
-   cp ticker-state.json.bak1 ticker-state.json
-   ```
-3. Restart the server; it will load the restored state on boot.

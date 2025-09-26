@@ -1,12 +1,26 @@
 (function (root, factory) {
-  const exports = factory();
+  const exports = factory(root);
   if (typeof module === 'object' && module.exports) {
     module.exports = exports;
   }
   if (root && typeof root === 'object') {
     root.TickerShared = exports;
   }
-})(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : typeof self !== 'undefined' ? self : this, function (root) {
+  const sharedConfig = (() => {
+    if (typeof module === 'object' && module.exports && typeof require === 'function') {
+      try {
+        return require('./shared-config.js');
+      } catch (error) {
+        // Fallback to any global configuration when the module loader is unavailable.
+      }
+    }
+    if (root && typeof root === 'object' && root.SharedConfig) {
+      return root.SharedConfig;
+    }
+    return {};
+  })();
+
   const HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
   const RGB_COLOR_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
   const HSL_COLOR_RE = /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
@@ -27,13 +41,24 @@
     'tomato', 'mintcream', 'honeydew', 'lavender', 'rebeccapurple', 'transparent'
   ]);
 
-  const OVERLAY_THEMES = [
-    'midnight-glass',
-    'aurora-night',
-    'nexus-grid',
-    'zen-flow',
-    'duotone-fusion'
-  ];
+  const OVERLAY_THEMES = (() => {
+    const rawThemes = Array.isArray(sharedConfig.OVERLAY_THEMES)
+      ? sharedConfig.OVERLAY_THEMES
+      : [];
+
+    const seen = new Set();
+    const normalised = [];
+
+    for (const entry of rawThemes) {
+      if (typeof entry !== 'string') continue;
+      const trimmed = entry.trim().toLowerCase();
+      if (!trimmed || seen.has(trimmed)) continue;
+      seen.add(trimmed);
+      normalised.push(trimmed);
+    }
+
+    return Object.freeze(normalised);
+  })();
 
   function clampNumber(value, min, max, fallback, precision) {
     const numeric = Number(value);

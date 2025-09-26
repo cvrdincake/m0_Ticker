@@ -75,7 +75,41 @@ const DEFAULT_HIGHLIGHT_STRING = typeof CONFIG_DEFAULT_HIGHLIGHT_STRING === 'str
   ? CONFIG_DEFAULT_HIGHLIGHT_STRING
   : DEFAULT_HIGHLIGHTS.join(',');
 
-const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
+const ENV_DEFAULT_OVERLAY_OVERRIDES = (() => {
+  const overrides = {};
+
+  const rawLabel = process.env.TICKER_DEFAULT_LABEL;
+  if (typeof rawLabel === 'string') {
+    const trimmed = rawLabel.trim().slice(0, 48);
+    if (trimmed) overrides.label = trimmed;
+  }
+
+  const rawAccent = process.env.TICKER_DEFAULT_ACCENT;
+  if (typeof rawAccent === 'string') {
+    const trimmedAccent = rawAccent.trim();
+    if (trimmedAccent && trimmedAccent.length <= 64 && isSafeCssColor(trimmedAccent)) {
+      overrides.accent = trimmedAccent;
+    }
+  }
+
+  const rawAccentSecondary = process.env.TICKER_DEFAULT_ACCENT_SECONDARY;
+  if (typeof rawAccentSecondary === 'string') {
+    const trimmedSecondary = rawAccentSecondary.trim();
+    if (trimmedSecondary && trimmedSecondary.length <= 64 && isSafeCssColor(trimmedSecondary)) {
+      overrides.accentSecondary = trimmedSecondary;
+    }
+  }
+
+  const rawTheme = process.env.TICKER_DEFAULT_THEME;
+  if (typeof rawTheme === 'string') {
+    const theme = normaliseTheme(rawTheme);
+    if (theme) overrides.theme = theme;
+  }
+
+  return overrides;
+})();
+
+const BASE_DEFAULT_OVERLAY_SOURCE = CONFIG_DEFAULT_OVERLAY
   ? { ...CONFIG_DEFAULT_OVERLAY }
   : {
       label: 'LIVE',
@@ -90,6 +124,11 @@ const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
       sparkle: true,
       theme: 'midnight-glass'
     };
+
+const BASE_DEFAULT_OVERLAY = {
+  ...BASE_DEFAULT_OVERLAY_SOURCE,
+  ...ENV_DEFAULT_OVERLAY_OVERRIDES
+};
 
 const BASE_DEFAULT_POPUP = CONFIG_DEFAULT_POPUP
   ? { ...CONFIG_DEFAULT_POPUP }
@@ -164,6 +203,59 @@ function createInitialState() {
   };
 }
 
+const ENABLE_SERVER_LOGS = /^true$/i.test(process.env.TICKER_VERBOSE_LOGS || process.env.ENABLE_TICKER_LOGS || '');
+
+function safeTruncate(value, max = 160) {
+  if (typeof value !== 'string') return value;
+  if (value.length <= max) return value;
+  return `${value.slice(0, max)}…`;
+}
+
+function sanitiseForLog(value, depth = 0) {
+  if (value === null || value === undefined) return value;
+  const type = typeof value;
+  if (type === 'string') return safeTruncate(value);
+  if (type === 'number' || type === 'boolean') return value;
+  if (type === 'function') return '[function]';
+  if (Array.isArray(value)) {
+    if (depth >= 1) return `Array(${value.length})`;
+    return value.slice(0, 5).map(item => sanitiseForLog(item, depth + 1));
+  }
+  if (type === 'object') {
+    if (depth >= 1) return '[Object]';
+    const entries = Object.entries(value).slice(0, 10);
+    return entries.reduce((acc, [key, val]) => {
+      acc[key] = sanitiseForLog(val, depth + 1);
+      return acc;
+    }, {});
+  }
+  return `[${type}]`;
+}
+
+function logInfo(message, context) {
+  if (!ENABLE_SERVER_LOGS) return;
+  if (context !== undefined) {
+    console.info(message, sanitiseForLog(context));
+  } else {
+    console.info(message);
+  }
+}
+
+function logWarning(message, context) {
+  if (!ENABLE_SERVER_LOGS) return;
+  console.warn(message, sanitiseForLog(context));
+}
+
+function logError(message, context) {
+  if (!ENABLE_SERVER_LOGS) return;
+  console.error(message, sanitiseForLog(context));
+}
+
+function sanitiseUserAgent(value) {
+  if (typeof value !== 'string') return undefined;
+  return safeTruncate(value, 200);
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '256kb' }));
@@ -215,6 +307,10 @@ app.get('/ticker/stream', (req, res) => {
   res.write('retry: 2000\n\n');
 
   sseClients.add(res);
+  logInfo('[SSE] client connected', {
+    ip: req.ip,
+    userAgent: sanitiseUserAgent(req.headers['user-agent'])
+  });
   sendInitialState(res);
 
   const heartbeat = setInterval(() => {
@@ -229,6 +325,10 @@ app.get('/ticker/stream', (req, res) => {
   req.on('close', () => {
     clearInterval(heartbeat);
     sseClients.delete(res);
+    logInfo('[SSE] client disconnected', {
+      ip: req.ip,
+      userAgent: sanitiseUserAgent(req.headers['user-agent'])
+    });
   });
 });
 
@@ -248,8 +348,18 @@ app.post('/ticker/state', (req, res) => {
     state.ticker._updatedAt = Date.now();
     schedulePersist();
     broadcast('ticker', state.ticker);
+    logInfo('[Ticker] state updated', {
+      isActive: state.ticker.isActive,
+      messageCount: state.ticker.messages.length,
+      displayDuration: state.ticker.displayDuration,
+      intervalBetween: state.ticker.intervalBetween
+    });
     res.json({ ok: true, state: state.ticker });
   } catch (e) {
+    logWarning('[Ticker] state update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message || 'Invalid ticker payload' });
   }
 });
@@ -291,8 +401,17 @@ app.post('/popup/state', (req, res) => {
     schedulePopupAutoDismiss();
     schedulePersist();
     broadcast('popup', state.popup);
+    logInfo('[Popup] state updated', {
+      isActive: state.popup.isActive,
+      countdownEnabled: state.popup.countdownEnabled,
+      textPreview: safeTruncate(state.popup.text || '', 80)
+    });
     res.json({ ok: true, popup: state.popup });
   } catch (e) {
+    logWarning('[Popup] state update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -308,8 +427,17 @@ app.post('/ticker/overlay', (req, res) => {
     state.overlay = { ...state.overlay, ...overlay, _updatedAt: Date.now() };
     schedulePersist();
     broadcast('overlay', state.overlay);
+    logInfo('[Overlay] state updated', {
+      label: state.overlay.label,
+      theme: state.overlay.theme,
+      accent: state.overlay.accent
+    });
     res.json({ ok: true, overlay: state.overlay });
   } catch (e) {
+    logWarning('[Overlay] state update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -334,8 +462,18 @@ app.post('/slate/state', (req, res) => {
     };
     schedulePersist();
     broadcast('slate', state.slate);
+    logInfo('[Slate] state updated', {
+      isEnabled: state.slate.isEnabled,
+      rotationSeconds: state.slate.rotationSeconds,
+      notesCount: Array.isArray(state.slate.notes) ? state.slate.notes.length : 0,
+      nextTitle: safeTruncate(state.slate.nextTitle || '', 80)
+    });
     res.json({ ok: true, slate: state.slate });
   } catch (e) {
+    logWarning('[Slate] state update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message || 'Invalid slate payload' });
   }
 });
@@ -359,8 +497,16 @@ app.post('/brb/state', (req, res) => {
     state.brb._updatedAt = Date.now();
     schedulePersist();
     broadcast('brb', state.brb);
+    logInfo('[BRB] state updated', {
+      isActive: state.brb.isActive,
+      textPreview: safeTruncate(state.brb.text || '', 80)
+    });
     res.json({ ok: true, state: state.brb });
   } catch (e) {
+    logWarning('[BRB] state update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -376,8 +522,15 @@ app.post('/ticker/presets', (req, res) => {
     state.presets = sanitisePresetList(presets, { strict: true });
     schedulePersist();
     broadcast('presets', state.presets);
+    logInfo('[Presets] list updated', {
+      count: Array.isArray(state.presets) ? state.presets.length : 0
+    });
     res.json({ ok: true, presets: state.presets });
   } catch (e) {
+    logWarning('[Presets] update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -393,8 +546,15 @@ app.post('/ticker/scenes', (req, res) => {
     state.scenes = sanitiseSceneList(scenes, { strict: true });
     schedulePersist();
     broadcast('scenes', state.scenes);
+    logInfo('[Scenes] list updated', {
+      count: Array.isArray(state.scenes) ? state.scenes.length : 0
+    });
     res.json({ ok: true, scenes: state.scenes });
   } catch (e) {
+    logWarning('[Scenes] update failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -408,8 +568,13 @@ app.post('/ticker/scenes/apply', (req, res) => {
     }
     const result = applyScene(scene);
     schedulePersist();
+    logInfo('[Scenes] apply', { sceneId });
     res.json({ ok: true, sceneId, ...result });
   } catch (e) {
+    logWarning('[Scenes] apply failed', {
+      error: e && e.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: e.message });
   }
 });
@@ -452,6 +617,10 @@ app.post('/ticker/state/import', (req, res) => {
 
     res.json({ ok: true, state });
   } catch (err) {
+    logError('[State] import failed', {
+      error: err && err.message,
+      payload: req.body
+    });
     res.status(400).json({ ok: false, error: err.message || 'Invalid state import payload' });
   }
 });
