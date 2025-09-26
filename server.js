@@ -6,6 +6,7 @@
 const path = require('path');
 const fs = require('fs');
 const { randomUUID } = require('crypto');
+const { Readable } = require('stream');
 const express = require('express');
 const cors = require('cors');
 
@@ -129,6 +130,30 @@ function createDefaultSlate() {
   };
 }
 
+function createInitialState() {
+  const now = Date.now();
+  return {
+    ticker: {
+      isActive: false,
+      messages: [],
+      displayDuration: 5,
+      // Interval is clamped to a 60-minute (3600 second) ceiling.
+      intervalBetween: 60,
+      _updatedAt: now
+    },
+    brb: {
+      isActive: false,
+      text: 'Be Right Back',
+      _updatedAt: now
+    },
+    presets: [],
+    scenes: [],
+    overlay: createDefaultOverlay(),
+    popup: createDefaultPopup(),
+    slate: createDefaultSlate()
+  };
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '256kb' }));
@@ -164,26 +189,7 @@ function sendInitialState(res) {
 }
 
 // ---- In-memory state (mirrored to STATE_FILE on disk)
-const state = {
-  ticker: {
-    isActive: false,
-    messages: [],
-    displayDuration: 5,
-    // Interval is clamped to a 60-minute (3600 second) ceiling.
-    intervalBetween: 60,
-    _updatedAt: Date.now()
-  },
-  brb: {
-    isActive: false,
-    text: 'Be Right Back',
-    _updatedAt: Date.now()
-  },
-  presets: [],
-  scenes: [],
-  overlay: createDefaultOverlay(),
-  popup: createDefaultPopup(),
-  slate: createDefaultSlate()
-};
+const state = createInitialState();
 
 // ---- Health
 app.get('/health', (req, res) => {
@@ -395,6 +401,48 @@ app.post('/ticker/scenes/apply', (req, res) => {
     res.json({ ok: true, sceneId, ...result });
   } catch (e) {
     res.status(400).json({ ok: false, error: e.message });
+  }
+});
+
+app.get('/ticker/state/export', (req, res) => {
+  const payload = JSON.stringify(state, null, 2);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Disposition', 'attachment; filename="ticker-state.json"');
+  Readable.from(payload).pipe(res);
+});
+
+app.post('/ticker/state/import', (req, res) => {
+  try {
+    let payload = req.body;
+    if (typeof payload === 'string') {
+      try {
+        payload = JSON.parse(payload);
+      } catch (parseErr) {
+        throw new Error('Uploaded file was not valid JSON.');
+      }
+    }
+    if (!payload || typeof payload !== 'object') {
+      throw new Error('Uploaded state must be a JSON object.');
+    }
+
+    const nextState = createInitialState();
+    hydrateState(payload, nextState, { scheduleTimers: false });
+    replaceState(nextState);
+    schedulePopupAutoDismiss();
+    schedulePersist();
+
+    broadcast('ticker', state.ticker);
+    broadcast('overlay', state.overlay);
+    broadcast('presets', state.presets);
+    broadcast('scenes', state.scenes);
+    broadcast('brb', state.brb);
+    broadcast('popup', state.popup);
+    broadcast('slate', state.slate);
+
+    res.json({ ok: true, state });
+  } catch (err) {
+    res.status(400).json({ ok: false, error: err.message || 'Invalid state import payload' });
   }
 });
 
@@ -886,72 +934,106 @@ function applyScene(scene) {
   };
 }
 
-function hydrateState(partial) {
-  if (!partial || typeof partial !== 'object') return;
-  if (partial.ticker) {
+function hydrateState(partial, target = state, options = {}) {
+  if (!target || typeof target !== 'object') return target;
+  const { scheduleTimers = target === state } = options;
+  if (!partial || typeof partial !== 'object') {
+    if (scheduleTimers) schedulePopupAutoDismiss();
+    return target;
+  }
+
+  if (partial.ticker && typeof partial.ticker === 'object') {
     const incoming = partial.ticker;
-    if (Array.isArray(incoming.messages)) state.ticker.messages = sanitiseMessages(incoming.messages);
-    if (typeof incoming.isActive === 'boolean') state.ticker.isActive = incoming.isActive;
-    if (Number.isFinite(incoming.displayDuration)) state.ticker.displayDuration = clampDuration(incoming.displayDuration);
-    if (Number.isFinite(incoming.intervalBetween)) state.ticker.intervalBetween = clampInterval(incoming.intervalBetween);
-    if (!state.ticker.messages.length) state.ticker.isActive = false;
-    state.ticker._updatedAt = Number.isFinite(incoming._updatedAt) ? incoming._updatedAt : Date.now();
+    if (Array.isArray(incoming.messages)) target.ticker.messages = sanitiseMessages(incoming.messages);
+    if (typeof incoming.isActive === 'boolean') target.ticker.isActive = incoming.isActive;
+    if (Number.isFinite(incoming.displayDuration)) {
+      target.ticker.displayDuration = clampDurationSeconds(incoming.displayDuration, target.ticker.displayDuration);
+    }
+    if (Number.isFinite(incoming.intervalBetween)) {
+      target.ticker.intervalBetween = clampIntervalSeconds(incoming.intervalBetween, target.ticker.intervalBetween);
+    }
+    if (!target.ticker.messages.length) target.ticker.isActive = false;
+    target.ticker._updatedAt = Number.isFinite(incoming._updatedAt) ? incoming._updatedAt : Date.now();
   }
-  if (partial.brb) {
+
+  if (partial.brb && typeof partial.brb === 'object') {
     const incoming = partial.brb;
-    if (typeof incoming.isActive === 'boolean') state.brb.isActive = incoming.isActive;
-    if (typeof incoming.text === 'string') state.brb.text = incoming.text;
-    state.brb._updatedAt = Number.isFinite(incoming._updatedAt) ? incoming._updatedAt : Date.now();
+    if (typeof incoming.isActive === 'boolean') target.brb.isActive = incoming.isActive;
+    if (typeof incoming.text === 'string') target.brb.text = incoming.text;
+    target.brb._updatedAt = Number.isFinite(incoming._updatedAt) ? incoming._updatedAt : Date.now();
   }
+
   if (Array.isArray(partial.presets)) {
     try {
-      state.presets = sanitisePresetList(partial.presets);
+      target.presets = sanitisePresetList(partial.presets);
     } catch (err) {
       console.warn('[state] ignoring invalid presets from disk:', err.message);
-      state.presets = [];
+      target.presets = [];
     }
   }
+
   if (Array.isArray(partial.scenes)) {
     try {
-      state.scenes = sanitiseSceneList(partial.scenes);
+      target.scenes = sanitiseSceneList(partial.scenes);
     } catch (err) {
       console.warn('[state] ignoring invalid scenes from disk:', err.message);
-      state.scenes = [];
+      target.scenes = [];
     }
   }
+
   if (partial.overlay && typeof partial.overlay === 'object') {
     const overlay = sanitiseOverlayInput(partial.overlay);
-    state.overlay = {
-      ...state.overlay,
+    target.overlay = {
+      ...target.overlay,
       ...overlay,
       _updatedAt: Number.isFinite(partial.overlay._updatedAt) ? partial.overlay._updatedAt : Date.now()
     };
   }
+
   if (partial.popup && typeof partial.popup === 'object') {
     const popup = sanitisePopupInput(partial.popup);
-    state.popup = {
-      ...state.popup,
+    target.popup = {
+      ...target.popup,
       ...popup,
       _updatedAt: Number.isFinite(partial.popup._updatedAt) ? partial.popup._updatedAt : Date.now()
     };
-    if (!state.popup.text || !state.popup.text.trim()) {
-      state.popup.text = '';
-      state.popup.isActive = false;
+    if (!target.popup.text || !target.popup.text.trim()) {
+      target.popup.text = '';
+      target.popup.isActive = false;
+      target.popup.countdownEnabled = false;
+      target.popup.countdownTarget = null;
     }
-    schedulePopupAutoDismiss();
   }
+
   if (partial.slate && typeof partial.slate === 'object') {
     const slateUpdate = sanitiseSlateInput(partial.slate);
     const notes = Object.prototype.hasOwnProperty.call(slateUpdate, 'notes')
       ? sanitiseSlateNotesInput(slateUpdate.notes)
-      : state.slate.notes;
-    state.slate = {
-      ...state.slate,
+      : target.slate.notes;
+    target.slate = {
+      ...target.slate,
       ...slateUpdate,
       notes,
       _updatedAt: Number.isFinite(partial.slate._updatedAt) ? partial.slate._updatedAt : Date.now()
     };
   }
+
+  if (scheduleTimers) {
+    schedulePopupAutoDismiss();
+  }
+
+  return target;
+}
+
+function replaceState(nextState) {
+  if (!nextState || typeof nextState !== 'object') return;
+  if (nextState.ticker) state.ticker = nextState.ticker;
+  if (nextState.brb) state.brb = nextState.brb;
+  state.presets = Array.isArray(nextState.presets) ? nextState.presets : [];
+  state.scenes = Array.isArray(nextState.scenes) ? nextState.scenes : [];
+  if (nextState.overlay) state.overlay = nextState.overlay;
+  if (nextState.popup) state.popup = nextState.popup;
+  if (nextState.slate) state.slate = nextState.slate;
 }
 
 async function loadStateFromDisk() {
