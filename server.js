@@ -59,6 +59,12 @@ const PUBLIC_TICKER = path.resolve(TICKER_DIR_INPUT);
 const DEFAULT_STATE_FILE = path.join(__dirname, 'ticker-state.json');
 const STATE_FILE_INPUT = process.env.TICKER_STATE_FILE || DEFAULT_STATE_FILE;
 const STATE_FILE = path.resolve(STATE_FILE_INPUT);
+const STATE_BACKUP_LIMIT = (() => {
+  const raw = Number(process.env.TICKER_STATE_BACKUPS);
+  if (!Number.isFinite(raw)) return 5;
+  const clamped = Math.floor(raw);
+  return clamped > 0 ? clamped : 0;
+})();
 
 const PERSIST_DEBOUNCE_MS = 150;
 const FALLBACK_HIGHLIGHTS = ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
@@ -1219,6 +1225,7 @@ async function writeStateToDisk() {
   const tmpFile = `${STATE_FILE}.tmp`;
   try {
     await fsp.writeFile(tmpFile, payload, 'utf8');
+    await rotateStateBackups();
     await fsp.rename(tmpFile, STATE_FILE);
   } catch (err) {
     try {
@@ -1230,6 +1237,47 @@ async function writeStateToDisk() {
     }
     throw err;
   }
+}
+
+async function rotateStateBackups() {
+  if (STATE_BACKUP_LIMIT <= 0) return false;
+
+  let rotatedPrimary = false;
+
+  for (let index = STATE_BACKUP_LIMIT; index >= 1; index -= 1) {
+    const source = index === 1 ? STATE_FILE : `${STATE_FILE}.bak${index - 1}`;
+    const target = `${STATE_FILE}.bak${index}`;
+
+    try {
+      await fsp.access(source);
+    } catch (accessErr) {
+      if (accessErr && accessErr.code !== 'ENOENT') {
+        throw accessErr;
+      }
+      continue;
+    }
+
+    try {
+      await fsp.unlink(target);
+    } catch (unlinkErr) {
+      if (unlinkErr && unlinkErr.code !== 'ENOENT') {
+        console.warn(`[state] failed to remove old backup ${target}:`, unlinkErr);
+        throw unlinkErr;
+      }
+    }
+
+    await fsp.rename(source, target);
+
+    if (index === 1) {
+      rotatedPrimary = true;
+    }
+  }
+
+  if (rotatedPrimary) {
+    console.log(`[state] rotated backups (keeping last ${STATE_BACKUP_LIMIT})`);
+  }
+
+  return rotatedPrimary;
 }
 
 loadStateFromDisk().finally(() => {
