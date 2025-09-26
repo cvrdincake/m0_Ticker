@@ -8,6 +8,7 @@ const os = require('node:os');
 const { setTimeout: delay } = require('node:timers/promises');
 
 const ROOT_DIR = path.join(__dirname, '..');
+const { OVERLAY_THEMES } = require(path.join(ROOT_DIR, 'public/js/shared-config.js'));
 const HOST = '127.0.0.1';
 const TEST_PORT = 3202;
 const BASE_URL = `http://${HOST}:${TEST_PORT}`;
@@ -197,6 +198,10 @@ test('ticker state export/import round-trips through the API', async t => {
   const exportedState = await exportResponse.json();
   assert.ok(exportedState && typeof exportedState === 'object', 'export should return JSON');
   assert.equal(exportedState.overlay.label, overlayLabel, 'overlay label should retain 48 characters');
+  assert.ok(
+    OVERLAY_THEMES.includes(exportedState.overlay.theme),
+    'overlay theme should be one of the supported themes'
+  );
 
   // Mutate the state so the import has to overwrite everything
   await fetchJson(`${BASE_URL}/ticker/state`, {
@@ -255,6 +260,10 @@ test('ticker state export/import round-trips through the API', async t => {
 
   const overlayState = await fetchJson(`${BASE_URL}/ticker/overlay`);
   assert.deepEqual(overlayState, exportedState.overlay, 'overlay state should match exported payload');
+  assert.ok(
+    OVERLAY_THEMES.includes(overlayState.theme),
+    'persisted overlay theme should remain in the supported theme list'
+  );
 
   const slateState = await fetchJson(`${BASE_URL}/slate/state`);
   assert.deepEqual(slateState, exportedState.slate, 'slate state should match exported payload');
