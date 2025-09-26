@@ -81,6 +81,13 @@
       right: 0;
       bottom: 0;
       height: var(--bar-height);
+      --ticker-ambient-opacity: 0.22;
+      --ticker-ambient-blur: 0px;
+      --ticker-ambient-scale: 1;
+      --ticker-accent-offset: 0%;
+      --ticker-accent-scale: 1;
+      --ticker-accent-blur: 0px;
+      --ticker-accent-sheen: 0%;
       transform: translate3d(0, 100%, 0);
       opacity: 0;
       background:
@@ -146,8 +153,11 @@
       width: var(--ticker-label-width);
       background: var(--ticker-accent-overlay);
       background-size: 220% 220%, 100% 100%;
+      background-position: var(--ticker-accent-sheen, 0%) 50%, 50% 50%;
       border-right: var(--ticker-accent-border);
       box-shadow: var(--ticker-accent-glow);
+      transform: translate3d(0, var(--ticker-accent-offset, 0%), 0) scaleY(var(--ticker-accent-scale, 1));
+      filter: blur(var(--ticker-accent-blur, 0px));
       z-index: 1;
       animation: var(--ticker-accent-animation, none);
     }
@@ -161,7 +171,9 @@
         var(--ticker-ambient-caustics, transparent),
         var(--ticker-surface-noise, none);
       mix-blend-mode: screen;
-      opacity: 0.22;
+      opacity: var(--ticker-ambient-opacity, 0.22);
+      filter: blur(var(--ticker-ambient-blur, 0px));
+      transform: scaleX(var(--ticker-ambient-scale, 1));
       animation: tickerAmbientGlow 12s var(--ease-smooth) infinite;
       z-index: 0;
     }
@@ -1194,6 +1206,266 @@
       return `${clampedSeconds}s`;
     }
 
+    const prefersReducedMotionQuery =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+        : null;
+
+    function createTickerAnimator(container, options = {}) {
+      const overlay = options.overlay || {};
+      if (!container || typeof gsap === 'undefined' || typeof gsap.timeline !== 'function') {
+        return null;
+      }
+
+      const reducedMotion =
+        options.forceReducedMotion === true ||
+        (prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false) ||
+        overlay.accentAnim === false;
+
+      if (reducedMotion) {
+        if (container.__tickerAnimator && typeof container.__tickerAnimator.reset === 'function') {
+          container.__tickerAnimator.reset();
+        }
+        container.__tickerAnimator = null;
+        return null;
+      }
+
+      if (container.__tickerAnimator) {
+        return container.__tickerAnimator;
+      }
+
+      const label = container.querySelector('.ticker-label');
+      const track = container.querySelector('.ticker-track');
+      const content = container.querySelector('.ticker-content');
+      const direction = container.classList.contains('top') ? -1 : 1;
+      const accentSweepStart = direction > 0 ? '-65%' : '-45%';
+      const accentSweepExit = direction > 0 ? '180%' : '140%';
+
+      const killTweens = () => {
+        gsap.killTweensOf(container);
+        if (label) gsap.killTweensOf(label);
+        if (track) gsap.killTweensOf(track);
+        if (content) gsap.killTweensOf(content);
+      };
+
+      const clearCustomProps = () => {
+        container.style.removeProperty('--ticker-accent-offset');
+        container.style.removeProperty('--ticker-accent-scale');
+        container.style.removeProperty('--ticker-accent-blur');
+        container.style.removeProperty('--ticker-accent-sheen');
+        container.style.removeProperty('--ticker-ambient-opacity');
+        container.style.removeProperty('--ticker-ambient-blur');
+        container.style.removeProperty('--ticker-ambient-scale');
+      };
+
+      const clearInlineStyles = () => {
+        container.style.removeProperty('transform');
+        container.style.removeProperty('opacity');
+        container.style.removeProperty('filter');
+        if (label) {
+          label.style.removeProperty('transform');
+          label.style.removeProperty('opacity');
+          label.style.removeProperty('filter');
+        }
+        if (track) {
+          track.style.removeProperty('transform');
+          track.style.removeProperty('opacity');
+        }
+        if (content) {
+          content.style.removeProperty('filter');
+        }
+      };
+
+      const setupInState = () => {
+        killTweens();
+        gsap.set(container, {
+          y: direction * 56,
+          opacity: 0,
+          scale: 0.985,
+          filter: 'blur(14px) saturate(0.82)',
+          '--ticker-accent-offset': `${direction * 32}%`,
+          '--ticker-accent-scale': 1.18,
+          '--ticker-accent-blur': '16px',
+          '--ticker-accent-sheen': accentSweepStart,
+          '--ticker-ambient-opacity': 0,
+          '--ticker-ambient-blur': '18px',
+          '--ticker-ambient-scale': 1.08
+        });
+        if (label) {
+          gsap.set(label, {
+            y: direction * 24,
+            opacity: 0,
+            scale: 0.96,
+            filter: 'blur(6px)',
+            transformOrigin: '50% 50%'
+          });
+        }
+        if (track) {
+          gsap.set(track, {
+            y: direction * 18,
+            opacity: 0
+          });
+        }
+        if (content) {
+          gsap.set(content, {
+            filter: 'blur(4px)'
+          });
+        }
+      };
+
+      const tlIn = gsap.timeline({ paused: true });
+      tlIn.call(() => {
+        setupInState();
+        container.classList.add('show');
+        container.classList.remove('is-hiding');
+      }, 0);
+      tlIn.to(container, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        filter: 'none',
+        duration: 0.72,
+        ease: 'power3.out'
+      }, 0.02);
+      tlIn.to(container, {
+        '--ticker-accent-offset': '0%',
+        '--ticker-accent-scale': 1,
+        '--ticker-accent-blur': '0px',
+        '--ticker-accent-sheen': '120%'
+      }, 0.12);
+      tlIn.to(container, {
+        '--ticker-ambient-opacity': 0.22,
+        '--ticker-ambient-blur': '0px',
+        '--ticker-ambient-scale': 1,
+        duration: 0.68,
+        ease: 'power2.out'
+      }, 0.18);
+      if (label) {
+        tlIn.to(label, {
+          y: 0,
+          opacity: 1,
+          scale: 1,
+          filter: 'none',
+          duration: 0.62,
+          ease: 'power3.out'
+        }, 0.1);
+      }
+      if (track) {
+        tlIn.to(track, {
+          y: 0,
+          opacity: 1,
+          duration: 0.56,
+          ease: 'power3.out'
+        }, 0.16);
+      }
+      if (content) {
+        tlIn.to(content, {
+          filter: 'none',
+          duration: 0.52,
+          ease: 'power2.out'
+        }, 0.22);
+      }
+
+      const tlOut = gsap.timeline({ paused: true });
+      tlOut.call(() => {
+        killTweens();
+        container.classList.add('is-hiding');
+      }, 0);
+      tlOut.to(container, {
+        y: direction * 52,
+        opacity: 0,
+        scale: 0.97,
+        filter: 'blur(12px) saturate(0.82)',
+        duration: 0.55,
+        ease: 'power2.in'
+      }, 0);
+      tlOut.to(container, {
+        '--ticker-accent-offset': `${direction * -24}%`,
+        '--ticker-accent-scale': 0.94,
+        '--ticker-accent-blur': '14px',
+        '--ticker-accent-sheen': accentSweepExit,
+        duration: 0.55,
+        ease: 'power2.inOut'
+      }, 0);
+      tlOut.to(container, {
+        '--ticker-ambient-opacity': 0,
+        '--ticker-ambient-blur': '16px',
+        '--ticker-ambient-scale': 1.06,
+        duration: 0.55,
+        ease: 'power2.in'
+      }, 0);
+      if (label) {
+        tlOut.to(label, {
+          y: direction * 18,
+          opacity: 0,
+          scale: 0.96,
+          filter: 'blur(6px)',
+          duration: 0.45,
+          ease: 'power2.in'
+        }, 0.05);
+      }
+      if (track) {
+        tlOut.to(track, {
+          y: direction * 14,
+          opacity: 0,
+          duration: 0.42,
+          ease: 'power2.in'
+        }, 0.06);
+      }
+      if (content) {
+        tlOut.to(content, {
+          filter: 'blur(4px)',
+          duration: 0.4,
+          ease: 'power2.in'
+        }, 0.06);
+      }
+
+      const reset = () => {
+        tlIn.pause(0);
+        tlOut.pause(0);
+        killTweens();
+        clearInlineStyles();
+        clearCustomProps();
+        container.classList.remove('is-hiding');
+      };
+
+      const playIn = () => new Promise(resolve => {
+        tlOut.pause(0);
+        tlOut.progress(0);
+        tlIn.eventCallback('onComplete', () => {
+          clearInlineStyles();
+          clearCustomProps();
+          resolve();
+        });
+        tlIn.restart(true, false);
+      });
+
+      const playOut = (onComplete) => new Promise(resolve => {
+        tlIn.pause(0);
+        tlIn.progress(0);
+        tlOut.eventCallback('onComplete', () => {
+          clearInlineStyles();
+          clearCustomProps();
+          container.classList.remove('show');
+          container.classList.remove('is-hiding');
+          if (typeof onComplete === 'function') onComplete();
+          resolve();
+        });
+        tlOut.restart(true, false);
+      });
+
+      const kill = () => {
+        reset();
+        tlIn.kill();
+        tlOut.kill();
+        container.__tickerAnimator = null;
+      };
+
+      const animator = { playIn, playOut, reset, kill };
+      container.__tickerAnimator = animator;
+      return animator;
+    }
+
     class TickerOverlay {
       constructor() {
         const params = new URLSearchParams(location.search);
@@ -1330,6 +1602,7 @@
         this.slateUpdatedAt = null;
         this.slateVisible = false;
         this.slateAnimator = null;
+        this.tickerAnimator = null;
         this.measureNode = null;
         this.cachedLongestMessageWidth = null;
 
@@ -2298,11 +2571,27 @@
 
       showTicker() {
         if (!this.container || !this.messages.length) return;
+        const animator = createTickerAnimator(this.container, { overlay: this.overlay });
+        this.tickerAnimator = animator;
         this.container.classList.remove('is-hiding');
         this.phase = 'visible';
         this.refreshVisible();
-        this.container.classList.add('show');
-        this.startVisibleTimer();
+
+        if (animator && typeof animator.playIn === 'function') {
+          this.debugSet('Anim', 'ticker:timeline-in');
+          animator.playIn()
+            .then(() => {
+              this.startVisibleTimer();
+            })
+            .catch(() => {
+              this.container.classList.add('show');
+              this.startVisibleTimer();
+            });
+        } else {
+          this.debugSet('Anim', 'ticker:css-in');
+          this.container.classList.add('show');
+          this.startVisibleTimer();
+        }
       }
 
       refreshVisible(force = false) {
@@ -2385,14 +2674,28 @@
           return Promise.resolve();
         }
 
+        const animator = createTickerAnimator(this.container, { overlay: this.overlay });
+        this.tickerAnimator = animator;
         this.phase = 'hiding';
-        this.container.classList.add('is-hiding');
+        if (!animator) {
+          this.container.classList.add('is-hiding');
+        }
 
         if (immediate) {
+          if (animator && typeof animator.reset === 'function') {
+            animator.reset();
+          }
           this.container.classList.remove('show');
           this.container.classList.remove('is-hiding');
           this.phase = 'idle';
           return Promise.resolve();
+        }
+
+        if (animator && typeof animator.playOut === 'function') {
+          this.debugSet('Anim', 'ticker:timeline-out');
+          return animator.playOut(() => {
+            this.phase = 'idle';
+          });
         }
 
         return new Promise(resolve => {
