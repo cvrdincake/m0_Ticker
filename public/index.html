@@ -119,6 +119,12 @@
       backdrop-filter: blur(18px) saturate(1.05);
     }
 
+    .panel.is-live {
+      --panel-border-color: color-mix(in srgb, var(--accent) 65%, rgba(112, 118, 136, 0.2));
+      --panel-glow: color-mix(in srgb, var(--accent) 36%, rgba(124, 92, 255, 0.22));
+      box-shadow: 0 24px 60px color-mix(in srgb, rgba(7, 10, 24, 0.55) 55%, var(--accent) 45%);
+    }
+
     .panel::before,
     .panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
 
@@ -127,6 +133,10 @@
       background: radial-gradient(ellipse at top left, var(--panel-glow), transparent 60%);
       opacity: 0.55;
       transform: rotate(6deg);
+    }
+
+    .panel.is-live::before {
+      opacity: 0.8;
     }
 
     .panel::after {
@@ -399,7 +409,20 @@
       align-items: center;
       justify-content: flex-start;
     }
-    .popup-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .popup-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      transition: color 0.2s ease, text-shadow 0.25s ease;
+    }
+    .popup-toggle.is-live,
+    .brb-toggle.is-live {
+      color: var(--accent-bright);
+      text-shadow: 0 0 14px color-mix(in srgb, var(--accent-glow) 75%, transparent);
+      font-weight: 600;
+    }
     .popup-duration {
       display: flex;
       align-items: center;
@@ -566,7 +589,14 @@
 
     .brb-actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     .brb-actions .spacer { flex: 1 1 auto; }
-    .brb-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--subtle); }
+    .brb-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--subtle);
+      transition: color 0.2s ease, text-shadow 0.25s ease;
+    }
     .brb-status { font-size: 12px; color: rgba(201, 208, 230, 0.75); }
 
     .message-list {
@@ -1768,6 +1798,8 @@
       popupDuration: document.getElementById('popupDuration'),
       popupCountdownEnabled: document.getElementById('popupCountdownEnabled'),
       popupCountdownTarget: document.getElementById('popupCountdownTarget'),
+      popupPanel: document.getElementById('popupPanel'),
+      popupActiveLabel: document.querySelector('#popupPanel .popup-toggle'),
       savePopup: document.getElementById('savePopup'),
       clearPopup: document.getElementById('clearPopup'),
       slateEnabled: document.getElementById('slateEnabled'),
@@ -1796,6 +1828,8 @@
       brbSave: document.getElementById('brbSave'),
       brbClear: document.getElementById('brbClear'),
       brbStatus: document.getElementById('brbStatus'),
+      brbPanel: document.getElementById('brbPanel'),
+      brbActiveLabel: document.querySelector('#brbPanel .brb-toggle'),
       statusBrb: document.getElementById('statusBrb'),
       statusBrbDot: document.getElementById('statusBrbDot'),
       presetModal: document.getElementById('presetMessageModal'),
@@ -3075,8 +3109,11 @@
 
     function renderPopupControls() {
       if (!el.popupText) return;
+      const isLive = popupState.isActive && !!popupState.text;
+      if (el.popupPanel) el.popupPanel.classList.toggle('is-live', isLive);
+      if (el.popupActiveLabel) el.popupActiveLabel.classList.toggle('is-live', isLive);
       el.popupText.value = popupState.text;
-      el.popupActive.checked = popupState.isActive && !!popupState.text;
+      el.popupActive.checked = isLive;
       if (el.popupDuration) {
         el.popupDuration.value = popupState.durationSeconds ? String(popupState.durationSeconds) : '';
       }
@@ -3106,12 +3143,15 @@
     }
 
     function renderBrbControls() {
+      const isLive = brbState.isActive && !!brbState.text;
+      if (el.brbPanel) el.brbPanel.classList.toggle('is-live', isLive);
+      if (el.brbActiveLabel) el.brbActiveLabel.classList.toggle('is-live', isLive);
       if (el.brbText) {
         el.brbText.value = brbState.text;
         el.brbText.disabled = brbSaveInFlight;
       }
       if (el.brbActive) {
-        el.brbActive.checked = brbState.isActive && !!brbState.text;
+        el.brbActive.checked = isLive;
         el.brbActive.disabled = brbSaveInFlight;
       }
       if (el.brbSave) el.brbSave.disabled = brbSaveInFlight;
@@ -3119,14 +3159,14 @@
 
       if (el.brbStatus) {
         const parts = [];
-        parts.push(brbState.isActive && brbState.text ? 'BRB live' : 'BRB hidden');
+        parts.push(isLive ? 'BRB live' : 'BRB hidden');
         if (brbState.updatedAt) {
           parts.push(`Updated ${new Date(brbState.updatedAt).toLocaleTimeString()}`);
         }
         el.brbStatus.textContent = parts.join(' • ');
       }
 
-      const brbActive = brbState.isActive && !!brbState.text;
+      const brbActive = isLive;
       if (el.statusBrb) {
         el.statusBrb.textContent = brbActive ? 'Active' : 'Hidden';
       }
