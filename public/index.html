@@ -100,6 +100,86 @@
       align-self: start;
     }
 
+    .panel-switcher {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-switcher__tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 18px;
+      background: rgba(14, 18, 28, 0.85);
+      border: 1px solid rgba(112, 118, 136, 0.28);
+      box-shadow: 0 12px 28px rgba(4, 6, 16, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+
+    .panel-switcher__tabs::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .panel-switcher__tabs::-webkit-scrollbar-thumb {
+      background: rgba(124, 92, 255, 0.35);
+      border-radius: 999px;
+    }
+
+    .panel-switcher__tab {
+      flex: 1 1 140px;
+      appearance: none;
+      border: 1px solid rgba(112, 118, 136, 0.35);
+      border-radius: 12px;
+      background: rgba(22, 26, 38, 0.72);
+      color: rgba(220, 226, 255, 0.72);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.24px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: border 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease, color 0.18s ease, background 0.18s ease;
+      text-align: left;
+    }
+
+    .panel-switcher__tab:hover {
+      transform: translateY(-1px);
+      border-color: rgba(124, 92, 255, 0.45);
+      color: var(--text);
+    }
+
+    .panel-switcher__tab.is-active {
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent-duo), var(--accent));
+      border-color: transparent;
+      box-shadow: 0 16px 36px rgba(124, 92, 255, 0.28);
+    }
+
+    .panel-switcher__tab:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    .panel-switcher__content {
+      position: relative;
+    }
+
+    .panel-switcher__panel {
+      display: none;
+    }
+
+    .panel-switcher__panel.is-active {
+      display: flex;
+    }
+
+    .panel-switcher__panel[hidden] {
+      display: none !important;
+    }
+
     @media (min-width: 1100px) {
       .layout-grid {
         grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -121,6 +201,7 @@
       .app { gap: 24px; }
       .layout-grid { gap: 24px; }
       .layout-col { gap: 24px; }
+      .panel-switcher__tab { flex: 1 1 calc(50% - 10px); text-align: center; }
     }
 
     @media (max-width: 480px) {
@@ -136,6 +217,7 @@
       .scene-header button {
         flex: 1 1 140px;
       }
+      .panel-switcher__tab { flex: 1 1 100%; }
     }
 
     .panel {
@@ -1414,7 +1496,15 @@
       </div>
 
       <div class="layout-col layout-col--secondary">
-        <section class="panel panel--accent" id="overlayPanel">
+        <div class="panel-switcher" id="controlPanelSwitcher">
+          <div class="panel-switcher__tabs" role="tablist" aria-label="Overlay and standby controls">
+            <button type="button" class="panel-switcher__tab is-active" role="tab" aria-selected="true" aria-controls="overlayPanel" id="panelTabOverlay" data-panel-target="overlayPanel">Overlay</button>
+            <button type="button" class="panel-switcher__tab" role="tab" aria-selected="false" aria-controls="slatePanel" id="panelTabSlate" data-panel-target="slatePanel">Slate</button>
+            <button type="button" class="panel-switcher__tab" role="tab" aria-selected="false" aria-controls="popupPanel" id="panelTabPopup" data-panel-target="popupPanel">Popup</button>
+            <button type="button" class="panel-switcher__tab" role="tab" aria-selected="false" aria-controls="brbPanel" id="panelTabBrb" data-panel-target="brbPanel">BRB</button>
+          </div>
+          <div class="panel-switcher__content">
+            <section class="panel panel--accent panel-switcher__panel is-active" id="overlayPanel" role="tabpanel" aria-labelledby="panelTabOverlay" aria-hidden="false">
           <div>
             <div class="section-title">Overlay Styling</div>
             <div class="section-sub">Adjust label, highlights, animation preferences, and scale for the browser source preview.</div>
@@ -1517,9 +1607,9 @@
               <iframe id="overlayPreview" title="Overlay preview" loading="lazy" sandbox="allow-same-origin allow-scripts"></iframe>
             </div>
           </div>
-        </section>
+            </section>
 
-        <section class="panel panel--neutral" id="slatePanel">
+            <section class="panel panel--neutral panel-switcher__panel" id="slatePanel" role="tabpanel" aria-labelledby="panelTabSlate" aria-hidden="true" hidden>
           <div>
             <div class="section-title">Segment Slate</div>
             <div class="section-sub">Curate the compact top-right slate with UK time and short notices such as next-up cues or sponsor callouts.</div>
@@ -1590,9 +1680,9 @@
               <div class="slate-preview-dots" id="slatePreviewDots"></div>
             </div>
           </div>
-        </section>
+            </section>
 
-        <section class="panel panel--neutral" id="popupPanel">
+            <section class="panel panel--neutral panel-switcher__panel" id="popupPanel" role="tabpanel" aria-labelledby="panelTabPopup" aria-hidden="true" hidden>
           <div>
             <div class="section-title">Popup Message</div>
             <div class="section-sub">Send a top-left callout styled like the ticker. Supports the same text modifiers.</div>
@@ -1618,9 +1708,9 @@
           </div>
           <div class="popup-preview is-empty" id="popupPreview">Popup preview</div>
           <div class="popup-meta" id="popupMeta">Popup hidden</div>
-        </section>
+            </section>
 
-        <section class="panel panel--muted" id="brbPanel">
+            <section class="panel panel--muted panel-switcher__panel" id="brbPanel" role="tabpanel" aria-labelledby="panelTabBrb" aria-hidden="true" hidden>
           <div>
             <div class="section-title">BRB Message</div>
             <div class="section-sub">Manage the standby banner shared with the overlay output.</div>
@@ -1633,7 +1723,9 @@
             <button class="btn" type="button" id="brbSave">Update BRB</button>
           </div>
           <div class="brb-status" id="brbStatus">BRB hidden</div>
-        </section>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2007,6 +2099,126 @@
       presetModalSave: document.getElementById('presetModalSave'),
       presetModalCancel: document.getElementById('presetModalCancel')
     };
+
+    const PANEL_IDS = ['overlayPanel', 'slatePanel', 'popupPanel', 'brbPanel'];
+    const panelSections = new Map(
+      PANEL_IDS.map(id => [id, document.getElementById(id)])
+        .filter(([, panel]) => !!panel)
+    );
+    const panelTabButtons = new Map(
+      PANEL_IDS.map(id => [id, document.querySelector(`[data-panel-target="${id}"]`)])
+        .filter(([, tab]) => !!tab)
+    );
+    let activePanelId = (() => {
+      for (const [id, panel] of panelSections.entries()) {
+        if (panel.classList.contains('is-active')) {
+          return id;
+        }
+      }
+      return panelSections.size ? panelSections.keys().next().value : PANEL_IDS[0];
+    })();
+
+    function orderedPanelIds() {
+      return PANEL_IDS.filter(id => panelSections.has(id) && panelTabButtons.has(id));
+    }
+
+    function setActivePanel(panelId, options = {}) {
+      const { skipSave = false, force = false } = options;
+      const available = orderedPanelIds();
+      if (!available.length) return null;
+      const nextId = available.includes(panelId) ? panelId : available[0];
+      if (!force && activePanelId === nextId) return activePanelId;
+
+      activePanelId = nextId;
+
+      for (const id of available) {
+        const panel = panelSections.get(id);
+        const tab = panelTabButtons.get(id);
+        const isActive = id === nextId;
+        if (panel) {
+          panel.classList.toggle('is-active', isActive);
+          if (isActive) {
+            panel.removeAttribute('hidden');
+            panel.setAttribute('aria-hidden', 'false');
+            panel.tabIndex = 0;
+          } else {
+            panel.setAttribute('hidden', '');
+            panel.setAttribute('aria-hidden', 'true');
+            panel.tabIndex = -1;
+          }
+        }
+        if (tab) {
+          tab.classList.toggle('is-active', isActive);
+          tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          tab.tabIndex = isActive ? 0 : -1;
+        }
+      }
+
+      if (!skipSave) saveLocal();
+      return nextId;
+    }
+
+    function focusAdjacentPanel(currentId, direction) {
+      const available = orderedPanelIds();
+      if (!available.length) return;
+      const currentIndex = available.indexOf(currentId);
+      const index = currentIndex === -1
+        ? (direction > 0 ? 0 : available.length - 1)
+        : (currentIndex + available.length + direction) % available.length;
+      const targetId = available[index];
+      if (targetId) {
+        setActivePanel(targetId);
+        const tab = panelTabButtons.get(targetId);
+        tab?.focus();
+      }
+    }
+
+    if (panelTabButtons.size) {
+      for (const [id, tab] of panelTabButtons.entries()) {
+        if (!tab) continue;
+        tab.tabIndex = id === activePanelId ? 0 : -1;
+        tab.addEventListener('click', () => {
+          setActivePanel(id);
+        });
+        tab.addEventListener('keydown', event => {
+          switch (event.key) {
+            case 'ArrowRight':
+            case 'ArrowDown':
+              event.preventDefault();
+              focusAdjacentPanel(id, 1);
+              break;
+            case 'ArrowLeft':
+            case 'ArrowUp':
+              event.preventDefault();
+              focusAdjacentPanel(id, -1);
+              break;
+            case 'Home':
+              event.preventDefault();
+              {
+                const ids = orderedPanelIds();
+                if (!ids.length) break;
+                const firstId = ids[0];
+                setActivePanel(firstId);
+                panelTabButtons.get(firstId)?.focus();
+              }
+              break;
+            case 'End':
+              event.preventDefault();
+              {
+                const ids = orderedPanelIds();
+                if (!ids.length) break;
+                const lastId = ids[ids.length - 1];
+                setActivePanel(lastId);
+                panelTabButtons.get(lastId)?.focus();
+              }
+              break;
+            default:
+              break;
+          }
+        });
+      }
+      setActivePanel(activePanelId, { skipSave: true, force: true });
+    }
 
     const compositeSlateNotesLimit = MAX_SLATE_NOTES * MAX_SLATE_TEXT_LENGTH;
 
@@ -2808,7 +3020,8 @@
       const payload = {
         overlay: overlayPrefs,
         autoStart: el.autoStart.checked,
-        serverUrl: el.serverUrl.value
+        serverUrl: el.serverUrl.value,
+        panel: activePanelId
       };
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
@@ -2825,6 +3038,7 @@
         if (parsed.overlay) overlayPrefs = normaliseOverlayData({ ...overlayPrefs, ...parsed.overlay });
         if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
         if (typeof parsed.serverUrl === 'string') el.serverUrl.value = parsed.serverUrl;
+        if (typeof parsed.panel === 'string') setActivePanel(parsed.panel, { skipSave: true });
       } catch (err) {
         console.warn('Failed to read local preferences', err);
       }
