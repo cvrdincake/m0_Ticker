@@ -513,13 +513,39 @@
 
     let overlay = null;
     if (entry.overlay && typeof entry.overlay === 'object') {
-      const rawTheme = entry.overlay.theme;
-      if (typeof rawTheme === 'string') {
-        const normalisedTheme = typeof sharedUtils.normaliseTheme === 'function'
-          ? sharedUtils.normaliseTheme(rawTheme)
-          : rawTheme.trim().toLowerCase();
-        if (normalisedTheme && themeSet.has(normalisedTheme)) {
-          overlay = { theme: normalisedTheme };
+      const overlayKeys = [
+        'label',
+        'accent',
+        'accentSecondary',
+        'highlight',
+        'scale',
+        'popupScale',
+        'position',
+        'mode',
+        'accentAnim',
+        'sparkle',
+        'theme'
+      ];
+
+      const normalisedOverlay = normaliseOverlayData(entry.overlay, defaultOverlay);
+      for (const key of overlayKeys) {
+        if (!Object.prototype.hasOwnProperty.call(entry.overlay, key)) continue;
+        if (!(key in normalisedOverlay)) continue;
+        const value = normalisedOverlay[key];
+        if (value === undefined) continue;
+        if (!overlay) overlay = {};
+        overlay[key] = value;
+      }
+
+      if (!overlay && Object.prototype.hasOwnProperty.call(entry.overlay, 'theme')) {
+        const rawTheme = entry.overlay.theme;
+        if (typeof rawTheme === 'string') {
+          const normalisedTheme = typeof sharedUtils.normaliseTheme === 'function'
+            ? sharedUtils.normaliseTheme(rawTheme)
+            : rawTheme.trim().toLowerCase();
+          if (normalisedTheme && themeSet.has(normalisedTheme)) {
+            overlay = { theme: normalisedTheme };
+          }
         }
       }
     }
