@@ -2394,7 +2394,10 @@
       const escaped = tokens
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
-      highlightRegex = escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+      const boundaryClass = '[\\p{L}\\p{N}_]';
+      highlightRegex = escaped
+        ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
+        : null;
     }
 
     function escapeHtml(str) {

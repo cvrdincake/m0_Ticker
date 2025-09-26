@@ -2819,7 +2819,10 @@
         const escaped = tokens
           .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
           .join('|');
-        return escaped ? new RegExp(`\\b(${escaped})\\b`, 'gi') : null;
+        const boundaryClass = '[\\p{L}\\p{N}_]';
+        return escaped
+          ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
+          : null;
       }
 
       setCustomHighlights(list) {
