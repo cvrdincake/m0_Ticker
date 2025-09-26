@@ -132,8 +132,9 @@
           .map(part => part.trim());
     const notes = [];
     for (const entry of raw) {
-      if (!entry) continue;
-      const trimmed = entry.slice(0, maxLength);
+      const trimmedEntry = String(entry ?? '').trim();
+      if (!trimmedEntry) continue;
+      const trimmed = trimmedEntry.slice(0, maxLength);
       if (!trimmed) continue;
       notes.push(trimmed);
       if (notes.length >= limit) break;

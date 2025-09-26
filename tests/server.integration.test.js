@@ -1,0 +1,256 @@
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const { once } = require('node:events');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const os = require('node:os');
+
+const BASE_URL = 'http://127.0.0.1:3000';
+const REPO_ROOT = path.join(__dirname, '..');
+
+let tmpDir;
+let serverProcess;
+
+async function waitForServerReady(proc) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error('Server did not start in time'));
+    }, 5000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      proc.stdout?.off('data', onStdout);
+      proc.stderr?.off('data', onStderr);
+      proc.off('exit', onExit);
+      proc.off('error', onError);
+    }
+
+    function onStdout(chunk) {
+      const text = chunk.toString();
+      if (text.includes('listening on http://127.0.0.1:3000')) {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve();
+      }
+    }
+
+    function onStderr(chunk) {
+      const text = chunk.toString();
+      if (text.toLowerCase().includes('error') && !settled) {
+        settled = true;
+        cleanup();
+        reject(new Error(text.trim()))
+      }
+    }
+
+    function onExit(code, signal) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(new Error(`Server exited before ready (code=${code}, signal=${signal})`));
+    }
+
+    function onError(err) {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(err);
+    }
+
+    proc.stdout?.on('data', onStdout);
+    proc.stderr?.on('data', onStderr);
+    proc.once('exit', onExit);
+    proc.once('error', onError);
+  });
+}
+
+test.before(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ticker-integration-'));
+  const stateFile = path.join(tmpDir, 'state.json');
+
+  serverProcess = spawn(process.execPath, ['server.js'], {
+    cwd: REPO_ROOT,
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      TICKER_STATE_FILE: stateFile
+    },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  serverProcess.stdout?.setEncoding('utf8');
+  serverProcess.stderr?.setEncoding('utf8');
+
+  await waitForServerReady(serverProcess);
+});
+
+test.after(async () => {
+  if (serverProcess) {
+    serverProcess.kill();
+    try {
+      await once(serverProcess, 'exit');
+    } catch {
+      // ignore
+    }
+  }
+  if (tmpDir) {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
+
+async function postJson(pathname, payload) {
+  const response = await fetch(`${BASE_URL}${pathname}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+async function getJson(pathname) {
+  const response = await fetch(`${BASE_URL}${pathname}`, {
+    method: 'GET',
+    headers: { 'Accept': 'application/json' }
+  });
+  const data = await response.json().catch(() => ({}));
+  return { response, data };
+}
+
+test('POST /ticker/scenes sanitises and persists payloads', async () => {
+  const payload = {
+    scenes: [
+      {
+        id: 'scene-integration',
+        name: '  Integration Scene  ',
+        messages: ['  Hello  ', '', 'World  ', 'A'.repeat(280)],
+        displayDuration: 1,
+        intervalBetween: 7200,
+        isActive: true,
+        overlay: {
+          label: '  Live Now  ',
+          accent: 'javascript:alert(1)',
+          highlight: 'Alpha,,Beta',
+          scale: 9,
+          popupScale: 0,
+          position: 'Top',
+          mode: 'Chunk',
+          accentAnim: false,
+          sparkle: false,
+          theme: 'Neon-Noir'
+        },
+        popup: {
+          text: '   Popup message   ',
+          isActive: true,
+          durationSeconds: 700,
+          countdownEnabled: true,
+          countdownTarget: 'invalid'
+        },
+        slate: {
+          rotationSeconds: 3,
+          notesLabel: '  Label  ',
+          notes: [' first ', '', 'second']
+        }
+      }
+    ]
+  };
+
+  const { response, data } = await postJson('/ticker/scenes', payload);
+  assert.equal(response.status, 200, data.error || JSON.stringify(data));
+  assert.equal(data.ok, true);
+  assert.ok(Array.isArray(data.scenes));
+  assert.equal(data.scenes.length, 1);
+  const scene = data.scenes[0];
+  assert.equal(scene.name, 'Integration Scene');
+  assert.deepStrictEqual(scene.ticker.messages, ['Hello', 'World', 'A'.repeat(280)]);
+  assert.equal(scene.ticker.displayDuration, 2);
+  assert.equal(scene.ticker.intervalBetween, 3600);
+  assert.equal(scene.ticker.isActive, true);
+  assert.equal(scene.popup.text, 'Popup message');
+  assert.equal(scene.popup.durationSeconds, 600);
+  assert.equal(scene.popup.countdownEnabled, false);
+  assert.equal(scene.popup.countdownTarget, null);
+  assert.equal(scene.overlay.label, 'Live Now');
+  assert.equal(scene.overlay.highlight, 'Alpha, Beta');
+  assert.equal(scene.overlay.scale, 2.5);
+  assert.equal(scene.overlay.popupScale, 0.6);
+  assert.equal(scene.overlay.position, 'top');
+  assert.equal(scene.overlay.mode, 'chunk');
+  assert.equal(scene.overlay.accentAnim, false);
+  assert.equal(scene.overlay.sparkle, false);
+  assert.equal(scene.overlay.theme, 'neon-noir');
+  assert.equal(scene.slate.rotationSeconds, 4);
+  assert.deepStrictEqual(scene.slate.notes, ['first', 'second']);
+  assert.equal(scene.slate.notesLabel, 'Label');
+
+  const { response: getResponse, data: getData } = await getJson('/ticker/scenes');
+  assert.equal(getResponse.status, 200);
+  assert.ok(Array.isArray(getData.scenes));
+  assert.deepStrictEqual(getData.scenes[0], scene);
+});
+
+test('POST /popup/state sanitises popup payloads', async () => {
+  const payload = {
+    text: '  Hello popup  ',
+    isActive: true,
+    durationSeconds: 601,
+    countdownEnabled: true,
+    countdownTarget: 'not-a-number'
+  };
+
+  const { response, data } = await postJson('/popup/state', payload);
+  assert.equal(response.status, 200, data.error || JSON.stringify(data));
+  assert.equal(data.ok, true);
+  assert.equal(data.popup.text, 'Hello popup');
+  assert.equal(data.popup.durationSeconds, 600);
+  assert.equal(data.popup.countdownEnabled, false);
+  assert.equal(data.popup.countdownTarget, null);
+  assert.equal(data.popup.isActive, true);
+
+  const { response: getResponse, data: getData } = await getJson('/popup/state');
+  assert.equal(getResponse.status, 200);
+  assert.equal(getData.text, 'Hello popup');
+  assert.equal(getData.durationSeconds, 600);
+  assert.equal(getData.countdownEnabled, false);
+  assert.equal(getData.countdownTarget, null);
+  assert.equal(getData.isActive, true);
+});
+
+test('POST /ticker/overlay sanitises overlay payloads', async () => {
+  const payload = {
+    label: '  BREAKING  ',
+    accent: '  rgb(255, 0, 0)  ',
+    highlight: 'One,,Two',
+    scale: 8,
+    popupScale: 0.2,
+    position: 'Top',
+    mode: 'Chunk',
+    sparkle: false,
+    accentAnim: false,
+    theme: 'Neon-Noir'
+  };
+
+  const { response, data } = await postJson('/ticker/overlay', payload);
+  assert.equal(response.status, 200);
+  assert.equal(data.ok, true);
+  const overlay = data.overlay;
+  assert.equal(overlay.label, 'BREAKING');
+  assert.equal(overlay.accent, 'rgb(255, 0, 0)');
+  assert.equal(overlay.highlight, 'One, Two');
+  assert.equal(overlay.scale, 2.5);
+  assert.equal(overlay.popupScale, 0.6);
+  assert.equal(overlay.position, 'top');
+  assert.equal(overlay.mode, 'chunk');
+  assert.equal(overlay.sparkle, false);
+  assert.equal(overlay.accentAnim, false);
+  assert.equal(overlay.theme, 'neon-noir');
+
+  const { response: getResponse, data: getData } = await getJson('/ticker/overlay');
+  assert.equal(getResponse.status, 200);
+  assert.deepStrictEqual(getData, overlay);
+});

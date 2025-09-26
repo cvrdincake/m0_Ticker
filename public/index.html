@@ -1486,7 +1486,7 @@
 
   <script src="js/shared-config.js"></script>
   <script src="js/shared-utils.js"></script>
-  <script src="js/scene-normaliser.js"></script>
+
   <script>
     const {
       OVERLAY_THEMES,
@@ -1503,18 +1503,43 @@
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
 
+    const normaliserExports = window.TickerClientNormalisers || {};
+    const {
+      DEFAULT_OVERLAY: BASE_DEFAULT_OVERLAY,
+      DEFAULT_POPUP: BASE_DEFAULT_POPUP,
+      DEFAULT_SLATE: BASE_DEFAULT_SLATE,
+      DEFAULT_HIGHLIGHTS: BASE_DEFAULT_HIGHLIGHTS,
+      DEFAULT_HIGHLIGHT_STRING: BASE_DEFAULT_HIGHLIGHT_STRING,
+      THEME_OPTIONS: BASE_THEME_OPTIONS,
+      MAX_MESSAGES: EXPORTED_MAX_MESSAGES,
+      MAX_MESSAGE_LENGTH: EXPORTED_MAX_MESSAGE_LENGTH,
+      MAX_POPUP_SECONDS: EXPORTED_MAX_POPUP_SECONDS,
+      MAX_SLATE_TITLE_LENGTH: EXPORTED_MAX_SLATE_TITLE_LENGTH,
+      MAX_SLATE_TEXT_LENGTH: EXPORTED_MAX_SLATE_TEXT_LENGTH,
+      MAX_SLATE_NOTES: EXPORTED_MAX_SLATE_NOTES,
+      normaliseHighlightInput,
+      normaliseOverlayData,
+      normalisePopupData,
+      normaliseSlateNotesList,
+      normaliseSlateData,
+      normaliseSceneEntry,
+      sanitiseMessages
+    } = normaliserExports;
+
     const STORAGE_KEY = 'ticker-dashboard-v3';
-    const MAX_MESSAGES = 50;
-    const MAX_MESSAGE_LENGTH = 280;
-    const MAX_POPUP_SECONDS = 600;
-    const MAX_SLATE_TITLE_LENGTH = 64;
-    const MAX_SLATE_TEXT_LENGTH = 200;
-    const MAX_SLATE_NOTES = 6;
+    const MAX_MESSAGES = EXPORTED_MAX_MESSAGES || 50;
+    const MAX_MESSAGE_LENGTH = EXPORTED_MAX_MESSAGE_LENGTH || 280;
+    const MAX_POPUP_SECONDS = EXPORTED_MAX_POPUP_SECONDS || 600;
+    const MAX_SLATE_TITLE_LENGTH = EXPORTED_MAX_SLATE_TITLE_LENGTH || 64;
+    const MAX_SLATE_TEXT_LENGTH = EXPORTED_MAX_SLATE_TEXT_LENGTH || 200;
+    const MAX_SLATE_NOTES = EXPORTED_MAX_SLATE_NOTES || 6;
     const MAX_BRB_LENGTH = 280;
     const MESSAGE_PLACEHOLDER = 'Add a ticker message…';
-    const THEME_OPTIONS = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
-        ? OVERLAY_THEMES
-        : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir', 'monotone'];
+    const THEME_OPTIONS = Array.isArray(BASE_THEME_OPTIONS) && BASE_THEME_OPTIONS.length
+        ? BASE_THEME_OPTIONS.slice()
+        : (Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
+            ? OVERLAY_THEMES
+            : ['holographic', 'liquid-glass', 'neural', 'quantum', 'crystalline', 'neon-noir', 'monotone']);
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
@@ -1540,12 +1565,16 @@
     ];
 
     const sharedConfig = window.SharedConfig || {};
-    const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
-      ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
-      : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
-    const DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
-      ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
-      : DEFAULT_HIGHLIGHTS.join(',');
+    const DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
+      ? BASE_DEFAULT_HIGHLIGHTS.slice()
+      : (Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
+          ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
+          : ['live', 'breaking', 'alert', 'update', 'tonight', 'today']);
+    const DEFAULT_HIGHLIGHT_STRING = typeof BASE_DEFAULT_HIGHLIGHT_STRING === 'string' && BASE_DEFAULT_HIGHLIGHT_STRING.trim()
+      ? BASE_DEFAULT_HIGHLIGHT_STRING
+      : (typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+          ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
+          : DEFAULT_HIGHLIGHTS.join(', '));
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',
@@ -1558,8 +1587,9 @@
       accentAnim: true,
       sparkle: true,
       theme: 'monotone',
-        ...(sharedConfig.DEFAULT_OVERLAY || {})
-      };
+      ...(BASE_DEFAULT_OVERLAY || {}),
+      ...(sharedConfig.DEFAULT_OVERLAY || {})
+    };
     if (!DEFAULT_OVERLAY.highlight) {
       DEFAULT_OVERLAY.highlight = DEFAULT_HIGHLIGHT_STRING;
     }
@@ -1585,11 +1615,12 @@
       durationSeconds: null,
       countdownEnabled: false,
       countdownTarget: null,
+      ...(BASE_DEFAULT_POPUP || {}),
       ...(sharedConfig.DEFAULT_POPUP || {}),
       updatedAt: null
     };
 
-    const DEFAULT_SLATE_SOURCE = {
+    const DEFAULT_SLATE_TEMPLATE = {
       isEnabled: true,
       rotationSeconds: 12,
       showClock: true,
@@ -1603,25 +1634,14 @@
       sponsorLabel: 'Sponsor',
       notesLabel: 'Spotlight',
       notes: [],
+      ...(BASE_DEFAULT_SLATE || {}),
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
 
+    const DEFAULT_SLATE_NORMALISED = normaliseSlateData(DEFAULT_SLATE_TEMPLATE);
     const DEFAULT_SLATE = {
-      ...DEFAULT_SLATE_SOURCE,
-      rotationSeconds: typeof clampSlateRotationSeconds === 'function'
-        ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
-        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 900),
-      clockSubtitle: typeof DEFAULT_SLATE_SOURCE.clockSubtitle === 'string'
-        ? DEFAULT_SLATE_SOURCE.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH)
-        : 'UK time',
-      notes: typeof normaliseSlateNotes === 'function'
-        ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH)
-        : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
-            ? DEFAULT_SLATE_SOURCE.notes
-                .map(item => String(item).trim().slice(0, MAX_SLATE_TEXT_LENGTH))
-                .filter(Boolean)
-                .slice(0, MAX_SLATE_NOTES)
-            : []),
+      ...DEFAULT_SLATE_NORMALISED,
+      notes: Array.isArray(DEFAULT_SLATE_NORMALISED.notes) ? [...DEFAULT_SLATE_NORMALISED.notes] : [],
       updatedAt: null
     };
 
@@ -1839,71 +1859,6 @@
       return null;
     }
 
-    function normaliseHighlightInput(value) {
-      if (typeof normaliseHighlightList === 'function') {
-        return normaliseHighlightList(value);
-      }
-      return String(value || '')
-        .split(',')
-        .map(part => part.trim())
-        .filter(Boolean)
-        .join(',');
-    }
-
-    function normaliseOverlayData(data) {
-      const result = { ...DEFAULT_OVERLAY };
-      if (!data || typeof data !== 'object') return result;
-      if (typeof data.label === 'string' && data.label.trim()) {
-        result.label = data.label.trim().slice(0, 48);
-      }
-      if (typeof data.accent === 'string') {
-        const trimmed = data.accent.trim();
-        if (!trimmed) {
-          result.accent = '';
-        } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
-          result.accent = trimmed;
-        }
-      }
-      if (typeof data.highlight === 'string') {
-        result.highlight = normaliseHighlightInput(data.highlight);
-      }
-      if (Number.isFinite(data.scale)) {
-        result.scale = typeof clampScaleValue === 'function'
-          ? clampScaleValue(data.scale, result.scale)
-          : Math.max(0.75, Math.min(2.5, Math.round(Number(data.scale) * 100) / 100));
-      }
-      if (Number.isFinite(data.popupScale)) {
-        result.popupScale = typeof clampPopupScaleValue === 'function'
-          ? clampPopupScaleValue(data.popupScale, result.popupScale)
-          : Math.max(0.6, Math.min(1.5, Math.round(Number(data.popupScale) * 100) / 100));
-      }
-      if (typeof data.position === 'string') {
-        result.position = typeof sharedNormalisePosition === 'function'
-          ? sharedNormalisePosition(data.position)
-          : (data.position.toLowerCase() === 'top' ? 'top' : 'bottom');
-      }
-      if (typeof data.mode === 'string') {
-        result.mode = typeof sharedNormaliseMode === 'function'
-          ? sharedNormaliseMode(data.mode)
-          : (['auto', 'marquee', 'chunk'].includes(data.mode.toLowerCase()) ? data.mode.toLowerCase() : 'auto');
-      }
-      if (typeof data.accentAnim === 'boolean') {
-        result.accentAnim = data.accentAnim;
-      }
-      if (typeof data.sparkle === 'boolean') {
-        result.sparkle = data.sparkle;
-      }
-      if (typeof data.theme === 'string') {
-        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
-          ? sharedNormaliseTheme(data.theme)
-          : data.theme.trim().toLowerCase();
-        if (normalisedTheme && THEME_OPTIONS.includes(normalisedTheme)) {
-          result.theme = normalisedTheme;
-        }
-      }
-      return result;
-    }
-
     function clampSlateRotation(value) {
       if (typeof clampSlateRotationSeconds === 'function') {
         return clampSlateRotationSeconds(value, DEFAULT_SLATE.rotationSeconds || 12);
@@ -1929,48 +1884,6 @@
       const visibleMs = visibleSeconds * 1000;
       const gap = Math.max(1000, totalMs - visibleMs);
       return gap;
-    }
-
-    function normaliseSlateNotesList(value) {
-      if (typeof normaliseSlateNotes === 'function') {
-        return normaliseSlateNotes(value, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH);
-      }
-      const list = Array.isArray(value)
-        ? value
-        : String(value || '')
-            .split(/\r?\n|[,;]/)
-            .map(entry => entry.trim());
-      return list
-        .map(entry => String(entry || '').trim().slice(0, MAX_SLATE_TEXT_LENGTH))
-        .filter(Boolean)
-        .slice(0, MAX_SLATE_NOTES);
-    }
-
-    function normaliseSlateData(data) {
-      const result = {
-        ...DEFAULT_SLATE,
-        notes: [...DEFAULT_SLATE.notes],
-        updatedAt: DEFAULT_SLATE.updatedAt
-      };
-      if (!data || typeof data !== 'object') return result;
-      if (typeof data.isEnabled === 'boolean') result.isEnabled = data.isEnabled;
-      if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
-      if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
-      if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.clockSubtitle === 'string') {
-        result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      }
-      if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
-      if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
-      if (Array.isArray(data.notes)) result.notes = normaliseSlateNotesList(data.notes);
-      const updatedAt = Number(data.updatedAt ?? data._updatedAt);
-      if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
-      return result;
     }
 
     function serialiseSlateState(source = slateState) {
@@ -2339,27 +2252,6 @@
       return notes;
     }
 
-function normalisePopupData(data) {
-      const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 280) : '';
-      const isActive = !!data?.isActive && !!text;
-      const durationRaw = Number(data?.durationSeconds);
-      const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
-        ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
-        : null;
-      const countdownTargetRaw = Number(data?.countdownTarget);
-      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
-      const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
-      const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
-      return {
-        text,
-        isActive,
-        durationSeconds,
-        countdownEnabled,
-        countdownTarget,
-        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
-      };
-    }
-
     function normaliseBrbData(data) {
       const raw = typeof data?.text === 'string' ? data.text : '';
       const text = raw.trim().slice(0, MAX_BRB_LENGTH);
@@ -2590,37 +2482,6 @@ function normalisePopupData(data) {
           revert();
         }
       };
-    }
-
-    function sanitiseMessages(list, options = {}) {
-      if (!Array.isArray(list)) {
-        return options.includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
-      }
-      const {
-        maxMessages = MAX_MESSAGES,
-        maxLength = MAX_MESSAGE_LENGTH,
-        includeMeta = false
-      } = options;
-      const cleaned = [];
-      let trimmedCount = 0;
-      let truncatedCount = 0;
-      for (const entry of list) {
-        let text = String(entry ?? '').trim();
-        if (!text) continue;
-        if (cleaned.length >= maxMessages) {
-          truncatedCount += 1;
-          continue;
-        }
-        if (text.length > maxLength) {
-          text = text.slice(0, maxLength);
-          trimmedCount += 1;
-        }
-        cleaned.push(text);
-      }
-      if (includeMeta) {
-        return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
-      }
-      return cleaned;
     }
 
     function updateOverlayChip() {
@@ -3313,61 +3174,16 @@ function normalisePopupData(data) {
       renderPresets();
     }
 
-    function buildSceneOverlayPayload(source) {
-      if (!source || typeof source !== 'object') return null;
-      if (serialiseOverlayForSceneImpl) {
-        const overlay = serialiseOverlayForSceneImpl(source, {
-          normaliseOverlayData,
-          overlayKeys: SCENE_OVERLAY_KEYS,
-          includeEmptyStrings: true
-        });
-        if (overlay && Object.keys(overlay).length) {
-          return overlay;
-        }
-        return null;
-      }
-      const fallback = {
-        theme: source.theme,
-        position: source.position,
-        mode: source.mode,
-        accentAnim: source.accentAnim,
-        sparkle: source.sparkle
-      };
-      for (const key of Object.keys(fallback)) {
-        if (fallback[key] === undefined || fallback[key] === null || fallback[key] === '') {
-          delete fallback[key];
-        }
-      }
-      return Object.keys(fallback).length ? fallback : null;
-    }
-
-    function normaliseSceneEntry(entry) {
-      if (!normaliseSceneEntryImpl) return null;
-      return normaliseSceneEntryImpl(entry, {
-        maxNameLength: MAX_SCENE_NAME_LENGTH,
-        sanitiseMessages,
-        clampDuration,
-        clampIntervalSeconds,
-        minutesToSeconds,
-        getDisplayDuration: () => state.displayDuration,
-        getIntervalMinutes: () => state.intervalMinutes,
-        normalisePopupData,
-        normaliseSlateData,
-        clampSlateRotation,
-        maxSlateNotes: MAX_SLATE_NOTES,
-        generateId: () => generateClientId('scene'),
-        normaliseOverlayData,
-        overlayKeys: SCENE_OVERLAY_KEYS,
-        includeEmptyStrings: true,
-        now: () => Date.now()
-      });
-    }
-
     function applyScenesData(list) {
       if (!Array.isArray(list)) return;
       const mapped = [];
       for (const entry of list) {
-        const normalised = normaliseSceneEntry(entry);
+        const normalised = normaliseSceneEntry(entry, {
+          fallbackDisplayDuration: state.displayDuration,
+          fallbackIntervalSeconds: minutesToSeconds(state.intervalMinutes),
+          maxMessages: MAX_MESSAGES,
+          maxMessageLength: MAX_MESSAGE_LENGTH
+        });
         if (normalised) mapped.push(normalised);
       }
       scenes = mapped;
