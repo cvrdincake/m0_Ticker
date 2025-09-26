@@ -1873,6 +1873,7 @@
       normalisePosition: sharedNormalisePosition,
       normaliseTheme: sharedNormaliseTheme,
       normaliseSlateNotes,
+      normaliseServerBase: sharedNormaliseServerBase,
 
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
@@ -1902,20 +1903,22 @@
     } = normaliserExports;
 
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
-    const normaliseServerBase = typeof sharedNormaliseServerBaseUrl === 'function'
-      ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
-      : (value, fallback = DEFAULT_SERVER_URL) => {
-          const fallbackValue = typeof fallback === 'string' && fallback.trim()
-            ? fallback.trim()
-            : DEFAULT_SERVER_URL;
-          const raw = typeof value === 'string' ? value.trim() : '';
-          const target = raw || fallbackValue;
-          const cleaned = target
-            .replace(/(?:\/ticker)+\/?$/i, '')
-            .replace(/\/+$/g, '');
-          const fallbackClean = fallbackValue.replace(/\/+$/g, '');
-          return cleaned || fallbackClean;
-        };
+    const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
+      ? (value, fallback) => sharedNormaliseServerBase(value, fallback ?? DEFAULT_SERVER_URL)
+      : typeof sharedNormaliseServerBaseUrl === 'function'
+        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+        : (value, fallback = DEFAULT_SERVER_URL) => {
+            const fallbackValue = typeof fallback === 'string' && fallback.trim()
+              ? fallback.trim()
+              : DEFAULT_SERVER_URL;
+            const raw = typeof value === 'string' ? value.trim() : '';
+            const target = raw || fallbackValue;
+            const cleaned = target
+              .replace(/(?:\/ticker)+\/?$/i, '')
+              .replace(/\/+$/g, '');
+            const fallbackClean = fallbackValue.replace(/\/+$/g, '');
+            return cleaned || fallbackClean;
+          };
 
     function normaliseThemeList(list) {
       if (!Array.isArray(list)) return [];
@@ -2400,7 +2403,44 @@
     }
 
     function serverBase() {
+      const previous = el.serverUrl && typeof el.serverUrl.value === 'string'
+        ? el.serverUrl.value
+        : '';
 
+      const fallbackOrigin = (() => {
+        if (typeof location === 'object' && location && typeof location.origin === 'string' && location.origin) {
+          return location.origin;
+        }
+        return DEFAULT_SERVER_URL;
+      })();
+
+      let base = normaliseServerBase(previous, fallbackOrigin);
+      if (typeof base !== 'string' || !base.trim()) {
+        base = fallbackOrigin;
+      } else {
+        base = base.trim();
+      }
+
+      base = base
+        .replace(/\/ticker\/?$/i, '')
+        .replace(/\/+$/g, '');
+
+      if (!base) {
+        base = fallbackOrigin || DEFAULT_SERVER_URL;
+      }
+
+      if (el.serverUrl && el.serverUrl.value !== base) {
+        el.serverUrl.value = base;
+        try {
+          if (typeof saveLocal === 'function') {
+            saveLocal();
+          }
+        } catch (err) {
+          console.warn('Failed to persist server URL', err);
+        }
+      }
+
+      return base;
     }
 
     function secondsToMinutes(seconds) {
