@@ -2,6 +2,17 @@
 
 This project exposes a lightweight dashboard and overlay for managing the ticker, popup, slate, and related widgets over HTTP.
 
+## Source of truth
+
+- The browser-facing dashboard and overlay are served from the files in [`public/`](public/).
+- The Node.js server entry point is [`server.js`](server.js);
+  configuration is described below in [Configuration](#configuration).
+- Historical archives that previously lived under `backup/` have been removed
+  from version control. When you cut a release, attach any supplemental
+  artifacts (ZIPs, screenshots, etc.) to the corresponding GitHub release or
+  capture the context in release notes instead of re-adding them to the
+  repository.
+
 ## Getting Started
 
 1. Install dependencies: `npm install`
