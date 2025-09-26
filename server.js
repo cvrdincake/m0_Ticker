@@ -69,7 +69,41 @@ const DEFAULT_HIGHLIGHT_STRING = typeof CONFIG_DEFAULT_HIGHLIGHT_STRING === 'str
   ? CONFIG_DEFAULT_HIGHLIGHT_STRING
   : DEFAULT_HIGHLIGHTS.join(',');
 
-const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
+const ENV_DEFAULT_OVERLAY_OVERRIDES = (() => {
+  const overrides = {};
+
+  const rawLabel = process.env.TICKER_DEFAULT_LABEL;
+  if (typeof rawLabel === 'string') {
+    const trimmed = rawLabel.trim().slice(0, 48);
+    if (trimmed) overrides.label = trimmed;
+  }
+
+  const rawAccent = process.env.TICKER_DEFAULT_ACCENT;
+  if (typeof rawAccent === 'string') {
+    const trimmedAccent = rawAccent.trim();
+    if (trimmedAccent && trimmedAccent.length <= 64 && isSafeCssColor(trimmedAccent)) {
+      overrides.accent = trimmedAccent;
+    }
+  }
+
+  const rawAccentSecondary = process.env.TICKER_DEFAULT_ACCENT_SECONDARY;
+  if (typeof rawAccentSecondary === 'string') {
+    const trimmedSecondary = rawAccentSecondary.trim();
+    if (trimmedSecondary && trimmedSecondary.length <= 64 && isSafeCssColor(trimmedSecondary)) {
+      overrides.accentSecondary = trimmedSecondary;
+    }
+  }
+
+  const rawTheme = process.env.TICKER_DEFAULT_THEME;
+  if (typeof rawTheme === 'string') {
+    const theme = normaliseTheme(rawTheme);
+    if (theme) overrides.theme = theme;
+  }
+
+  return overrides;
+})();
+
+const BASE_DEFAULT_OVERLAY_SOURCE = CONFIG_DEFAULT_OVERLAY
   ? { ...CONFIG_DEFAULT_OVERLAY }
   : {
       label: 'LIVE',
@@ -84,6 +118,11 @@ const BASE_DEFAULT_OVERLAY = CONFIG_DEFAULT_OVERLAY
       sparkle: true,
       theme: 'midnight-glass'
     };
+
+const BASE_DEFAULT_OVERLAY = {
+  ...BASE_DEFAULT_OVERLAY_SOURCE,
+  ...ENV_DEFAULT_OVERLAY_OVERRIDES
+};
 
 const BASE_DEFAULT_POPUP = CONFIG_DEFAULT_POPUP
   ? { ...CONFIG_DEFAULT_POPUP }

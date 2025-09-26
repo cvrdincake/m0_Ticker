@@ -26,28 +26,8 @@ Set the following environment variables before starting `server.js` to change wh
 | --- | --- | --- |
 | `TICKER_DIR` | Directory served at `/ticker` for dashboard and overlay assets. | `<repo>/public` |
 | `TICKER_STATE_FILE` | Path to the JSON file used to persist combined ticker/popup/scene state. | `<repo>/ticker-state.json` |
+| `TICKER_DEFAULT_LABEL` | Override the default overlay label text. | `LIVE` |
+| `TICKER_DEFAULT_ACCENT` | Override the default overlay accent colour (must be a valid CSS colour). | `#38bdf8` |
+| `TICKER_DEFAULT_ACCENT_SECONDARY` | Override the secondary accent colour (must be a valid CSS colour). | `#f472b6` |
+| `TICKER_DEFAULT_THEME` | Override the default overlay theme (must be one of the configured themes). | `midnight-glass` |
 
-Both variables accept relative paths, which will be resolved against the current working directory when the server boots.
-
-For default overlay, popup, and slate behavior without rebuilding the app, edit `public/js/shared-config.js`. This file exports shared constants that power the client UI, including:
-
-- `DEFAULT_OVERLAY.label` – the human-friendly name shown on the overlay when no queue item is active.
-- `DEFAULT_OVERLAY.accent` – the hex/rgb color used for accent elements across the overlay and popup.
-- `DEFAULT_OVERLAY.theme` – controls the base light/dark styling that downstream components apply.
-- `DEFAULT_HIGHLIGHTS` – an array of highlight presets surfaced in the dashboard for quick selection.
-
-For example, to customize these defaults you can tweak the exported values directly:
-
-```js
-export const DEFAULT_OVERLAY = {
-  label: "My Stream",
-  accent: "#00aaff",
-  theme: "dark",
-};
-
-export const DEFAULT_HIGHLIGHTS = [
-  { title: "Breaking News", color: "#ff3366" },
-];
-```
-
-Technically minded users can fork the repository, adjust `public/js/shared-config.js`, and redeploy their variant. Loading these settings from JSON at runtime is on the roadmap as an optional enhancement for future releases.
