@@ -229,6 +229,8 @@
 
     .control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
     .control-group { display: flex; flex-direction: column; gap: 10px; }
+    .control-group.has-error input,
+    .control-group.has-error textarea { border-color: rgba(255, 116, 116, 0.75); box-shadow: 0 0 0 2px rgba(255, 116, 116, 0.18); }
     .control-hint { margin: 2px 0 0; font-size: 12px; color: rgba(201, 208, 230, 0.7); }
     .control-hint.is-error { color: rgba(255, 152, 152, 0.85); }
     .accent-inputs { display: flex; align-items: center; gap: 10px; }
@@ -1259,19 +1261,20 @@
           <div class="control-grid">
             <div class="control-group">
               <label for="overlayLabel">Overlay Label</label>
-              <input type="text" id="overlayLabel" maxlength="32" />
+              <input type="text" id="overlayLabel" maxlength="48" />
             </div>
             <div class="control-group">
               <label for="overlayAccent">Accent Colour</label>
               <div class="accent-inputs" id="overlayAccentGroup">
                 <input type="color" id="overlayAccentPicker" aria-label="Accent colour" value="#ef4444" />
-                <input type="text" id="overlayAccent" placeholder="#ef4444" autocomplete="off" spellcheck="false" />
+                <input type="text" id="overlayAccent" placeholder="#ef4444" autocomplete="off" spellcheck="false" maxlength="64" />
               </div>
               <p class="control-hint" id="overlayAccentHint">Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.</p>
             </div>
-            <div class="control-group">
+            <div class="control-group" id="highlightGroup">
               <label for="highlightWords">Highlight Words (comma separated)</label>
-              <input type="text" id="highlightWords" placeholder="YouTube,Twitch,breaking" />
+              <input type="text" id="highlightWords" placeholder="YouTube,Twitch,breaking" maxlength="512" />
+              <p class="control-hint" id="highlightHint">Case-insensitive list, limited to 512 characters total.</p>
             </div>
           </div>
           <div class="control-group">
@@ -1308,6 +1311,7 @@
             <label>Theme</label>
               <div class="segment-row" id="themeButtons">
                 <button type="button" class="segment-button" data-theme="holographic">Holographic</button>
+                <button type="button" class="segment-button" data-theme="liquid-glass">Liquid Glass</button>
                 <button type="button" class="segment-button" data-theme="neural">Neural</button>
                 <button type="button" class="segment-button" data-theme="quantum">Quantum</button>
                 <button type="button" class="segment-button" data-theme="crystalline">Crystalline</button>
@@ -1316,6 +1320,7 @@
               </div>
               <div class="theme-notes">
                 <span><strong>Holographic</strong> iridescent refraction with caustic light</span>
+                <span><strong>Liquid Glass</strong> polished transparency with fluid bloom</span>
                 <span><strong>Neural</strong> AI-inspired circuitry with pulsing glow</span>
                 <span><strong>Quantum</strong> particle gradients and energetic beams</span>
                 <span><strong>Crystalline</strong> precision glass facets and cool sheen</span>
@@ -1533,6 +1538,8 @@
     const MAX_SLATE_TITLE_LENGTH = EXPORTED_MAX_SLATE_TITLE_LENGTH || 64;
     const MAX_SLATE_TEXT_LENGTH = EXPORTED_MAX_SLATE_TEXT_LENGTH || 200;
     const MAX_SLATE_NOTES = EXPORTED_MAX_SLATE_NOTES || 6;
+    const MAX_ACCENT_LENGTH = 64;
+    const MAX_HIGHLIGHT_LENGTH = 512;
     const MAX_BRB_LENGTH = 280;
     const MESSAGE_PLACEHOLDER = 'Add a ticker message…';
     const THEME_OPTIONS = Array.isArray(BASE_THEME_OPTIONS) && BASE_THEME_OPTIONS.length
@@ -1599,6 +1606,7 @@
       : '#ef4444';
     const ACCENT_FALLBACK_HEX = parseHexForPicker(DEFAULT_ACCENT) || '#ef4444';
     const ACCENT_HINT_DEFAULT = 'Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.';
+    const HIGHLIGHT_HINT_DEFAULT = 'Case-insensitive list, limited to 512 characters total.';
     const PRESET_NAME_HINT = 'Preset names can be up to 80 characters.';
 
     const DEFAULT_STATE = {
@@ -1705,7 +1713,9 @@
       overlayAccentPicker: document.getElementById('overlayAccentPicker'),
       overlayAccentGroup: document.getElementById('overlayAccentGroup'),
       overlayAccentHint: document.getElementById('overlayAccentHint'),
+      highlightGroup: document.getElementById('highlightGroup'),
       highlightWords: document.getElementById('highlightWords'),
+      highlightHint: document.getElementById('highlightHint'),
       scaleRange: document.getElementById('scaleRange'),
       scaleNumber: document.getElementById('scaleNumber'),
       popupScaleRange: document.getElementById('popupScaleRange'),
@@ -2686,6 +2696,17 @@
       }
     }
 
+    function setHighlightError(message) {
+      const hasError = Boolean(message);
+      if (el.highlightGroup) {
+        el.highlightGroup.classList.toggle('has-error', hasError);
+      }
+      if (el.highlightHint) {
+        el.highlightHint.textContent = hasError ? message : HIGHLIGHT_HINT_DEFAULT;
+        el.highlightHint.classList.toggle('is-error', hasError);
+      }
+    }
+
     function applyPreviewTheme() {
       if (!el.popupPreview) return;
       const theme = overlayPrefs.theme && THEME_OPTIONS.includes(overlayPrefs.theme)
@@ -2706,6 +2727,7 @@
       el.overlayLabel.value = overlayPrefs.label;
       updateAccentInputsFromPrefs();
       setAccentError('');
+      setHighlightError('');
       el.highlightWords.value = overlayPrefs.highlight;
       el.scaleRange.value = overlayPrefs.scale;
       el.scaleNumber.value = overlayPrefs.scale;
@@ -4441,6 +4463,16 @@
         applyPreviewTheme();
         return;
       }
+      if (trimmed.length > MAX_ACCENT_LENGTH) {
+        if (el.overlayAccent) {
+          el.overlayAccent.value = trimmed.slice(0, MAX_ACCENT_LENGTH);
+        }
+        setAccentError(`Accent colour must be ${MAX_ACCENT_LENGTH} characters or fewer.`);
+        if (el.overlayAccentPicker) {
+          el.overlayAccentPicker.value = parseHexForPicker(overlayPrefs.accent) || ACCENT_FALLBACK_HEX;
+        }
+        return;
+      }
       if (!isSafeColour(trimmed)) {
         if (el.overlayAccent) {
           el.overlayAccent.value = trimmed;
@@ -4465,16 +4497,25 @@
 
     if (el.overlayAccent) {
       el.overlayAccent.addEventListener('input', () => {
-        const current = el.overlayAccent.value.trim();
-        if (!current) {
+        const raw = el.overlayAccent.value;
+        const trimmed = raw.trim();
+        if (!trimmed) {
           setAccentError('');
           if (el.overlayAccentPicker) {
             el.overlayAccentPicker.value = ACCENT_FALLBACK_HEX;
           }
           return;
         }
+        if (trimmed.length > MAX_ACCENT_LENGTH) {
+          setAccentError(`Accent colour must be ${MAX_ACCENT_LENGTH} characters or fewer.`);
+          return;
+        }
+        if (!isSafeColour(trimmed)) {
+          setAccentError('Enter a valid CSS colour value.');
+          return;
+        }
         setAccentError('');
-        const hex = parseHexForPicker(current);
+        const hex = parseHexForPicker(trimmed);
         if (hex && el.overlayAccentPicker) {
           el.overlayAccentPicker.value = hex;
         }
@@ -4490,10 +4531,28 @@
     }
 
     el.highlightWords.addEventListener('input', () => {
+      if (!el.highlightWords) return;
       const raw = el.highlightWords.value;
-      const normalised = normaliseHighlightInput(raw);
-      const changed = overlayPrefs.highlight !== normalised;
-      overlayPrefs.highlight = normalised;
+      if (raw.length > MAX_HIGHLIGHT_LENGTH) {
+        el.highlightWords.value = raw.slice(0, MAX_HIGHLIGHT_LENGTH);
+      }
+      const normalisedFull = normaliseHighlightInput(el.highlightWords.value || '');
+      let limited = normalisedFull;
+      let wasTrimmed = false;
+      if (normalisedFull.length > MAX_HIGHLIGHT_LENGTH) {
+        limited = normalisedFull.slice(0, MAX_HIGHLIGHT_LENGTH);
+        wasTrimmed = true;
+      }
+      const changed = overlayPrefs.highlight !== limited;
+      overlayPrefs.highlight = limited;
+      if (wasTrimmed) {
+        setHighlightError(`Highlight terms limited to ${MAX_HIGHLIGHT_LENGTH} characters. Extra text was removed.`);
+        if (el.highlightWords.value !== limited) {
+          el.highlightWords.value = limited;
+        }
+      } else {
+        setHighlightError('');
+      }
       if (changed) {
         updateHighlightRegex();
         renderMessages();
@@ -4505,6 +4564,9 @@
     });
     el.highlightWords.addEventListener('blur', () => {
       el.highlightWords.value = overlayPrefs.highlight;
+      if (overlayPrefs.highlight.length <= MAX_HIGHLIGHT_LENGTH) {
+        setHighlightError('');
+      }
     });
 
     if (el.slateEnabled) {
