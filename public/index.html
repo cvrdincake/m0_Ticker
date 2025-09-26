@@ -1696,6 +1696,8 @@
     let popupState = { ...DEFAULT_POPUP };
     let slateState = { ...DEFAULT_SLATE };
     let brbState = { ...DEFAULT_BRB };
+    let wasTickerActive = null;
+    let wasPopupActive = null;
     let presets = [];
     let scenes = [];
     let editingIndex = -1;
@@ -3105,6 +3107,59 @@
       if (el.clearPopup) el.clearPopup.disabled = disabled;
     }
 
+    function handleBrbActivationChange(prevActive, nextActive, options = {}) {
+      if (prevActive === nextActive) return;
+      const { persistTicker = true, persistPopup = true } = options;
+      const now = Date.now();
+
+      if (nextActive) {
+        wasTickerActive = !!state.isActive;
+        wasPopupActive = !!popupState.isActive;
+
+        state.isActive = false;
+        if (persistTicker) {
+          state.updatedAt = now;
+        }
+        renderTicker();
+
+        popupState = {
+          ...popupState,
+          isActive: false,
+          updatedAt: persistPopup ? now : popupState.updatedAt
+        };
+        renderPopupControls();
+
+        if (persistTicker) queueSave();
+        if (persistPopup) queuePopupSave();
+      } else {
+        const shouldRestoreTicker = wasTickerActive !== null;
+        const shouldRestorePopup = wasPopupActive !== null;
+
+        if (shouldRestoreTicker) {
+          state.isActive = !!wasTickerActive;
+          if (persistTicker) {
+            state.updatedAt = now;
+          }
+          renderTicker();
+        }
+
+        if (shouldRestorePopup) {
+          popupState = {
+            ...popupState,
+            isActive: !!wasPopupActive,
+            updatedAt: persistPopup ? now : popupState.updatedAt
+          };
+          renderPopupControls();
+        }
+
+        if (persistTicker && shouldRestoreTicker) queueSave();
+        if (persistPopup && shouldRestorePopup) queuePopupSave();
+
+        wasTickerActive = null;
+        wasPopupActive = null;
+      }
+    }
+
     function renderBrbControls() {
       if (el.brbText) {
         el.brbText.value = brbState.text;
@@ -3119,7 +3174,14 @@
 
       if (el.brbStatus) {
         const parts = [];
-        parts.push(brbState.isActive && brbState.text ? 'BRB live' : 'BRB hidden');
+        const brbActive = brbState.isActive && !!brbState.text;
+        parts.push(brbActive ? 'BRB live' : 'BRB hidden');
+        if (brbActive && wasTickerActive) {
+          parts.push('Ticker paused — resumes when BRB ends');
+        }
+        if (brbActive && wasPopupActive) {
+          parts.push('Popup paused — resumes when BRB ends');
+        }
         if (brbState.updatedAt) {
           parts.push(`Updated ${new Date(brbState.updatedAt).toLocaleTimeString()}`);
         }
@@ -3228,7 +3290,11 @@
 
     function applyBrbData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      brbState = normaliseBrbData(payload);
+      const prevActive = brbState.isActive && !!brbState.text;
+      const nextState = normaliseBrbData(payload);
+      const nextActive = nextState.isActive && !!nextState.text;
+      handleBrbActivationChange(prevActive, nextActive, { persistTicker: false, persistPopup: false });
+      brbState = nextState;
       renderBrbControls();
     }
 
@@ -3563,7 +3629,22 @@
         el.brbActive.checked = isActive;
       }
 
+      const prevActive = brbState.isActive && !!brbState.text;
+      const previousBrbState = { ...brbState };
       const payload = { text, isActive };
+      const handledTransition = prevActive !== isActive;
+
+      if (handledTransition) {
+        handleBrbActivationChange(prevActive, isActive, { persistTicker: true, persistPopup: true });
+      }
+
+      const optimisticState = {
+        ...brbState,
+        text,
+        isActive,
+        updatedAt: Date.now()
+      };
+      brbState = optimisticState;
       brbSaveInFlight = true;
       renderBrbControls();
       try {
@@ -3593,6 +3674,11 @@
         toast(isActive ? 'BRB updated' : 'BRB hidden');
       } catch (err) {
         console.error('Failed to save BRB state', err);
+        if (handledTransition) {
+          handleBrbActivationChange(isActive, prevActive, { persistTicker: true, persistPopup: true });
+        }
+        brbState = previousBrbState;
+        renderBrbControls();
         toast(err.message || 'Failed to update BRB state');
       } finally {
         brbSaveInFlight = false;
