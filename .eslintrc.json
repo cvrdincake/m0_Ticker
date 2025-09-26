@@ -1,0 +1,56 @@
+{
+  "root": true,
+  "env": {
+    "es2022": true,
+    "browser": true,
+    "node": true
+  },
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "script"
+  },
+  "plugins": [
+    "html",
+    "dom"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:dom/recommended",
+    "prettier"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "server.js",
+        "tests/**/*.js"
+      ],
+      "env": {
+        "browser": false,
+        "node": true
+      }
+    },
+    {
+      "files": [
+        "public/**/*.js"
+      ],
+      "env": {
+        "browser": true,
+        "node": false
+      },
+      "globals": {
+        "TickerShared": "readonly",
+        "SharedConfig": "readonly"
+      }
+    }
+  ],
+  "rules": {
+    "no-console": "off",
+    "no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ]
+  }
+}
