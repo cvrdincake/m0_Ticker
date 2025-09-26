@@ -1578,6 +1578,44 @@
       'theme'
     ];
 
+    function buildSceneOverlayPayload(source) {
+      if (!source || typeof source !== 'object') return null;
+
+      const serialised = serialiseOverlayForSceneImpl?.(source, {
+        normaliseOverlayData,
+        overlayKeys: SCENE_OVERLAY_KEYS,
+        includeEmptyStrings: true
+      });
+      if (serialised && typeof serialised === 'object') {
+        return Object.keys(serialised).length ? serialised : null;
+      }
+
+      const normalised = typeof normaliseOverlayData === 'function'
+        ? normaliseOverlayData(source)
+        : { ...source };
+      const allowEmptyStrings = new Set(['accent', 'accentSecondary', 'highlight']);
+      const result = {};
+
+      for (const key of SCENE_OVERLAY_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(source, key)) continue;
+        if (!(key in normalised)) continue;
+
+        const value = normalised[key];
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (!trimmed && !allowEmptyStrings.has(key)) continue;
+          result[key] = allowEmptyStrings.has(key) ? trimmed : trimmed;
+        } else if (typeof value === 'number') {
+          if (!Number.isFinite(value)) continue;
+          result[key] = value;
+        } else if (typeof value === 'boolean') {
+          result[key] = value;
+        }
+      }
+
+      return Object.keys(result).length ? result : null;
+    }
+
     const sharedConfig = window.SharedConfig || {};
     const DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
       ? BASE_DEFAULT_HIGHLIGHTS.slice()
