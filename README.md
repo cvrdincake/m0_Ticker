@@ -16,6 +16,10 @@ With the server running on <http://127.0.0.1:3000>:
 
 The dashboard consumes the SSE stream to stay in sync with the server, and the overlay hydrates itself from the same `/ticker/stream` endpoint when it loads. OBS can point directly at the overlay URL, while operators can manage queues and presets from the dashboard.
 
+## Testing
+
+`npm test` runs both unit suites and integration checks. The integration tests boot `server.js` in-process and exercise the HTTP API, so ensure port `3000` is available before running the suite. No browser is required—the tests execute headlessly via Node's built-in `node:test` runner.
+
 ## Configuration
 
 Set the following environment variables before starting `server.js` to change where assets and state are loaded from (see [Getting Started](#getting-started) for the launch command):
