@@ -1267,7 +1267,7 @@
               <label for="overlayAccent">Accent Colour</label>
               <div class="accent-inputs" id="overlayAccentGroup">
                 <input type="color" id="overlayAccentPicker" aria-label="Accent colour" value="#38bdf8" />
-                <input type="text" id="overlayAccent" placeholder="#38bdf8" autocomplete="off" spellcheck="false" />
+                <input type="text" id="overlayAccent" placeholder="#38bdf8" autocomplete="off" spellcheck="false" maxlength="64" />
               </div>
               <p class="control-hint" id="overlayAccentHint">Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.</p>
             </div>
@@ -1275,7 +1275,7 @@
               <label for="overlayAccentSecondary">Accent Colour B</label>
               <div class="accent-inputs" id="overlayAccentSecondaryGroup">
                 <input type="color" id="overlayAccentSecondaryPicker" aria-label="Secondary accent colour" value="#f472b6" />
-                <input type="text" id="overlayAccentSecondary" placeholder="#f472b6" autocomplete="off" spellcheck="false" />
+                <input type="text" id="overlayAccentSecondary" placeholder="#f472b6" autocomplete="off" spellcheck="false" maxlength="64" />
               </div>
               <p class="control-hint" id="overlayAccentSecondaryHint">Optional second highlight used by Duotone Fusion and blended gradients.</p>
             </div>
@@ -1616,6 +1616,7 @@
       : ACCENT_FALLBACK_HEX;
     const ACCENT_HINT_DEFAULT = 'Accepts hex (#ff0000), rgb(a), hsl(a), or named colours.';
     const ACCENT_SECONDARY_HINT_DEFAULT = 'Optional second highlight used by Duotone Fusion and blended gradients.';
+    const ACCENT_MAX_LENGTH = 64;
     const PRESET_NAME_HINT = 'Preset names can be up to 80 characters.';
 
     const DEFAULT_STATE = {
@@ -4473,6 +4474,9 @@
       queueOverlaySave();
     });
 
+    const ACCENT_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer.`;
+    const ACCENT_SECONDARY_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer. Clear the field to remove this colour.`;
+
     function commitAccentInput(nextValue) {
       if (!el.overlayAccent) return;
       const rawValue = typeof nextValue === 'string' ? nextValue : el.overlayAccent.value;
@@ -4487,6 +4491,16 @@
           updateOverlayChip();
           saveLocal();
           queueOverlaySave();
+        }
+        return;
+      }
+      if (trimmed.length > ACCENT_MAX_LENGTH) {
+        if (el.overlayAccent) {
+          el.overlayAccent.value = trimmed;
+        }
+        setAccentError(ACCENT_LENGTH_ERROR);
+        if (el.overlayAccentPicker) {
+          el.overlayAccentPicker.value = parseHexForPicker(overlayPrefs.accent) || ACCENT_FALLBACK_HEX;
         }
         return;
       }
@@ -4529,6 +4543,16 @@
         }
         return;
       }
+      if (trimmed.length > ACCENT_MAX_LENGTH) {
+        if (el.overlayAccentSecondary) {
+          el.overlayAccentSecondary.value = trimmed;
+        }
+        setAccentSecondaryError(ACCENT_SECONDARY_LENGTH_ERROR);
+        if (el.overlayAccentSecondaryPicker) {
+          el.overlayAccentSecondaryPicker.value = parseHexForPicker(overlayPrefs.accentSecondary) || ACCENT_SECONDARY_FALLBACK_HEX;
+        }
+        return;
+      }
       if (!isSafeColour(trimmed)) {
         if (el.overlayAccentSecondary) {
           el.overlayAccentSecondary.value = trimmed;
@@ -4552,21 +4576,7 @@
     }
 
     if (el.overlayAccent) {
-      el.overlayAccent.addEventListener('input', () => {
-        const current = el.overlayAccent.value.trim();
-        if (!current) {
-          setAccentError('');
-          if (el.overlayAccentPicker) {
-            el.overlayAccentPicker.value = ACCENT_FALLBACK_HEX;
-          }
-          return;
-        }
-        setAccentError('');
-        const hex = parseHexForPicker(current);
-        if (hex && el.overlayAccentPicker) {
-          el.overlayAccentPicker.value = hex;
-        }
-      });
+      el.overlayAccent.addEventListener('input', () => commitAccentInput());
       el.overlayAccent.addEventListener('change', () => commitAccentInput());
       el.overlayAccent.addEventListener('blur', () => commitAccentInput());
     }
@@ -4578,23 +4588,7 @@
     }
 
     if (el.overlayAccentSecondary) {
-      el.overlayAccentSecondary.addEventListener('input', () => {
-        const current = el.overlayAccentSecondary.value.trim();
-        if (!current) {
-          setAccentSecondaryError('');
-          if (el.overlayAccentSecondaryPicker) {
-            el.overlayAccentSecondaryPicker.value = overlayPrefs.accent
-              ? (parseHexForPicker(overlayPrefs.accent) || ACCENT_SECONDARY_FALLBACK_HEX)
-              : ACCENT_SECONDARY_FALLBACK_HEX;
-          }
-          return;
-        }
-        setAccentSecondaryError('');
-        const hex = parseHexForPicker(current);
-        if (hex && el.overlayAccentSecondaryPicker) {
-          el.overlayAccentSecondaryPicker.value = hex;
-        }
-      });
+      el.overlayAccentSecondary.addEventListener('input', () => commitAccentSecondaryInput());
       el.overlayAccentSecondary.addEventListener('change', () => commitAccentSecondaryInput());
       el.overlayAccentSecondary.addEventListener('blur', () => commitAccentSecondaryInput());
     }
