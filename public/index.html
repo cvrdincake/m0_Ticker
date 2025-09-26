@@ -692,6 +692,7 @@
     .preset-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .preset-actions button { border-radius: 10px; padding: 7px 12px; font-size: 12px; font-weight: 600; border: none; cursor: pointer; background: rgba(54, 62, 92, 0.9); color: #eef1ff; }
     .preset-actions button:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(18, 22, 34, 0.4); }
+    .preset-hint { font-size: 12px; color: rgba(201, 208, 230, 0.68); margin-top: 6px; line-height: 1.4; }
     .preset-actions button[data-action="delete"] { background: rgba(255, 107, 107, 0.14); color: #ff8e8e; }
 
     .preset-modal {
@@ -2861,6 +2862,7 @@
             <button type="button" data-action="append">Append</button>
             <button type="button" data-action="delete">Delete</button>
           </div>
+          <div class="preset-hint">Ticker stays idle unless Auto-start is enabled or you press Start.</div>
         </div>`;
       }).join('');
       el.presetList.innerHTML = cards;
