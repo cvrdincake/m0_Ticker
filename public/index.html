@@ -1469,6 +1469,7 @@
 
   <script src="js/shared-config.js"></script>
   <script src="js/shared-utils.js"></script>
+  <script src="js/scene-normaliser.js"></script>
   <script>
     const {
       OVERLAY_THEMES,
@@ -1500,6 +1501,26 @@
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
+
+    const ScenesModule = window.TickerScenes || {};
+    const normaliseSceneEntryImpl = typeof ScenesModule.normaliseSceneEntry === 'function'
+      ? ScenesModule.normaliseSceneEntry
+      : null;
+    const serialiseOverlayForSceneImpl = typeof ScenesModule.serialiseOverlayForScene === 'function'
+      ? ScenesModule.serialiseOverlayForScene
+      : null;
+    const SCENE_OVERLAY_KEYS = [
+      'label',
+      'accent',
+      'highlight',
+      'scale',
+      'popupScale',
+      'position',
+      'mode',
+      'accentAnim',
+      'sparkle',
+      'theme'
+    ];
 
     const sharedConfig = window.SharedConfig || {};
     const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
@@ -3272,61 +3293,54 @@ function normalisePopupData(data) {
       renderPresets();
     }
 
-    function normaliseSceneEntry(entry) {
-      if (!entry || typeof entry !== 'object') return null;
-      const name = String(entry.name || '').trim().slice(0, MAX_SCENE_NAME_LENGTH);
-      if (!name) return null;
-
-      const tickerSource = (entry.ticker && typeof entry.ticker === 'object') ? entry.ticker : entry;
-      const tickerMessages = sanitiseMessages(tickerSource.messages || entry.messages || []);
-      const displayDuration = clampDuration(tickerSource.displayDuration ?? state.displayDuration);
-      const intervalRaw = tickerSource.intervalBetween ?? entry.intervalBetween;
-      const intervalSeconds = typeof clampIntervalSeconds === 'function'
-        ? clampIntervalSeconds(intervalRaw, minutesToSeconds(state.intervalMinutes))
-        : Math.max(0, Math.min(3600, Math.round(Number(intervalRaw) || 0)));
-      const ticker = {
-        messages: tickerMessages,
-        displayDuration,
-        intervalBetween: intervalSeconds,
-        isActive: !!(tickerSource.isActive ?? entry.isActive) && tickerMessages.length > 0
-      };
-
-      const popup = normalisePopupData(entry.popup || {});
-
-      let slate = null;
-      if (entry.slate && typeof entry.slate === 'object') {
-        const normalisedSlate = normaliseSlateData(entry.slate);
-        slate = {
-          isEnabled: !!normalisedSlate.isEnabled,
-          rotationSeconds: clampSlateRotation(normalisedSlate.rotationSeconds),
-          showClock: !!normalisedSlate.showClock,
-          clockLabel: normalisedSlate.clockLabel || '',
-          nextLabel: normalisedSlate.nextLabel || '',
-          nextTitle: normalisedSlate.nextTitle || '',
-          nextSubtitle: normalisedSlate.nextSubtitle || '',
-          sponsorLabel: normalisedSlate.sponsorLabel || '',
-          sponsorName: normalisedSlate.sponsorName || '',
-          sponsorTagline: normalisedSlate.sponsorTagline || '',
-          notesLabel: normalisedSlate.notesLabel || '',
-          notes: Array.isArray(normalisedSlate.notes) ? normalisedSlate.notes.slice(0, MAX_SLATE_NOTES) : []
-        };
+    function buildSceneOverlayPayload(source) {
+      if (!source || typeof source !== 'object') return null;
+      if (serialiseOverlayForSceneImpl) {
+        const overlay = serialiseOverlayForSceneImpl(source, {
+          normaliseOverlayData,
+          overlayKeys: SCENE_OVERLAY_KEYS,
+          includeEmptyStrings: true
+        });
+        if (overlay && Object.keys(overlay).length) {
+          return overlay;
+        }
+        return null;
       }
-
-      let overlay = null;
-      const rawTheme = entry.overlay && typeof entry.overlay === 'object' ? entry.overlay.theme : null;
-      if (typeof rawTheme === 'string') {
-        const normalisedTheme = typeof sharedNormaliseTheme === 'function'
-          ? sharedNormaliseTheme(rawTheme)
-          : rawTheme.trim().toLowerCase();
-        if (normalisedTheme && THEME_OPTIONS.includes(normalisedTheme)) {
-          overlay = { theme: normalisedTheme };
+      const fallback = {
+        theme: source.theme,
+        position: source.position,
+        mode: source.mode,
+        accentAnim: source.accentAnim,
+        sparkle: source.sparkle
+      };
+      for (const key of Object.keys(fallback)) {
+        if (fallback[key] === undefined || fallback[key] === null || fallback[key] === '') {
+          delete fallback[key];
         }
       }
+      return Object.keys(fallback).length ? fallback : null;
+    }
 
-      const id = String(entry.id || generateClientId('scene'));
-      const updatedAt = Number(entry.updatedAt) || Date.now();
-
-      return { id, name, ticker, popup, overlay, slate, updatedAt };
+    function normaliseSceneEntry(entry) {
+      if (!normaliseSceneEntryImpl) return null;
+      return normaliseSceneEntryImpl(entry, {
+        maxNameLength: MAX_SCENE_NAME_LENGTH,
+        sanitiseMessages,
+        clampDuration,
+        clampIntervalSeconds,
+        minutesToSeconds,
+        getDisplayDuration: () => state.displayDuration,
+        getIntervalMinutes: () => state.intervalMinutes,
+        normalisePopupData,
+        normaliseSlateData,
+        clampSlateRotation,
+        maxSlateNotes: MAX_SLATE_NOTES,
+        generateId: () => generateClientId('scene'),
+        normaliseOverlayData,
+        overlayKeys: SCENE_OVERLAY_KEYS,
+        includeEmptyStrings: true,
+        now: () => Date.now()
+      });
     }
 
     function applyScenesData(list) {
@@ -4298,6 +4312,7 @@ function normalisePopupData(data) {
         if (tickerResult.truncated) notes.push(`skipped ${tickerResult.truncated}`);
         if (notes.length) toast(`Scene adjusted • ${notes.join('; ')}`);
       }
+      const overlay = buildSceneOverlayPayload(overlayPrefs);
       const payload = {
         id: existingId || generateClientId('scene'),
         name: trimmedName,
@@ -4315,26 +4330,15 @@ function normalisePopupData(data) {
           countdownTarget: popup.countdownTarget
         },
         slate: serialiseSlateState(),
-        overlay: {
-          theme: overlayPrefs.theme,
-          position: overlayPrefs.position,
-          mode: overlayPrefs.mode,
-          accentAnim: overlayPrefs.accentAnim,
-          sparkle: overlayPrefs.sparkle
-        },
         updatedAt: Date.now()
       };
-      if (!payload.overlay.theme) {
-        delete payload.overlay.theme;
-      }
-      if (!payload.overlay.position) {
-        delete payload.overlay.position;
-      }
-      if (!payload.overlay.mode) {
-        delete payload.overlay.mode;
-      }
-      if (!Object.keys(payload.overlay).length) {
-        delete payload.overlay;
+      if (overlay && Object.keys(overlay).length) {
+        if (!overlay.theme) delete overlay.theme;
+        if (!overlay.position) delete overlay.position;
+        if (!overlay.mode) delete overlay.mode;
+        if (Object.keys(overlay).length) {
+          payload.overlay = overlay;
+        }
       }
       return payload;
     }
