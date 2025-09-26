@@ -1579,6 +1579,24 @@
       'theme'
     ];
 
+    const buildSceneOverlayPayload = serialiseOverlayForSceneImpl
+      ? (overlayPrefs = {}) => serialiseOverlayForSceneImpl(
+          overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {},
+          normaliseOverlayData,
+          SCENE_OVERLAY_KEYS,
+          { includeEmptyStrings: false }
+        )
+      : (overlayPrefs = {}) => {
+          const source = overlayPrefs && typeof overlayPrefs === 'object' ? overlayPrefs : {};
+          const payload = {};
+          SCENE_OVERLAY_KEYS.forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(source, key)) {
+              payload[key] = source[key];
+            }
+          });
+          return payload;
+        };
+
     const sharedConfig = window.SharedConfig || {};
     const DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
       ? BASE_DEFAULT_HIGHLIGHTS.slice()
