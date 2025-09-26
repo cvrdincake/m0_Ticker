@@ -18,6 +18,14 @@
 
   const DEFAULT_HIGHLIGHT_STRING = DEFAULT_HIGHLIGHTS.join(', ');
 
+  const OVERLAY_THEMES = Object.freeze([
+    'midnight-glass',
+    'aurora-night',
+    'nexus-grid',
+    'zen-flow',
+    'duotone-fusion'
+  ]);
+
   const DEFAULT_OVERLAY = Object.freeze({
     label: 'LIVE',
     accent: '#38bdf8',
@@ -57,6 +65,7 @@
   });
 
   return {
+    OVERLAY_THEMES,
     DEFAULT_OVERLAY,
     DEFAULT_POPUP,
     DEFAULT_SLATE,
