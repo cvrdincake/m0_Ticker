@@ -20,13 +20,38 @@
     'duotone-fusion'
   ];
 
-  const MAX_MESSAGES = 50;
-  const MAX_MESSAGE_LENGTH = 280;
-  const MAX_POPUP_SECONDS = 600;
-  const MAX_SCENE_NAME_LENGTH = 80;
-  const MAX_SLATE_TITLE_LENGTH = 64;
-  const MAX_SLATE_TEXT_LENGTH = 200;
-  const MAX_SLATE_NOTES = 6;
+  const {
+    MAX_TICKER_MESSAGES: SHARED_MAX_TICKER_MESSAGES,
+    MAX_TICKER_MESSAGE_LENGTH: SHARED_MAX_MESSAGE_LENGTH,
+    MAX_POPUP_DURATION_SECONDS: SHARED_MAX_POPUP_SECONDS,
+    MAX_SCENE_NAME_LENGTH: SHARED_MAX_SCENE_NAME_LENGTH,
+    MAX_SLATE_TITLE_LENGTH: SHARED_MAX_SLATE_TITLE_LENGTH,
+    MAX_SLATE_TEXT_LENGTH: SHARED_MAX_SLATE_TEXT_LENGTH,
+    MAX_SLATE_NOTES: SHARED_MAX_SLATE_NOTES,
+    sanitiseMessages: sharedSanitiseMessages
+  } = sharedUtils || {};
+
+  const MAX_MESSAGES = Number.isFinite(SHARED_MAX_TICKER_MESSAGES)
+    ? SHARED_MAX_TICKER_MESSAGES
+    : 50;
+  const MAX_MESSAGE_LENGTH = Number.isFinite(SHARED_MAX_MESSAGE_LENGTH)
+    ? SHARED_MAX_MESSAGE_LENGTH
+    : 280;
+  const MAX_POPUP_SECONDS = Number.isFinite(SHARED_MAX_POPUP_SECONDS)
+    ? SHARED_MAX_POPUP_SECONDS
+    : 600;
+  const MAX_SCENE_NAME_LENGTH = Number.isFinite(SHARED_MAX_SCENE_NAME_LENGTH)
+    ? SHARED_MAX_SCENE_NAME_LENGTH
+    : 80;
+  const MAX_SLATE_TITLE_LENGTH = Number.isFinite(SHARED_MAX_SLATE_TITLE_LENGTH)
+    ? SHARED_MAX_SLATE_TITLE_LENGTH
+    : 64;
+  const MAX_SLATE_TEXT_LENGTH = Number.isFinite(SHARED_MAX_SLATE_TEXT_LENGTH)
+    ? SHARED_MAX_SLATE_TEXT_LENGTH
+    : 200;
+  const MAX_SLATE_NOTES = Number.isFinite(SHARED_MAX_SLATE_NOTES)
+    ? SHARED_MAX_SLATE_NOTES
+    : 6;
 
   const themeOptions = Array.isArray(sharedUtils.OVERLAY_THEMES) && sharedUtils.OVERLAY_THEMES.length
     ? sharedUtils.OVERLAY_THEMES.slice()
@@ -176,39 +201,51 @@
       .join(', ');
   }
 
-  function sanitiseMessages(list, options = {}) {
-    if (!Array.isArray(list)) {
-      return options.includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
-    }
-    const {
-      maxMessages = MAX_MESSAGES,
-      maxLength = MAX_MESSAGE_LENGTH,
-      includeMeta = false
-    } = options;
-
-    const cleaned = [];
-    let trimmedCount = 0;
-    let truncatedCount = 0;
-
-    for (const entry of list) {
-      let text = String(entry ?? '').trim();
-      if (!text) continue;
-      if (cleaned.length >= maxMessages) {
-        truncatedCount += 1;
-        continue;
+  const sanitiseMessages = typeof sharedSanitiseMessages === 'function'
+    ? function sanitiseMessages(list, options = {}) {
+        return sharedSanitiseMessages(list, {
+          maxMessages: MAX_MESSAGES,
+          maxLength: MAX_MESSAGE_LENGTH,
+          ...options
+        });
       }
-      if (text.length > maxLength) {
-        text = text.slice(0, maxLength);
-        trimmedCount += 1;
-      }
-      cleaned.push(text);
-    }
+    : function sanitiseMessages(list, options = {}) {
+        if (!Array.isArray(list)) {
+          return options.includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
+        }
 
-    if (includeMeta) {
-      return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
-    }
-    return cleaned;
-  }
+        const {
+          maxMessages = MAX_MESSAGES,
+          maxLength = MAX_MESSAGE_LENGTH,
+          includeMeta = false
+        } = options;
+
+        const cleaned = [];
+        let trimmedCount = 0;
+        let truncatedCount = 0;
+
+        for (const entry of list) {
+          let text = String(entry ?? '').trim();
+          if (!text) continue;
+
+          if (cleaned.length >= maxMessages) {
+            truncatedCount += 1;
+            continue;
+          }
+
+          if (text.length > maxLength) {
+            text = text.slice(0, maxLength);
+            trimmedCount += 1;
+          }
+
+          cleaned.push(text);
+        }
+
+        if (includeMeta) {
+          return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
+        }
+        return cleaned;
+      };
 
   function normaliseOverlayData(data, defaults = defaultOverlay) {
     const base = {
