@@ -1578,6 +1578,38 @@
       'theme'
     ];
 
+    function buildSceneOverlayPayload(rawOverlay) {
+      if (!rawOverlay || typeof rawOverlay !== 'object') return null;
+
+      if (serialiseOverlayForSceneImpl) {
+        const overlay = serialiseOverlayForSceneImpl(rawOverlay, {
+          normaliseOverlayData: typeof normaliseOverlayData === 'function'
+            ? normaliseOverlayData
+            : null,
+          overlayKeys: SCENE_OVERLAY_KEYS,
+          includeEmptyStrings: false
+        });
+        return overlay && typeof overlay === 'object' && Object.keys(overlay).length
+          ? overlay
+          : null;
+      }
+
+      const result = {};
+      for (const key of SCENE_OVERLAY_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(rawOverlay, key)) continue;
+        const value = rawOverlay[key];
+        if (typeof value === 'string') {
+          const trimmed = value.trim();
+          if (!trimmed) continue;
+          result[key] = trimmed;
+        } else if (value !== undefined && value !== null) {
+          result[key] = value;
+        }
+      }
+
+      return Object.keys(result).length ? result : null;
+    }
+
     const sharedConfig = window.SharedConfig || {};
     const DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
       ? BASE_DEFAULT_HIGHLIGHTS.slice()
