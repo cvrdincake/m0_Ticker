@@ -357,6 +357,11 @@
       gap: 12px;
       align-items: center;
     }
+    .actions--overlay-hint {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
     .actions .spacer { flex: 1; }
 
     .btn {
@@ -1338,8 +1343,9 @@
             <label><input type="checkbox" id="accentAnimToggle" checked /> Accent shimmer</label>
             <label><input type="checkbox" id="sparkleToggle" checked /> Sparkle effects</label>
           </div>
-          <div class="actions">
+          <div class="actions actions--overlay-hint">
             <button class="btn btn-ghost" id="copyOverlay">Copy URL</button>
+            <p class="control-hint">Use this in an OBS Browser Source.</p>
           </div>
           <div class="preview-block">
             <div class="preview-toolbar">
