@@ -1765,6 +1765,7 @@
       normalisePosition: sharedNormalisePosition,
       normaliseTheme: sharedNormaliseTheme,
       normaliseSlateNotes,
+      normaliseServerBase,
       isSafeCssColor: sharedIsSafeCssColor
     } = window.TickerShared || {};
 
@@ -2275,8 +2276,16 @@
     }
 
     function serverBase() {
-      const value = (el.serverUrl.value || 'http://127.0.0.1:3000').trim();
-      return value.replace(/\/?$/, '');
+      const fallback = (window.location && typeof window.location.origin === 'string')
+        ? window.location.origin
+        : 'http://127.0.0.1:3000';
+      if (typeof normaliseServerBase === 'function') {
+        return normaliseServerBase(el.serverUrl.value, fallback);
+      }
+      const value = (el.serverUrl.value || fallback).trim();
+      return value
+        .replace(/\/ticker\/?$/i, '')
+        .replace(/\/+$/, '');
     }
 
     function secondsToMinutes(seconds) {

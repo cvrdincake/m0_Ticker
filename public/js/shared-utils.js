@@ -173,6 +173,72 @@
     return notes;
   }
 
+  function normaliseServerBase(value, fallbackOrigin) {
+    const defaultFallback = (() => {
+      if (typeof fallbackOrigin === 'string' && fallbackOrigin.trim()) {
+        return fallbackOrigin.trim();
+      }
+      if (root && root.location && typeof root.location.origin === 'string') {
+        return root.location.origin;
+      }
+      return 'http://127.0.0.1:3000';
+    })();
+
+    const sanitiseLooseBase = raw => {
+      if (typeof raw !== 'string') return '';
+      const trimmed = raw.trim();
+      if (!trimmed) return '';
+      return trimmed
+        .replace(/\/ticker\/?$/i, '')
+        .replace(/\/+$/, '');
+    };
+
+    const sanitisePathname = pathname => {
+      if (typeof pathname !== 'string') return '';
+      if (!pathname || pathname === '/') return '';
+      let trimmed = pathname;
+      if (!trimmed.startsWith('/')) {
+        trimmed = `/${trimmed}`;
+      }
+      trimmed = trimmed.replace(/\/+$/, '');
+      if (trimmed.toLowerCase().endsWith('/ticker')) {
+        trimmed = trimmed.slice(0, -'/ticker'.length);
+      }
+      trimmed = trimmed.replace(/\/+$/, '');
+      if (trimmed === '/' || trimmed === '') {
+        return '';
+      }
+      return trimmed;
+    };
+
+    const fromUrl = url => {
+      if (!url || typeof url.origin !== 'string') return null;
+      const path = sanitisePathname(url.pathname || '');
+      return path ? `${url.origin}${path}` : url.origin;
+    };
+
+    const attemptNormalise = raw => {
+      if (!raw) return null;
+      try {
+        const parsed = new URL(raw, defaultFallback);
+        return fromUrl(parsed);
+      } catch (error) {
+        return null;
+      }
+    };
+
+    const input = typeof value === 'string' ? value.trim() : '';
+    const candidate = input || defaultFallback;
+
+    const normalised = attemptNormalise(candidate) || attemptNormalise(defaultFallback);
+    if (normalised) {
+      return normalised;
+    }
+
+    const fallbackClean = sanitiseLooseBase(defaultFallback);
+    return fallbackClean || 'http://127.0.0.1:3000';
+  }
+
   function sanitiseMessages(list, options = {}) {
     const includeMeta = !!options.includeMeta;
     if (!Array.isArray(list)) {
@@ -231,6 +297,7 @@
     MAX_SLATE_TEXT_LENGTH,
     MAX_SLATE_NOTES,
     sanitiseMessages,
+    normaliseServerBase,
     clampDurationSeconds,
     clampIntervalSeconds,
     clampScaleValue,

@@ -812,7 +812,8 @@
       clampScaleValue,
       clampPopupScaleValue,
       clampSlateRotationSeconds,
-      normaliseSlateNotes
+      normaliseSlateNotes,
+      normaliseServerBase
     } = window.TickerShared || {};
 
     const SPECIAL_MAP = {
@@ -2467,7 +2468,16 @@
     class TickerOverlay {
       constructor() {
         const params = new URLSearchParams(location.search);
-        this.server = (params.get('server') || 'http://127.0.0.1:3000').replace(/\/?$/, '');
+        const fallback = (window.location && typeof window.location.origin === 'string')
+          ? window.location.origin
+          : 'http://127.0.0.1:3000';
+        if (typeof normaliseServerBase === 'function') {
+          this.server = normaliseServerBase(params.get('server'), fallback);
+        } else {
+          this.server = (params.get('server') || fallback)
+            .replace(/\/ticker\/?$/i, '')
+            .replace(/\/+$/, '');
+        }
         this.overlay = { ...DEFAULT_OVERLAY };
         this.overrides = {
           label: false,

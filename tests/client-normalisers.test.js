@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const normalisers = require('../public/js/client-normalisers.js');
+const { normaliseServerBase } = require('../public/js/shared-utils.js');
 
 const {
   normaliseOverlayData,
@@ -146,4 +147,12 @@ test('normaliseSceneEntry rejects empty payloads and preserves round-trip data',
   assert.ok(Number.isFinite(result.updatedAt));
 
   assert.deepStrictEqual(normaliseSceneEntry(result), result);
+});
+
+test('normaliseServerBase removes trailing ticker segment and slash', () => {
+  const fallback = 'https://fallback.example.com/ticker/';
+
+  assert.equal(normaliseServerBase('http://host/ticker/', fallback), 'http://host');
+  assert.equal(normaliseServerBase('https://host/', fallback), 'https://host');
+  assert.equal(normaliseServerBase('', fallback), 'https://fallback.example.com');
 });
