@@ -801,6 +801,7 @@
 
   <script src="js/shared-config.js"></script>
   <script src="js/shared-utils.js"></script>
+  <script src="js/request-client.js"></script>
   <script>
     const {
       OVERLAY_THEMES,
@@ -943,6 +944,79 @@
             : []),
       updatedAt: null
     };
+
+    const requestClientApi = window.RequestClient || {};
+    const requestManager = typeof requestClientApi.create === 'function'
+      ? requestClientApi.create({ defaultTimeoutMs: 8000 })
+      : null;
+
+    function createAsyncQueue(options = {}) {
+      if (requestManager && typeof requestManager.createQueue === 'function') {
+        return requestManager.createQueue(options);
+      }
+      return {
+        enqueue(task) {
+          try {
+            const result = task();
+            return result && typeof result.then === 'function'
+              ? result
+              : Promise.resolve(result);
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        }
+      };
+    }
+
+    async function requestJson(url, options = {}) {
+      if (requestManager) {
+        return requestManager.requestJson(url, options);
+      }
+      const init = options.init || {};
+      const response = await fetch(url, init);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      if (typeof options.validate === 'function') {
+        const result = options.validate(data);
+        if (result !== true && result !== undefined) {
+          throw new Error(typeof result === 'string' ? result : 'Invalid response');
+        }
+      }
+      return data;
+    }
+
+    function runQueued(queue, task) {
+      if (!queue) return task();
+      return queue.enqueue(task);
+    }
+
+    function isRecord(value) {
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    }
+
+    function validateTickerPayload(payload) {
+      if (!isRecord(payload)) return 'Invalid ticker payload';
+      if (!Array.isArray(payload.messages)) return 'Ticker payload missing messages';
+      return true;
+    }
+
+    function validateOverlayPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid overlay payload';
+    }
+
+    function validatePopupPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid popup payload';
+    }
+
+    function validateBrbPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid BRB payload';
+    }
+
+    function validateSlatePayload(payload) {
+      return isRecord(payload) ? true : 'Invalid slate payload';
+    }
 
     function normaliseHighlightString(value) {
       return normaliseHighlightList
@@ -2703,9 +2777,12 @@
         this.fetchInFlight = false;
         this.eventSource = null;
         this.streamFallbackTimer = null;
+        this.streamReconnectTimer = null;
         this.streamPrimed = false;
         this.awaitingInitialStream = true;
         this.lastStreamFallbackAt = 0;
+        this.streamRetryAttempt = 0;
+        this.stateRequestQueue = createAsyncQueue({ concurrency: 1 });
         this.rafId = null;
         this.distance = 0;
         this.marqueeOffset = 0;
@@ -3526,73 +3603,79 @@
         this.fetchInFlight = true;
         this.debugSet('Status', 'fetching state');
         try {
-          let tickerPayload;
-          try {
-            const tickerRes = await fetch(`${this.server}/ticker/state`, { cache: 'no-store' });
-            if (!tickerRes.ok) {
-              throw new Error(`HTTP ${tickerRes.status}`);
-            }
-            tickerPayload = await tickerRes.json();
-          } catch (err) {
-            console.error('[ticker] failed to fetch ticker state', err);
-            this.debugSet('Status', 'ticker fetch failed');
-            if (this.awaitingInitialStream && !this.streamPrimed) {
-              this.scheduleStreamFallback();
-            }
-            return;
-          }
-
-          this.handleTickerPayload(tickerPayload);
-
-          if (!this.streamPrimed && this.awaitingInitialStream) {
-            this.awaitingInitialStream = false;
-            if (this.streamFallbackTimer) {
-              clearTimeout(this.streamFallbackTimer);
-              this.streamFallbackTimer = null;
-            }
-          }
-
-          const optionalFetches = [
-            {
-              name: 'overlay',
-              url: `${this.server}/ticker/overlay`,
-              handler: data => this.applyOverlayData(data),
-            },
-            {
-              name: 'popup',
-              url: `${this.server}/popup/state`,
-              handler: data => this.handlePopupPayload(data),
-            },
-            {
-              name: 'brb',
-              url: `${this.server}/brb/state`,
-              handler: data => this.handleBrbPayload(data),
-            },
-            {
-              name: 'slate',
-              url: `${this.server}/slate/state`,
-              handler: data => this.handleSlatePayload(data),
-            },
-          ];
-
-          let optionalFailed = false;
-          await Promise.all(
-            optionalFetches.map(async ({ name, url, handler }) => {
-              try {
-                const response = await fetch(url, { cache: 'no-store' });
-                if (!response.ok) {
-                  throw new Error(`HTTP ${response.status}`);
-                }
-                const payload = await response.json();
-                handler(payload);
-              } catch (err) {
-                console.warn(`[ticker] optional ${name} fetch failed`, err);
-                optionalFailed = true;
+          await runQueued(this.stateRequestQueue, async () => {
+            let tickerPayload;
+            try {
+              tickerPayload = await requestJson(`${this.server}/ticker/state`, {
+                init: { cache: 'no-store' },
+                timeoutMs: 8000,
+                validate: validateTickerPayload
+              });
+            } catch (err) {
+              console.error('[ticker] failed to fetch ticker state', err);
+              this.debugSet('Status', 'ticker fetch failed');
+              if (this.awaitingInitialStream && !this.streamPrimed) {
+                this.scheduleStreamFallback();
               }
-            })
-          );
+              return;
+            }
 
-          this.debugSet('Status', optionalFailed ? 'state synced (partial)' : 'state synced');
+            this.handleTickerPayload(tickerPayload);
+
+            if (!this.streamPrimed && this.awaitingInitialStream) {
+              this.awaitingInitialStream = false;
+              if (this.streamFallbackTimer) {
+                clearTimeout(this.streamFallbackTimer);
+                this.streamFallbackTimer = null;
+              }
+            }
+
+            const optionalFetches = [
+              {
+                name: 'overlay',
+                url: `${this.server}/ticker/overlay`,
+                handler: data => this.applyOverlayData(data),
+                validate: validateOverlayPayload
+              },
+              {
+                name: 'popup',
+                url: `${this.server}/popup/state`,
+                handler: data => this.handlePopupPayload(data),
+                validate: validatePopupPayload
+              },
+              {
+                name: 'brb',
+                url: `${this.server}/brb/state`,
+                handler: data => this.handleBrbPayload(data),
+                validate: validateBrbPayload
+              },
+              {
+                name: 'slate',
+                url: `${this.server}/slate/state`,
+                handler: data => this.handleSlatePayload(data),
+                validate: validateSlatePayload
+              }
+            ];
+
+            let optionalFailed = false;
+            await Promise.all(
+              optionalFetches.map(async ({ name, url, handler, validate }) => {
+                try {
+                  const payload = await requestJson(url, {
+                    init: { cache: 'no-store' },
+                    timeoutMs: 8000,
+                    validate
+                  });
+                  handler(payload);
+                } catch (err) {
+                  console.warn(`[ticker] optional ${name} fetch failed`, err);
+                  optionalFailed = true;
+                }
+              })
+            );
+
+            this.debugSet('Status', optionalFailed ? 'state synced (partial)' : 'state synced');
+          });
         } finally {
           this.fetchInFlight = false;
         }
@@ -3641,6 +3724,18 @@
         this.fetchState();
       }
 
+      scheduleStreamReconnect(reason = 'error') {
+        if (this.streamReconnectTimer) return;
+        const attempt = Math.min(this.streamRetryAttempt + 1, 6);
+        this.streamRetryAttempt = attempt;
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        this.streamReconnectTimer = setTimeout(() => {
+          this.streamReconnectTimer = null;
+          this.connectStream();
+        }, delay);
+        this.debugSet('Status', `stream reconnecting (${reason})`);
+      }
+
       disconnectStream() {
         if (this.eventSource) {
           this.eventSource.close();
@@ -3649,6 +3744,10 @@
         if (this.streamFallbackTimer) {
           clearTimeout(this.streamFallbackTimer);
           this.streamFallbackTimer = null;
+        }
+        if (this.streamReconnectTimer) {
+          clearTimeout(this.streamReconnectTimer);
+          this.streamReconnectTimer = null;
         }
         this.awaitingInitialStream = false;
       }
@@ -3663,13 +3762,27 @@
           this.scheduleStreamFallback();
 
           source.addEventListener('open', () => {
+            this.streamRetryAttempt = 0;
+            if (this.streamReconnectTimer) {
+              clearTimeout(this.streamReconnectTimer);
+              this.streamReconnectTimer = null;
+            }
             this.debugSet('Status', 'stream online');
           });
 
           source.addEventListener('error', () => {
             this.debugSet('Status', 'stream reconnecting');
+            if (this.eventSource === source) {
+              try {
+                source.close();
+              } catch (err) {
+                // ignore close errors
+              }
+              this.eventSource = null;
+            }
             this.scheduleStreamFallback();
             this.triggerStreamFallback('error');
+            this.scheduleStreamReconnect('error');
           });
 
           source.addEventListener('ticker', event => {
@@ -3726,6 +3839,7 @@
           this.debugSet('Status', 'stream error');
           this.streamPrimed = false;
           this.triggerStreamFallback('error');
+          this.scheduleStreamReconnect('exception');
         }
       }
 
