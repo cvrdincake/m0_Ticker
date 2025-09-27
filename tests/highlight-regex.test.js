@@ -8,7 +8,7 @@ function escapeToken(token) {
   return token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function buildDashboardRegex(custom = []) {
+function buildDashboardRegex(custom = [], options = {}) {
   const merged = Array.from(new Set([...DEFAULT_HIGHLIGHTS, ...custom]));
   const tokens = merged
     .map(entry => entry.trim())
@@ -17,7 +17,21 @@ function buildDashboardRegex(custom = []) {
   if (!tokens.length) return null;
   const escaped = tokens.map(escapeToken).join('|');
   if (!escaped) return null;
-  return new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu');
+  const unicodePattern = `(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`;
+  const fallbackPattern = `\\b(${escaped})\\b`;
+  try {
+    if (options.forceFallback) {
+      throw new SyntaxError('Simulated lack of unicode regex support');
+    }
+    return new RegExp(unicodePattern, 'giu');
+  } catch (error) {
+    if (!(error instanceof SyntaxError)) throw error;
+    try {
+      return new RegExp(fallbackPattern, 'gi');
+    } catch {
+      return null;
+    }
+  }
 }
 
 function buildOverlayRegex(custom = []) {
@@ -57,4 +71,11 @@ test('unicode-aware boundaries avoid matching inside longer words', () => {
   const regex = buildDashboardRegex(['café', '東京']);
   const sample = 'decaféinated beans from 東京湾 are popular';
   assert.ok(!regex.test(sample));
+});
+
+test('falls back to ASCII-friendly matcher when unicode features unavailable', () => {
+  const regex = buildDashboardRegex(['live'], { forceFallback: true });
+  const sample = 'We go live soon and stay live!';
+  const highlighted = sample.replace(regex, '<span class="highlight">$1</span>');
+  assert.match(highlighted, /<span class="highlight">live<\/span>/i);
 });
