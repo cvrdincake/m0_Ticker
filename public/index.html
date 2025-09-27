@@ -2073,6 +2073,47 @@
       return response.blob();
     }
 
+    function getLocalStorage() {
+      try {
+        if (typeof localStorage !== 'undefined' && localStorage) {
+          return localStorage;
+        }
+      } catch (err) {
+        console.warn('Local storage unavailable', err);
+      }
+      return null;
+    }
+
+    function safeSetText(target, value) {
+      if (!target) return;
+      const next = value == null ? '' : String(value);
+      if (target.textContent !== next) {
+        target.textContent = next;
+      }
+    }
+
+    function safeSetValue(target, value) {
+      if (!target) return;
+      const next = value == null ? '' : String(value);
+      if (target.value !== next) {
+        target.value = next;
+      }
+    }
+
+    function safeSetDataset(target, key, value) {
+      if (!target || !target.dataset || !key) return;
+      if (value == null) {
+        if (Object.prototype.hasOwnProperty.call(target.dataset, key)) {
+          delete target.dataset[key];
+        }
+        return;
+      }
+      const next = String(value);
+      if (target.dataset[key] !== next) {
+        target.dataset[key] = next;
+      }
+    }
+
     function runQueued(queue, task) {
       if (!queue) {
         return task();
@@ -2586,6 +2627,7 @@
     };
 
     let eventSource = null;
+    let eventSourceListeners = [];
 
     function createStateNotifier(callback, { debounce = 0, raf = true } = {}) {
       let timer = null;
@@ -3328,18 +3370,22 @@
       }
       currentServerStatus = status;
       const finalMessage = message || config.text || DEFAULT_SERVER_STATUS.text;
-    if (el.statusServer) {
-        el.statusServer.textContent = finalMessage;
-        el.statusServer.dataset.status = status;
-        el.statusServer.style.removeProperty('color');
-        el.statusServer.classList.remove(...STATUS_VALUE_CLASSNAMES);
-        const valueClass = config.valueClass || DEFAULT_SERVER_STATUS.valueClass;
-        if (valueClass) {
-          el.statusServer.classList.add(valueClass);
+      if (el.statusServer) {
+        safeSetText(el.statusServer, finalMessage);
+        safeSetDataset(el.statusServer, 'status', status);
+        if (el.statusServer.style) {
+          el.statusServer.style.removeProperty('color');
+        }
+        if (el.statusServer.classList) {
+          el.statusServer.classList.remove(...STATUS_VALUE_CLASSNAMES);
+          const valueClass = config.valueClass || DEFAULT_SERVER_STATUS.valueClass;
+          if (valueClass) {
+            el.statusServer.classList.add(valueClass);
+          }
         }
       }
-    if (el.statusServerDot) {
-        el.statusServerDot.dataset.status = status;
+      if (el.statusServerDot && el.statusServerDot.classList) {
+        safeSetDataset(el.statusServerDot, 'status', status);
         el.statusServerDot.classList.remove(...STATUS_DOT_CLASSNAMES);
         const dotClass = config.dotClass || DEFAULT_SERVER_STATUS.dotClass;
         if (dotClass) {
@@ -3438,7 +3484,8 @@
         await requestJson(`${url}/health`, {
           init: { cache: 'no-store' },
           timeoutMs: HEALTH_CHECK_TIMEOUT_MS,
-          validate: payload => (payload && payload.ok === true ? true : 'Invalid health payload')
+          validate: payload => (payload && payload.ok === true ? true : 'Invalid health payload'),
+          dedupe: true
         });
         return { ok: true, url };
       } catch (error) {
@@ -3521,8 +3568,8 @@
         base = fallbackOrigin || DEFAULT_SERVER_URL;
       }
 
-    if (el.serverUrl && el.serverUrl.value !== base) {
-        el.serverUrl.value = base;
+      if (el.serverUrl && el.serverUrl.value !== base) {
+        safeSetValue(el.serverUrl, base);
         try {
           if (typeof saveLocal === 'function') {
             saveLocal();
@@ -4239,8 +4286,9 @@
 
     function updateOverlayChip() {
       const url = buildOverlayUrl();
-      el.overlayText.textContent = url;
-      el.overlayText.dataset.url = url;
+      if (!url) return;
+      safeSetText(el.overlayText, url);
+      safeSetDataset(el.overlayText, 'url', url);
       if (url !== uiState.lastPreviewUrl) {
         uiState.lastPreviewUrl = url;
         schedulePreviewUpdate(url);
@@ -4248,7 +4296,10 @@
     }
 
     function buildOverlayUrl() {
-      const basePath = `${location.origin}${location.pathname.replace(/index\.html$/, '')}output.html`;
+      const origin = typeof location === 'object' && location ? location.origin || '' : '';
+      const pathname = typeof location === 'object' && location ? location.pathname || '' : '';
+      const normalisedPath = pathname ? pathname.replace(/index\.html$/, '') : '';
+      const basePath = `${origin || ''}${normalisedPath}output.html` || 'output.html';
       const params = new URLSearchParams();
       params.set('server', serverBase());
       params.set('label', overlayPrefs.label || 'LIVE');
@@ -4273,38 +4324,48 @@
     }
 
     function saveLocal() {
+      const storage = getLocalStorage();
+      if (!storage) return;
       const payload = {
         overlay: overlayPrefs,
-        autoStart: el.autoStart.checked,
-        serverUrl: el.serverUrl.value,
+        autoStart: el.autoStart ? !!el.autoStart.checked : false,
+        serverUrl: el.serverUrl ? el.serverUrl.value : '',
         panel: activePanelId
       };
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        storage.setItem(STORAGE_KEY, JSON.stringify(payload));
       } catch (err) {
         console.warn('Failed to save local preferences', err);
       }
     }
 
     function loadLocal() {
+      const storage = getLocalStorage();
+      if (!storage) return;
       try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = storage.getItem(STORAGE_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (parsed.overlay) {
-          const mergedOverlay = normaliseOverlayDataFn({ ...overlayPrefs, ...parsed.overlay });
+          const nextOverlay = typeof normaliseOverlayDataFn === 'function'
+            ? normaliseOverlayDataFn({ ...overlayPrefs, ...parsed.overlay })
+            : { ...overlayPrefs, ...parsed.overlay };
           Object.keys(overlayPrefs).forEach(key => {
-            if (!Object.prototype.hasOwnProperty.call(mergedOverlay, key)) {
+            if (!Object.prototype.hasOwnProperty.call(nextOverlay, key)) {
               delete overlayPrefs[key];
             }
           });
-          Object.assign(overlayPrefs, mergedOverlay);
+          Object.assign(overlayPrefs, nextOverlay);
         }
-        if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
+        if (typeof parsed.autoStart === 'boolean' && el.autoStart) {
+          el.autoStart.checked = parsed.autoStart;
+        }
         if (typeof parsed.serverUrl === 'string') {
           const storedServerUrl = parsed.serverUrl;
           const cleanedServerUrl = sanitiseServerUrlInput(storedServerUrl);
-          el.serverUrl.value = cleanedServerUrl || '';
+          if (el.serverUrl) {
+            el.serverUrl.value = cleanedServerUrl || '';
+          }
           if (cleanedServerUrl !== storedServerUrl) {
             saveLocal();
           }
@@ -4397,7 +4458,7 @@
     }
 
     function schedulePreviewUpdate(url) {
-      if (!el.previewFrame) return;
+      if (!el.previewFrame || !url) return;
       if (uiState.previewUpdateTimer) clearTimeout(uiState.previewUpdateTimer);
       uiState.previewUpdateTimer = setTimeout(() => {
         uiState.previewUpdateTimer = null;
@@ -4414,45 +4475,49 @@
     }
 
     function renderTicker() {
-      el.duration.value = state.displayDuration;
-      el.interval.value = formatMinutesValue(state.intervalMinutes);
-      el.statusActive.classList.toggle('active', state.isActive);
-      el.statusActiveText.textContent = state.isActive ? 'Active' : 'Inactive';
-      el.statusActiveText.classList.toggle('is-active', state.isActive);
-      el.statusActiveText.classList.toggle('is-inactive', !state.isActive);
+      safeSetValue(el.duration, state.displayDuration);
+      safeSetValue(el.interval, formatMinutesValue(state.intervalMinutes));
+      if (el.statusActive && el.statusActive.classList) {
+        el.statusActive.classList.toggle('active', !!state.isActive);
+      }
+      const activeLabel = state.isActive ? 'Active' : 'Inactive';
+      safeSetText(el.statusActiveText, activeLabel);
+      if (el.statusActiveText && el.statusActiveText.classList) {
+        el.statusActiveText.classList.toggle('is-active', !!state.isActive);
+        el.statusActiveText.classList.toggle('is-inactive', !state.isActive);
+      }
       const count = state.messages.length;
       const queueFull = count >= MAX_MESSAGES;
-      el.statusCount.textContent = `${count}/${MAX_MESSAGES}`;
-      el.statusCount.classList.toggle('is-full', queueFull);
-      el.statusUpdated.textContent = state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : '–';
+      safeSetText(el.statusCount, `${count}/${MAX_MESSAGES}`);
+      if (el.statusCount && el.statusCount.classList) {
+        el.statusCount.classList.toggle('is-full', queueFull);
+      }
+      const updatedLabel = state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : '–';
+      safeSetText(el.statusUpdated, updatedLabel);
       updateQueueControls(queueFull);
     }
 
     function updateQueueControls(queueFull = state.messages.length >= MAX_MESSAGES) {
-    if (el.newMessage) {
+      if (el.newMessage) {
         el.newMessage.disabled = queueFull;
         el.newMessage.placeholder = queueFull
           ? `Queue full — max ${MAX_MESSAGES} messages`
           : MESSAGE_PLACEHOLDER;
       }
-    if (el.addMessageButton) {
+      if (el.addMessageButton) {
         el.addMessageButton.disabled = queueFull;
       }
     }
 
     function updateAccentInputsFromPrefs() {
       const accent = overlayPrefs.accent || '';
-    if (el.overlayAccent) {
-        el.overlayAccent.value = accent;
-      }
-    if (el.overlayAccentPicker) {
+      safeSetValue(el.overlayAccent, accent);
+      if (el.overlayAccentPicker) {
         el.overlayAccentPicker.value = parseHexForPicker(accent) || ACCENT_FALLBACK_HEX;
       }
       const secondary = overlayPrefs.accentSecondary || '';
-    if (el.overlayAccentSecondary) {
-        el.overlayAccentSecondary.value = secondary;
-      }
-    if (el.overlayAccentSecondaryPicker) {
+      safeSetValue(el.overlayAccentSecondary, secondary);
+      if (el.overlayAccentSecondaryPicker) {
         el.overlayAccentSecondaryPicker.value = parseHexForPicker(secondary) || ACCENT_SECONDARY_FALLBACK_HEX;
       }
     }
@@ -5210,20 +5275,23 @@
           try {
             const tickerData = await requestJson(`${base}/ticker/state`, {
               init: { cache: 'no-store' },
-              validate: validateTickerStateResponse
+              validate: validateTickerStateResponse,
+              dedupe: true
             });
             applyTickerData(tickerData);
 
             await Promise.all([
               requestJson(`${base}/ticker/overlay`, {
                 init: { cache: 'no-store' },
-                validate: validateOverlayResponse
+                validate: validateOverlayResponse,
+                dedupe: true
               }).then(data => applyOverlayData(data)).catch(err => {
                 console.warn('Failed to fetch overlay state', err);
               }),
               requestJson(`${base}/ticker/presets`, {
                 init: { cache: 'no-store' },
-                validate: validatePresetList
+                validate: validatePresetList,
+                dedupe: true
               }).then(data => {
                 if (Array.isArray(data.presets)) {
                   applyPresetsData(data.presets);
@@ -5233,7 +5301,8 @@
               }),
               requestJson(`${base}/ticker/scenes`, {
                 init: { cache: 'no-store' },
-                validate: validateSceneList
+                validate: validateSceneList,
+                dedupe: true
               }).then(data => {
                 if (Array.isArray(data.scenes)) {
                   applyScenesData(data.scenes);
@@ -5243,19 +5312,22 @@
               }),
               requestJson(`${base}/popup/state`, {
                 init: { cache: 'no-store' },
-                validate: validatePopupResponse
+                validate: validatePopupResponse,
+                dedupe: true
               }).then(data => applyPopupData(data)).catch(err => {
                 console.warn('Failed to fetch popup state', err);
               }),
               requestJson(`${base}/brb/state`, {
                 init: { cache: 'no-store' },
-                validate: validateBrbResponse
+                validate: validateBrbResponse,
+                dedupe: true
               }).then(data => applyBrbData(data)).catch(err => {
                 console.warn('Failed to fetch BRB state', err);
               }),
               requestJson(`${base}/slate/state`, {
                 init: { cache: 'no-store' },
-                validate: validateSlateResponse
+                validate: validateSlateResponse,
+                dedupe: true
               }).then(data => applySlateData(data)).catch(err => {
                 console.warn('Failed to fetch slate state', err);
               })
@@ -5565,9 +5637,27 @@
       }
     }
 
+    function detachEventSourceListeners(source = eventSource) {
+      if (!source || !Array.isArray(eventSourceListeners)) {
+        eventSourceListeners = [];
+        return;
+      }
+      for (const entry of eventSourceListeners) {
+        const { type, handler } = entry || {};
+        if (!type || typeof handler !== 'function') continue;
+        try {
+          source.removeEventListener(type, handler);
+        } catch (err) {
+          // Ignore removal errors.
+        }
+      }
+      eventSourceListeners = [];
+    }
+
     function disconnectStream(options = {}) {
       const { preservePolling = false } = options;
       if (eventSource) {
+        detachEventSourceListeners(eventSource);
         try {
           eventSource.close();
         } catch (err) {
@@ -5637,6 +5727,7 @@
         const streamUrl = `${health.url}/ticker/stream`;
         const source = new EventSource(streamUrl);
         eventSource = source;
+        eventSourceListeners = [];
         streamPrimed = false;
 
         if (streamFallbackTimer) clearTimeout(streamFallbackTimer);
@@ -5647,11 +5738,17 @@
           }
         }, STREAM_PRIME_TIMEOUT_MS);
 
-        source.addEventListener('open', () => {
+        const register = (type, handler) => {
+          if (!type || typeof handler !== 'function') return;
+          source.addEventListener(type, handler);
+          eventSourceListeners.push({ type, handler });
+        };
+
+        register('open', () => {
           setStreamState(STREAM_STATES.OPEN);
         });
 
-        source.addEventListener('error', () => {
+        register('error', () => {
           if (eventSource !== source) return;
           setStreamState(STREAM_STATES.ERROR, { reason: 'stream-error' });
           applyServerStatus('reconnecting', { force: true });
@@ -5665,7 +5762,7 @@
           scheduleReconnect('stream-error');
         });
 
-        source.addEventListener('ticker', event => {
+        register('ticker', event => {
           try {
             const data = JSON.parse(event.data);
             applyTickerData(data);
@@ -5675,7 +5772,7 @@
           }
         });
 
-        source.addEventListener('overlay', event => {
+        register('overlay', event => {
           try {
             const data = JSON.parse(event.data);
             applyOverlayData(data);
@@ -5685,7 +5782,7 @@
           }
         });
 
-        source.addEventListener('presets', event => {
+        register('presets', event => {
           try {
             const data = JSON.parse(event.data);
             if (Array.isArray(data)) {
@@ -5697,7 +5794,7 @@
           }
         });
 
-        source.addEventListener('scenes', event => {
+        register('scenes', event => {
           try {
             const data = JSON.parse(event.data);
             if (Array.isArray(data)) {
@@ -5709,7 +5806,7 @@
           }
         });
 
-        source.addEventListener('popup', event => {
+        register('popup', event => {
           try {
             const data = JSON.parse(event.data);
             applyPopupData(data);
@@ -5719,7 +5816,7 @@
           }
         });
 
-        source.addEventListener('slate', event => {
+        register('slate', event => {
           try {
             const data = JSON.parse(event.data);
             applySlateData(data);
@@ -5729,7 +5826,7 @@
           }
         });
 
-        source.addEventListener('brb', event => {
+        register('brb', event => {
           try {
             const data = JSON.parse(event.data);
             applyBrbData(data);
@@ -6577,6 +6674,10 @@
       if (el.overlayChip) {
         el.overlayChip.addEventListener('click', async () => {
           const url = buildOverlayUrl();
+          if (!navigator?.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            toast('Clipboard unavailable');
+            return;
+          }
           try {
             await navigator.clipboard.writeText(url);
             toast('Overlay URL copied');
@@ -6590,6 +6691,10 @@
       if (el.copyOverlay) {
         el.copyOverlay.addEventListener('click', async () => {
           const url = buildOverlayUrl();
+          if (!navigator?.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            toast('Clipboard unavailable');
+            return;
+          }
           try {
             await navigator.clipboard.writeText(url);
             toast('Overlay URL copied');
@@ -6601,7 +6706,17 @@
 
       if (el.openOverlay) {
         el.openOverlay.addEventListener('click', () => {
-          window.open(buildOverlayUrl(), '_blank');
+          const url = buildOverlayUrl();
+          if (!url) {
+            toast('Overlay URL unavailable');
+            return;
+          }
+          try {
+            window.open(url, '_blank', 'noopener');
+          } catch (err) {
+            console.warn('Failed to open overlay URL', err);
+            toast('Unable to open overlay');
+          }
         });
       }
 
@@ -6615,6 +6730,12 @@
 
       if (el.serverUrl) {
         el.serverUrl.addEventListener('change', () => {
+          const cleaned = sanitiseServerUrlInput(el.serverUrl.value);
+          if (cleaned && cleaned !== el.serverUrl.value) {
+            safeSetValue(el.serverUrl, cleaned);
+          } else if (!cleaned) {
+            safeSetValue(el.serverUrl, '');
+          }
           saveLocal();
           void connectStream({ reason: 'server-url-change' });
           void fetchState({ silent: true });
