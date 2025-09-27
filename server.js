@@ -371,7 +371,12 @@ app.get('/popup/state', (req, res) => {
 
 app.post('/popup/state', (req, res) => {
   try {
-    const update = sanitisePopupInput(req.body || {});
+    const rawBody = req.body || {};
+    const clientUpdatedAt = Number(rawBody.updatedAt ?? rawBody._updatedAt);
+    if (Number.isFinite(clientUpdatedAt) && Number.isFinite(state.popup._updatedAt) && clientUpdatedAt < state.popup._updatedAt) {
+      return res.status(409).json({ ok: false, error: 'Popup has been updated elsewhere', popup: state.popup });
+    }
+    const update = sanitisePopupInput(rawBody);
     if (typeof update.text === 'string') {
       state.popup.text = update.text;
     }
@@ -423,7 +428,12 @@ app.get('/ticker/overlay', (req, res) => {
 
 app.post('/ticker/overlay', (req, res) => {
   try {
-    const overlay = sanitiseOverlayInput(req.body || {}, { strict: true });
+    const rawBody = req.body || {};
+    const clientUpdatedAt = Number(rawBody.updatedAt ?? rawBody._updatedAt);
+    if (Number.isFinite(clientUpdatedAt) && Number.isFinite(state.overlay._updatedAt) && clientUpdatedAt < state.overlay._updatedAt) {
+      return res.status(409).json({ ok: false, error: 'Overlay has been updated elsewhere', overlay: state.overlay });
+    }
+    const overlay = sanitiseOverlayInput(rawBody, { strict: true });
     state.overlay = { ...state.overlay, ...overlay, _updatedAt: Date.now() };
     schedulePersist();
     broadcast('overlay', state.overlay);
@@ -449,7 +459,12 @@ app.get('/slate/state', (req, res) => {
 
 app.post('/slate/state', (req, res) => {
   try {
-    const update = sanitiseSlateInput(req.body || {}, { strict: true });
+    const rawBody = req.body || {};
+    const clientUpdatedAt = Number(rawBody.updatedAt ?? rawBody._updatedAt);
+    if (Number.isFinite(clientUpdatedAt) && Number.isFinite(state.slate._updatedAt) && clientUpdatedAt < state.slate._updatedAt) {
+      return res.status(409).json({ ok: false, error: 'Slate has been updated elsewhere', slate: state.slate });
+    }
+    const update = sanitiseSlateInput(rawBody, { strict: true });
     const now = Date.now();
     const nextNotes = Object.prototype.hasOwnProperty.call(update, 'notes')
       ? sanitiseSlateNotesInput(update.notes)

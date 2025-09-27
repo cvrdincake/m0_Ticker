@@ -1076,6 +1076,56 @@
       height: 100%;
       border: none;
       background: transparent;
+      transition: opacity 0.24s var(--ease-smooth);
+    }
+    .preview-frame.is-loading::before,
+    .preview-frame.is-loading::after {
+      position: absolute;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .preview-frame.is-loading::before {
+      content: '';
+      inset: 0;
+      background: linear-gradient(180deg, rgba(9, 11, 18, 0.78), rgba(9, 11, 18, 0.92));
+      backdrop-filter: blur(12px) saturate(1.1);
+      -webkit-backdrop-filter: blur(12px) saturate(1.1);
+      opacity: 0.9;
+    }
+    .preview-frame.is-loading::after {
+      content: 'Loading preview…';
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 22px 10px 42px;
+      border-radius: 999px;
+      background: rgba(28, 32, 48, 0.85);
+      border: 1px solid rgba(124, 92, 255, 0.32);
+      color: rgba(226, 230, 255, 0.92);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      box-shadow: 0 18px 40px rgba(7, 9, 20, 0.6);
+    }
+    .preview-frame.is-loading::after {
+      position: relative;
+    }
+    .preview-frame.is-loading::after::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 18px;
+      width: 16px;
+      height: 16px;
+      margin-top: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(158, 163, 196, 0.7);
+      border-top-color: transparent;
+      animation: panelBusySpin 0.85s linear infinite;
+    }
+    .preview-frame.is-loading iframe {
+      opacity: 0.12;
+      filter: blur(1px);
     }
 
     .preset-header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
@@ -2623,7 +2673,9 @@
       editingDraft: '',
       pendingPresetMessage: null,
       lastPreviewUrl: '',
-      previewUpdateTimer: null
+      previewUpdateTimer: null,
+      previewLoadingTimer: null,
+      previewLoading: false
     };
 
     let eventSource = null;
@@ -2890,6 +2942,7 @@
       copyOverlay: document.getElementById('copyOverlay'),
       reloadPreview: document.getElementById('reloadPreview'),
       previewFrame: document.getElementById('overlayPreview'),
+      previewFrameContainer: document.querySelector('.preview-frame'),
       messageForm: document.getElementById('messageForm'),
       newMessage: document.getElementById('newMessage'),
       addMessageButton: document.getElementById('addMessageButton'),
@@ -4284,6 +4337,48 @@
       };
     }
 
+    function setPreviewLoading(loading, options = {}) {
+      if (!el.previewFrame) return;
+      const container = el.previewFrameContainer || el.previewFrame.parentElement;
+      if (!container) return;
+      const { timeoutMs = 9000, onTimeout } = options;
+
+      if (loading) {
+        if (uiState.previewLoadingTimer) {
+          clearTimeout(uiState.previewLoadingTimer);
+          uiState.previewLoadingTimer = null;
+        }
+        uiState.previewLoading = true;
+        container.classList.add('is-loading');
+        el.previewFrame.setAttribute('aria-busy', 'true');
+        if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+          uiState.previewLoadingTimer = setTimeout(() => {
+            uiState.previewLoadingTimer = null;
+            uiState.previewLoading = false;
+            container.classList.remove('is-loading');
+            el.previewFrame.removeAttribute('aria-busy');
+            if (typeof onTimeout === 'function') {
+              try {
+                onTimeout();
+              } catch (err) {
+                console.warn('Preview timeout handler failed', err);
+              }
+            }
+          }, timeoutMs);
+        }
+      } else {
+        if (uiState.previewLoadingTimer) {
+          clearTimeout(uiState.previewLoadingTimer);
+          uiState.previewLoadingTimer = null;
+        }
+        if (uiState.previewLoading) {
+          container.classList.remove('is-loading');
+          el.previewFrame.removeAttribute('aria-busy');
+        }
+        uiState.previewLoading = false;
+      }
+    }
+
     function updateOverlayChip() {
       const url = buildOverlayUrl();
       if (!url) return;
@@ -4458,7 +4553,7 @@
     }
 
     function schedulePreviewUpdate(url) {
-      if (!el.previewFrame || !url) return;
+
       if (uiState.previewUpdateTimer) clearTimeout(uiState.previewUpdateTimer);
       uiState.previewUpdateTimer = setTimeout(() => {
         uiState.previewUpdateTimer = null;
@@ -4591,17 +4686,9 @@
     if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
       el.accentAnim.checked = overlayPrefs.accentAnim;
       el.sparkle.checked = overlayPrefs.sparkle;
-      Array.from(el.positionButtons.querySelectorAll('.segment-button')).forEach(btn => {
-        btn.classList.toggle('is-active', btn.dataset.position === overlayPrefs.position);
-      });
-      Array.from(el.modeButtons.querySelectorAll('.segment-button')).forEach(btn => {
-        btn.classList.toggle('is-active', btn.dataset.mode === overlayPrefs.mode);
-      });
-    if (el.themeButtons) {
-        Array.from(el.themeButtons.querySelectorAll('.segment-button')).forEach(btn => {
-          btn.classList.toggle('is-active', btn.dataset.theme === overlayPrefs.theme);
-        });
-      }
+      updateSegmentSelection(el.positionButtons, 'position', overlayPrefs.position);
+      updateSegmentSelection(el.modeButtons, 'mode', overlayPrefs.mode);
+      updateSegmentSelection(el.themeButtons, 'theme', overlayPrefs.theme);
       applyPreviewTheme();
       renderPopupPreviewScale();
       updatePanelBusyStates();
@@ -5537,7 +5624,8 @@
         isActive: popupState.isActive,
         durationSeconds: popupState.durationSeconds,
         countdownEnabled: popupState.countdownEnabled,
-        countdownTarget: popupState.countdownTarget
+        countdownTarget: popupState.countdownTarget,
+        updatedAt: Number(popupState.updatedAt) || null
       };
       await runQueued(mutationQueues.popup, async () => {
         try {
@@ -5561,9 +5649,20 @@
           toast(isActive ? 'Popup updated' : 'Popup cleared');
         } catch (err) {
           console.error('Failed to save popup state', err);
-          toast(err.message || 'Failed to update popup');
           popupAwaitingServerCommit = false;
           popupAwaitingServerCommitStamp = null;
+          if (err && err.status === 409) {
+            popupHasPendingLocalChanges = false;
+            const latest = err.response && err.response.popup;
+            if (latest) {
+              applyPopupData(latest);
+            } else {
+              void fetchState({ silent: true });
+            }
+            toast('Popup updated on another device. Latest version loaded.');
+          } else {
+            toast(err.message || 'Failed to update popup');
+          }
         }
       });
       popupSaveInFlight = false;
@@ -5862,7 +5961,8 @@
         mode: overlayPrefs.mode,
         accentAnim: overlayPrefs.accentAnim,
         sparkle: overlayPrefs.sparkle,
-        theme: overlayPrefs.theme
+        theme: overlayPrefs.theme,
+        updatedAt: Number(overlayPrefs.updatedAt) || null
       };
       overlayAwaitingServerCommit = true;
       overlayAwaitingServerCommitStamp = Number(overlayPrefs.updatedAt) || Date.now();
@@ -5886,9 +5986,20 @@
           }
         } catch (err) {
           console.error('Failed to save overlay preferences', err);
-          toast(err.message || 'Failed to save overlay preferences');
           overlayAwaitingServerCommit = false;
           overlayAwaitingServerCommitStamp = null;
+          if (err && err.status === 409) {
+            overlayHasPendingLocalChanges = false;
+            const latest = err.response && err.response.overlay;
+            if (latest) {
+              applyOverlayData(latest);
+            } else {
+              void fetchState({ silent: true });
+            }
+            toast('Overlay updated on another device. Latest version loaded.');
+          } else {
+            toast(err.message || 'Failed to save overlay preferences');
+          }
         }
       });
       overlaySaveInFlight = false;
@@ -5912,7 +6023,10 @@
 
     async function persistSlate() {
       const base = serverBase();
-      const payload = serialiseSlateState();
+      const payload = {
+        ...serialiseSlateState(),
+        updatedAt: Number(slateState.updatedAt) || null
+      };
       slateAwaitingServerCommit = true;
       slateSaveInFlight = true;
       updatePanelBusyStates();
@@ -5931,7 +6045,18 @@
           }
         } catch (err) {
           console.error('Failed to save slate state', err);
-          toast(err.message || 'Failed to save slate');
+          if (err && err.status === 409) {
+            slateHasPendingLocalChanges = false;
+            const latest = err.response && err.response.slate;
+            if (latest) {
+              applySlateData(latest);
+            } else {
+              void fetchState({ silent: true });
+            }
+            toast('Slate updated on another device. Latest version loaded.');
+          } else {
+            toast(err.message || 'Failed to save slate');
+          }
         }
       });
       slateSaveInFlight = false;
@@ -6182,12 +6307,24 @@
       }
     }
 
+    function updateSegmentSelection(container, attr, value) {
+      if (!container) return;
+      const selector = `[data-${attr}]`;
+      Array.from(container.querySelectorAll(selector)).forEach(btn => {
+        const isActive = btn.dataset[attr] === value;
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+      });
+    }
+
     function setMode(value) {
       const mode = typeof sharedNormaliseMode === 'function'
         ? sharedNormaliseMode(value)
         : (['auto', 'marquee', 'chunk'].includes(String(value).toLowerCase()) ? String(value).toLowerCase() : null);
       if (!mode) return;
       overlayPrefs.mode = mode;
+      updateSegmentSelection(el.modeButtons, 'mode', mode);
+      updateOverlayChip();
       queueOverlaySave();
     }
 
@@ -6196,12 +6333,17 @@
         ? sharedNormalisePosition(value)
         : (String(value).toLowerCase() === 'top' ? 'top' : 'bottom');
       overlayPrefs.position = position;
+      updateSegmentSelection(el.positionButtons, 'position', position);
+      updateOverlayChip();
       queueOverlaySave();
     }
 
     function setTheme(value) {
       if (!THEME_OPTIONS.includes(value)) return;
       overlayPrefs.theme = value;
+      updateSegmentSelection(el.themeButtons, 'theme', value);
+      applyPreviewTheme();
+      updateOverlayChip();
       queueOverlaySave();
     }
 
@@ -6214,6 +6356,13 @@
             return Math.max(0.75, Math.min(2.5, Math.round(numeric * 100) / 100));
           })();
       overlayPrefs.scale = next;
+      if (el.scaleRange && el.scaleRange.value !== String(next)) {
+        el.scaleRange.value = String(next);
+      }
+      if (el.scaleNumber && el.scaleNumber.value !== String(next)) {
+        el.scaleNumber.value = String(next);
+      }
+      updateOverlayChip();
       queueOverlaySave();
     }
 
@@ -6226,6 +6375,14 @@
             return Math.max(0.6, Math.min(1.5, Math.round(numeric * 100) / 100));
           })();
       overlayPrefs.popupScale = next;
+      if (el.popupScaleRange && el.popupScaleRange.value !== String(next)) {
+        el.popupScaleRange.value = String(next);
+      }
+      if (el.popupScaleNumber && el.popupScaleNumber.value !== String(next)) {
+        el.popupScaleNumber.value = String(next);
+      }
+      renderPopupPreviewScale();
+      updateOverlayChip();
       queueOverlaySave();
     }
 
@@ -6670,6 +6827,16 @@
     function registerEventHandlers() {
       if (handlersRegistered) return;
       handlersRegistered = true;
+
+      if (el.previewFrame) {
+        el.previewFrame.addEventListener('load', () => {
+          setPreviewLoading(false);
+        });
+        el.previewFrame.addEventListener('error', () => {
+          setPreviewLoading(false);
+          toast('Preview failed to load');
+        });
+      }
 
       if (el.overlayChip) {
         el.overlayChip.addEventListener('click', async () => {
