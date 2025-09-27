@@ -1908,6 +1908,7 @@
 
   <script src="js/shared-config.js"></script>
   <script src="js/shared-utils.js"></script>
+  <script src="js/request-client.js"></script>
   <script src="js/client-normalisers.js"></script>
 
   <script>
@@ -1951,6 +1952,132 @@
       normaliseSceneEntry,
       sanitiseMessages
     } = normaliserExports;
+
+    const requestClientApi = window.RequestClient || {};
+    const requestManager = typeof requestClientApi.create === 'function'
+      ? requestClientApi.create({ defaultTimeoutMs: 8000 })
+      : null;
+
+    function createAsyncQueue(options = {}) {
+      if (requestManager && typeof requestManager.createQueue === 'function') {
+        return requestManager.createQueue(options);
+      }
+      return {
+        enqueue(task) {
+          try {
+            const result = task();
+            return result && typeof result.then === 'function'
+              ? result
+              : Promise.resolve(result);
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        }
+      };
+    }
+
+    async function requestJson(url, options = {}) {
+      if (requestManager) {
+        return requestManager.requestJson(url, options);
+      }
+      const init = options.init || {};
+      const response = await fetch(url, init);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      if (typeof options.validate === 'function') {
+        const result = options.validate(data);
+        if (result !== true && result !== undefined) {
+          throw new Error(typeof result === 'string' ? result : 'Invalid response');
+        }
+      }
+      return data;
+    }
+
+    async function requestBlob(url, options = {}) {
+      if (requestManager && typeof requestManager.request === 'function') {
+        return requestManager.request(url, { ...options, parser: 'blob' });
+      }
+      const init = options.init || {};
+      const response = await fetch(url, init);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return response.blob();
+    }
+
+    function runQueued(queue, task) {
+      if (!queue) {
+        return task();
+      }
+      return queue.enqueue(task);
+    }
+
+    function isRecord(value) {
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    }
+
+    function validateTickerStateResponse(payload) {
+      if (!isRecord(payload)) return 'Invalid ticker payload';
+      if (!Array.isArray(payload.messages)) return 'Ticker payload missing messages';
+      return true;
+    }
+
+    function validateOverlayResponse(payload) {
+      return isRecord(payload) ? true : 'Invalid overlay payload';
+    }
+
+    function validatePresetList(payload) {
+      if (!isRecord(payload)) return 'Invalid presets payload';
+      return Array.isArray(payload.presets) ? true : 'Preset list missing';
+    }
+
+    function validateSceneList(payload) {
+      if (!isRecord(payload)) return 'Invalid scenes payload';
+      return Array.isArray(payload.scenes) ? true : 'Scene list missing';
+    }
+
+    function validatePopupResponse(payload) {
+      return isRecord(payload) ? true : 'Invalid popup payload';
+    }
+
+    function validateBrbResponse(payload) {
+      return isRecord(payload) ? true : 'Invalid BRB payload';
+    }
+
+    function validateSlateResponse(payload) {
+      return isRecord(payload) ? true : 'Invalid slate payload';
+    }
+
+    function createMutationValidator(key, listKey) {
+      return payload => {
+        if (!isRecord(payload)) return 'Invalid response payload';
+        if (payload.ok !== true) {
+          return payload.error || 'Server rejected request';
+        }
+        if (key && !isRecord(payload[key])) {
+          return `Response missing ${key}`;
+        }
+        if (listKey) {
+          const list = payload[listKey];
+          if (!Array.isArray(list)) {
+            return `Response missing ${listKey}`;
+          }
+        }
+        return true;
+      };
+    }
+
+    const validateTickerMutation = createMutationValidator('state');
+    const validatePopupMutation = createMutationValidator('popup');
+    const validateBrbMutation = createMutationValidator('state');
+    const validateOverlayMutation = createMutationValidator('overlay');
+    const validateSlateMutation = createMutationValidator('slate');
+    const validatePresetsMutation = createMutationValidator(null, 'presets');
+    const validateScenesMutation = createMutationValidator(null, 'scenes');
+    const validateSceneActivation = createMutationValidator();
+    const validateStateImport = createMutationValidator('state');
 
     const FALLBACK_MAX_MESSAGES = Number.isFinite(EXPORTED_MAX_MESSAGES)
       ? EXPORTED_MAX_MESSAGES
@@ -2957,6 +3084,57 @@
     let handlersRegistered = false;
     let initStarted = false;
 
+    const stateRequestQueue = createAsyncQueue({ concurrency: 1 });
+    const mutationQueues = {
+      ticker: createAsyncQueue({ concurrency: 1 }),
+      presets: createAsyncQueue({ concurrency: 1 }),
+      overlay: createAsyncQueue({ concurrency: 1 }),
+      popup: createAsyncQueue({ concurrency: 1 }),
+      brb: createAsyncQueue({ concurrency: 1 }),
+      slate: createAsyncQueue({ concurrency: 1 }),
+      scenes: createAsyncQueue({ concurrency: 1 })
+    };
+
+    const STREAM_STATES = Object.freeze({
+      IDLE: 'idle',
+      CONNECTING: 'connecting',
+      OPEN: 'open',
+      ERROR: 'error',
+      POLLING: 'polling'
+    });
+    let streamConnectionState = STREAM_STATES.IDLE;
+
+    function setStreamState(nextState, meta = {}) {
+      if (!Object.values(STREAM_STATES).includes(nextState)) return;
+      if (streamConnectionState === nextState) return;
+      streamConnectionState = nextState;
+      switch (nextState) {
+        case STREAM_STATES.CONNECTING:
+          stopHealthChecks();
+          break;
+        case STREAM_STATES.OPEN:
+          connectionRetryAttempt = 0;
+          clearReconnectTimer();
+          stopPolling();
+          startHealthChecks();
+          applyServerStatus('online', { force: true });
+          break;
+        case STREAM_STATES.ERROR:
+          stopHealthChecks();
+          if (meta?.message) {
+            console.warn('[Ticker] stream error state', meta);
+          }
+          break;
+        case STREAM_STATES.POLLING:
+          stopHealthChecks();
+          break;
+        case STREAM_STATES.IDLE:
+        default:
+          stopHealthChecks();
+          break;
+      }
+    }
+
     const HEALTH_CHECK_INTERVAL_MS = 30000;
     const HEALTH_CHECK_TIMEOUT_MS = 5000;
     const STREAM_BACKOFF_BASE_MS = 1000;
@@ -3061,20 +3239,26 @@
         pollingTimer = null;
       }
       isPollingActive = false;
+      if (streamConnectionState === STREAM_STATES.POLLING) {
+        setStreamState(STREAM_STATES.IDLE);
+      }
     }
 
     function startPolling(reason = 'sse-failure') {
-      if (pollingTimer) {
-        return;
+      const alreadyPolling = Boolean(pollingTimer);
+      if (!alreadyPolling) {
+        const poll = () => {
+          void fetchState({ silent: true });
+        };
+        poll();
+        pollingTimer = setInterval(poll, POLLING_INTERVAL_MS);
       }
       isPollingActive = true;
+      setStreamState(STREAM_STATES.POLLING, { reason });
       applyServerStatus('polling', { force: true });
-      const poll = () => {
-        void fetchState({ silent: true });
-      };
-      poll();
-      pollingTimer = setInterval(poll, POLLING_INTERVAL_MS);
-      console.warn('[Ticker] Falling back to polling mode', { reason });
+      if (!alreadyPolling) {
+        console.warn('[Ticker] Falling back to polling mode', { reason });
+      }
     }
 
     function validateServerUrlFormat(value) {
@@ -3105,29 +3289,15 @@
       if (!ok || !url) {
         return { ok: false, reason: reason || 'invalid-url', url: url || null };
       }
-      const controller = typeof AbortController === 'function' ? new AbortController() : null;
-      let timeoutId = null;
-      if (controller) {
-        timeoutId = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
-      }
       try {
-        const response = await fetch(`${url}/health`, {
-          cache: 'no-store',
-          signal: controller ? controller.signal : undefined
+        await requestJson(`${url}/health`, {
+          init: { cache: 'no-store' },
+          timeoutMs: HEALTH_CHECK_TIMEOUT_MS,
+          validate: payload => (payload && payload.ok === true ? true : 'Invalid health payload')
         });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        try {
-          await response.json();
-        } catch (err) {
-          // Ignore parse errors from lightweight health responses.
-        }
         return { ok: true, url };
       } catch (error) {
         return { ok: false, url, error };
-      } finally {
-        if (timeoutId) clearTimeout(timeoutId);
       }
     }
 
@@ -3142,6 +3312,9 @@
       connectionRetryAttempt = Math.min(connectionRetryAttempt + 1, 32);
       if (connectionRetryAttempt >= STREAM_MAX_FAILURES_BEFORE_POLLING && !isPollingActive) {
         startPolling(reason);
+      }
+      if (streamConnectionState !== STREAM_STATES.ERROR && streamConnectionState !== STREAM_STATES.POLLING) {
+        setStreamState(STREAM_STATES.ERROR, { reason });
       }
       applyServerStatus('reconnecting', { force: true });
       connectionRetryTimer = setTimeout(() => {
@@ -4726,57 +4899,75 @@
       }
       fetchInFlight = true;
       fetchPendingSilent = true;
-      const base = serverBase();
       try {
-        const [tickerRes, overlayRes, presetRes, sceneRes, popupRes, brbRes, slateRes] = await Promise.all([
-          fetch(`${base}/ticker/state`, { cache: 'no-store' }),
-          fetch(`${base}/ticker/overlay`, { cache: 'no-store' }),
-          fetch(`${base}/ticker/presets`, { cache: 'no-store' }),
-          fetch(`${base}/ticker/scenes`, { cache: 'no-store' }),
-          fetch(`${base}/popup/state`, { cache: 'no-store' }),
-          fetch(`${base}/brb/state`, { cache: 'no-store' }),
-          fetch(`${base}/slate/state`, { cache: 'no-store' })
-        ]);
-        if (!tickerRes.ok) throw new Error(`Ticker HTTP ${tickerRes.status}`);
-        const tickerData = await tickerRes.json();
-        applyTickerData(tickerData);
-        if (overlayRes.ok) {
-          const overlayData = await overlayRes.json();
-          applyOverlayData(overlayData);
-        }
-        if (presetRes.ok) {
-          const presetData = await presetRes.json();
-          if (Array.isArray(presetData.presets)) {
-            applyPresetsData(presetData.presets);
+        await runQueued(stateRequestQueue, async () => {
+          const base = serverBase();
+          try {
+            const tickerData = await requestJson(`${base}/ticker/state`, {
+              init: { cache: 'no-store' },
+              validate: validateTickerStateResponse
+            });
+            applyTickerData(tickerData);
+
+            await Promise.all([
+              requestJson(`${base}/ticker/overlay`, {
+                init: { cache: 'no-store' },
+                validate: validateOverlayResponse
+              }).then(data => applyOverlayData(data)).catch(err => {
+                console.warn('Failed to fetch overlay state', err);
+              }),
+              requestJson(`${base}/ticker/presets`, {
+                init: { cache: 'no-store' },
+                validate: validatePresetList
+              }).then(data => {
+                if (Array.isArray(data.presets)) {
+                  applyPresetsData(data.presets);
+                }
+              }).catch(err => {
+                console.warn('Failed to fetch presets', err);
+              }),
+              requestJson(`${base}/ticker/scenes`, {
+                init: { cache: 'no-store' },
+                validate: validateSceneList
+              }).then(data => {
+                if (Array.isArray(data.scenes)) {
+                  applyScenesData(data.scenes);
+                }
+              }).catch(err => {
+                console.warn('Failed to fetch scenes', err);
+              }),
+              requestJson(`${base}/popup/state`, {
+                init: { cache: 'no-store' },
+                validate: validatePopupResponse
+              }).then(data => applyPopupData(data)).catch(err => {
+                console.warn('Failed to fetch popup state', err);
+              }),
+              requestJson(`${base}/brb/state`, {
+                init: { cache: 'no-store' },
+                validate: validateBrbResponse
+              }).then(data => applyBrbData(data)).catch(err => {
+                console.warn('Failed to fetch BRB state', err);
+              }),
+              requestJson(`${base}/slate/state`, {
+                init: { cache: 'no-store' },
+                validate: validateSlateResponse
+              }).then(data => applySlateData(data)).catch(err => {
+                console.warn('Failed to fetch slate state', err);
+              })
+            ]);
+
+            applyServerStatus('online');
+            if (!silent) {
+              renderOverlayControls();
+              updateOverlayChip();
+            }
+          } catch (err) {
+            console.error('Failed to fetch state', err);
+            applyServerStatus('offline', { message: 'Unreachable' });
+            if (!silent) toast('Server unreachable');
+            throw err;
           }
-        }
-        if (sceneRes && sceneRes.ok) {
-          const sceneData = await sceneRes.json();
-          if (Array.isArray(sceneData.scenes)) {
-            applyScenesData(sceneData.scenes);
-          }
-        }
-        if (popupRes && popupRes.ok) {
-          const popupData = await popupRes.json();
-          applyPopupData(popupData);
-        }
-        if (brbRes && brbRes.ok) {
-          const brbData = await brbRes.json();
-          applyBrbData(brbData);
-        }
-        if (slateRes && slateRes.ok) {
-          const slateData = await slateRes.json();
-          applySlateData(slateData);
-        }
-        applyServerStatus('online');
-        if (!silent) {
-          renderOverlayControls();
-          updateOverlayChip();
-        }
-      } catch (err) {
-        console.error('Failed to fetch state', err);
-        applyServerStatus('offline', { message: 'Unreachable' });
-        if (!silent) toast('Server unreachable');
+        });
       } finally {
         fetchInFlight = false;
         if (fetchPending) {
@@ -4796,61 +4987,57 @@
         displayDuration: state.displayDuration,
         intervalBetween: minutesToSeconds(state.intervalMinutes)
       };
-      try {
-        const res = await fetch(`${base}/ticker/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        let data = null;
+      await runQueued(mutationQueues.ticker, async () => {
         try {
-          data = await res.json();
-        } catch (parseErr) {
-          if (res.ok) {
-            console.warn('Ticker save returned non-JSON response', parseErr);
+          const data = await requestJson(`${base}/ticker/state`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            },
+            validate: validateTickerMutation
+          });
+          if (data && data.state) {
+            applyTickerData(data.state);
           }
+          applyServerStatus('online');
+        } catch (err) {
+          console.error('Failed to save state', err);
+          toast(err.message || 'Failed to save ticker state');
+          applyServerStatus('error', { message: 'Error' });
         }
-        if (!res.ok) {
-          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        if (data && data.state) {
-          applyTickerData(data.state);
-        }
-        applyServerStatus('online');
-      } catch (err) {
-        console.error('Failed to save state', err);
-        toast(err.message || 'Failed to save ticker state');
-        applyServerStatus('error', { message: 'Error' });
-      }
+      });
     }
 
     async function persistPresets(options = {}) {
       const { notify = true } = options;
       const base = serverBase();
-      try {
-        const res = await fetch(`${base}/ticker/presets`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ presets })
-        });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        if (data && Array.isArray(data.presets)) {
-          const mappedPresets = data.presets.map(entry => ({
-            id: String(entry.id || generateClientId('preset')),
-            name: String(entry.name || 'Preset'),
-            messages: sanitiseMessagesFn(entry.messages || []),
-            updatedAt: Number(entry.updatedAt) || Date.now()
-          }));
-          presets.length = 0;
-          presets.push(...mappedPresets);
+      await runQueued(mutationQueues.presets, async () => {
+        try {
+          const data = await requestJson(`${base}/ticker/presets`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ presets })
+            },
+            validate: validatePresetsMutation
+          });
+          if (data && Array.isArray(data.presets)) {
+            const mappedPresets = data.presets.map(entry => ({
+              id: String(entry.id || generateClientId('preset')),
+              name: String(entry.name || 'Preset'),
+              messages: sanitiseMessagesFn(entry.messages || []),
+              updatedAt: Number(entry.updatedAt) || Date.now()
+            }));
+            presets.length = 0;
+            presets.push(...mappedPresets);
+          }
+          if (notify) toast('Presets saved');
+        } catch (err) {
+          console.error('Failed to save presets', err);
+          if (notify) toast(err.message || 'Failed to save presets');
         }
-        if (notify) toast('Presets saved');
-      } catch (err) {
-        console.error('Failed to save presets', err);
-        if (notify) toast('Failed to save presets');
-      }
+      });
     }
 
     function queueSave() {
@@ -4959,41 +5146,37 @@
 
       popupSaveInFlight = true;
       renderPopupControls();
-      try {
-        const res = await fetch(`${base}/popup/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            text: popupState.text,
-            isActive: popupState.isActive,
-            durationSeconds: popupState.durationSeconds,
-            countdownEnabled: popupState.countdownEnabled,
-            countdownTarget: popupState.countdownTarget
-          })
-        });
-        let data = null;
+      const payload = {
+        text: popupState.text,
+        isActive: popupState.isActive,
+        durationSeconds: popupState.durationSeconds,
+        countdownEnabled: popupState.countdownEnabled,
+        countdownTarget: popupState.countdownTarget
+      };
+      await runQueued(mutationQueues.popup, async () => {
         try {
-          data = await res.json();
-        } catch (parseErr) {
-          if (res.ok) {
-            console.warn('Popup save returned non-JSON response', parseErr);
+          const data = await requestJson(`${base}/popup/state`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            },
+            validate: validatePopupMutation
+          });
+          if (data && data.popup) {
+            applyPopupData(data.popup);
+          } else {
+            Object.assign(popupState, payload, { updatedAt: Date.now() });
+            renderPopupControls();
           }
+          toast(isActive ? 'Popup updated' : 'Popup cleared');
+        } catch (err) {
+          console.error('Failed to save popup state', err);
+          toast(err.message || 'Failed to update popup');
         }
-        if (!res.ok) {
-          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        if (data && data.popup) {
-          applyPopupData(data.popup);
-        }
-        toast(isActive ? 'Popup updated' : 'Popup cleared');
-      } catch (err) {
-        console.error('Failed to save popup state', err);
-        toast(err.message || 'Failed to update popup');
-      } finally {
-        popupSaveInFlight = false;
-        renderPopupControls();
-      }
+      });
+      popupSaveInFlight = false;
+      renderPopupControls();
     }
 
     function queueBrbSave() {
@@ -5019,38 +5202,30 @@
       const payload = { text, isActive };
       brbSaveInFlight = true;
       renderBrbControls();
-      try {
-        const res = await fetch(`${base}/brb/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        let data = null;
+      await runQueued(mutationQueues.brb, async () => {
         try {
-          data = await res.json();
-        } catch (parseErr) {
-          if (res.ok) {
-            console.warn('BRB save returned non-JSON response', parseErr);
+          const data = await requestJson(`${base}/brb/state`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            },
+            validate: validateBrbMutation
+          });
+          if (data && data.state) {
+            applyBrbData(data.state);
+          } else {
+            Object.assign(brbState, { text, isActive, updatedAt: Date.now() });
+            renderBrbControls();
           }
+          toast(isActive ? 'BRB updated' : 'BRB hidden');
+        } catch (err) {
+          console.error('Failed to save BRB state', err);
+          toast(err.message || 'Failed to update BRB state');
         }
-        if (!res.ok) {
-          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        if (data && data.state) {
-          applyBrbData(data.state);
-        } else {
-          Object.assign(brbState, { text, isActive, updatedAt: Date.now() });
-          renderBrbControls();
-        }
-        toast(isActive ? 'BRB updated' : 'BRB hidden');
-      } catch (err) {
-        console.error('Failed to save BRB state', err);
-        toast(err.message || 'Failed to update BRB state');
-      } finally {
-        brbSaveInFlight = false;
-        renderBrbControls();
-      }
+      });
+      brbSaveInFlight = false;
+      renderBrbControls();
     }
 
     function markStreamPrimed() {
@@ -5080,6 +5255,11 @@
       stopHealthChecks();
       if (!preservePolling) {
         stopPolling();
+        setStreamState(STREAM_STATES.IDLE);
+      } else if (isPollingActive) {
+        setStreamState(STREAM_STATES.POLLING, { reason: 'preserve' });
+      } else {
+        setStreamState(STREAM_STATES.IDLE);
       }
       streamPrimed = false;
     }
@@ -5095,6 +5275,7 @@
       }
 
       clearReconnectTimer();
+      setStreamState(STREAM_STATES.CONNECTING);
       applyServerStatus(isRetry ? 'reconnecting' : 'checking', {
         message: isRetry ? 'Reconnecting…' : 'Connecting…',
         force: true
@@ -5106,6 +5287,12 @@
         const status = health.reason === 'invalid-url' ? 'invalid' : 'offline';
         const message = status === 'invalid' ? 'Invalid URL' : 'Offline';
         applyServerStatus(status, { message, force: true });
+        if (status === 'invalid') {
+          setStreamState(STREAM_STATES.IDLE, { reason: 'health-check' });
+          stopPolling();
+        } else {
+          setStreamState(STREAM_STATES.ERROR, { reason: 'health-check', status });
+        }
         if (status !== 'invalid') {
           scheduleReconnect('health-check');
         }
@@ -5133,17 +5320,12 @@
         }, STREAM_PRIME_TIMEOUT_MS);
 
         source.addEventListener('open', () => {
-          connectionRetryAttempt = 0;
-          clearReconnectTimer();
-          stopPolling();
-          applyServerStatus('online', { force: true });
-          startHealthChecks();
+          setStreamState(STREAM_STATES.OPEN);
         });
 
         source.addEventListener('error', () => {
-          source.close();
-          eventSource = null;
-          stopHealthChecks();
+          if (eventSource !== source) return;
+          setStreamState(STREAM_STATES.ERROR, { reason: 'stream-error' });
           applyServerStatus('reconnecting', { force: true });
           if (!streamPrimed) {
             void fetchState({ silent: true });
@@ -5151,6 +5333,7 @@
           if (!isPollingActive) {
             startPolling('stream-error');
           }
+          disconnectStream({ preservePolling: true });
           scheduleReconnect('stream-error');
         });
 
@@ -5229,13 +5412,14 @@
         });
       } catch (err) {
         console.error('Failed to connect to event stream', err);
-        eventSource = null;
-        stopHealthChecks();
+        disconnectStream({ preservePolling: true });
+        const failureReason = reason || 'exception';
+        setStreamState(STREAM_STATES.ERROR, { reason: failureReason });
         applyServerStatus('error', { message: 'Stream error', force: true });
         if (!isPollingActive) {
           startPolling('stream-error');
         }
-        scheduleReconnect(reason || 'exception');
+        scheduleReconnect(failureReason);
         void fetchState({ silent: true });
       }
     }
@@ -5256,40 +5440,32 @@
         theme: overlayPrefs.theme
       };
       overlaySaveInFlight = true;
-      try {
-        const res = await fetch(`${base}/ticker/overlay`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        let data = null;
+      await runQueued(mutationQueues.overlay, async () => {
         try {
-          data = await res.json();
-        } catch (parseErr) {
-          if (res.ok) {
-            console.warn('Overlay save returned non-JSON response', parseErr);
-          }
-        }
-        if (!res.ok) {
-          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        if (data && data.overlay) {
-          const overlayNext = normaliseOverlayDataFn(data.overlay);
-          Object.keys(overlayPrefs).forEach(key => {
-            if (!Object.prototype.hasOwnProperty.call(overlayNext, key)) {
-              delete overlayPrefs[key];
-            }
+          const data = await requestJson(`${base}/ticker/overlay`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            },
+            validate: validateOverlayMutation
           });
-          Object.assign(overlayPrefs, overlayNext);
+          if (data && data.overlay) {
+            const overlayNext = normaliseOverlayDataFn(data.overlay);
+            Object.keys(overlayPrefs).forEach(key => {
+              if (!Object.prototype.hasOwnProperty.call(overlayNext, key)) {
+                delete overlayPrefs[key];
+              }
+            });
+            Object.assign(overlayPrefs, overlayNext);
+          }
+        } catch (err) {
+          console.error('Failed to save overlay preferences', err);
+          toast(err.message || 'Failed to save overlay preferences');
         }
-      } catch (err) {
-        console.error('Failed to save overlay preferences', err);
-        toast(err.message || 'Failed to save overlay preferences');
-      } finally {
-        overlaySaveInFlight = false;
-        flushPendingOverlayPayload();
-      }
+      });
+      overlaySaveInFlight = false;
+      flushPendingOverlayPayload();
     }
 
     function queueOverlaySave() {
@@ -5304,34 +5480,26 @@
       const base = serverBase();
       const payload = serialiseSlateState();
       slateSaveInFlight = true;
-      try {
-        const res = await fetch(`${base}/slate/state`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        let data = null;
+      await runQueued(mutationQueues.slate, async () => {
         try {
-          data = await res.json();
-        } catch (parseErr) {
-          if (res.ok) {
-            console.warn('Slate save returned non-JSON response', parseErr);
+          const data = await requestJson(`${base}/slate/state`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            },
+            validate: validateSlateMutation
+          });
+          if (data && data.slate) {
+            applySlateData(data.slate);
           }
+        } catch (err) {
+          console.error('Failed to save slate state', err);
+          toast(err.message || 'Failed to save slate');
         }
-        if (!res.ok) {
-          const message = data?.error || data?.message || `Save failed (HTTP ${res.status})`;
-          throw new Error(message);
-        }
-        if (data && data.slate) {
-          applySlateData(data.slate);
-        }
-      } catch (err) {
-        console.error('Failed to save slate state', err);
-        toast(err.message || 'Failed to save slate');
-      } finally {
-        slateSaveInFlight = false;
-        flushPendingSlatePayload();
-      }
+      });
+      slateSaveInFlight = false;
+      flushPendingSlatePayload();
     }
 
     function queueSlateSave() {
@@ -5917,52 +6085,51 @@
       }
       const base = serverBase();
       scenesSaveInFlight = true;
-      try {
-        const res = await fetch(`${base}/ticker/scenes`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ scenes })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const message = data?.error || `Failed to save scenes (HTTP ${res.status})`;
-          throw new Error(message);
+      await runQueued(mutationQueues.scenes, async () => {
+        try {
+          const data = await requestJson(`${base}/ticker/scenes`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ scenes })
+            },
+            validate: validateScenesMutation
+          });
+          if (data && Array.isArray(data.scenes)) {
+            applyScenesData(data.scenes);
+          }
+          toast(successMessage);
+        } catch (err) {
+          console.error('Failed to save scenes', err);
+          toast(err.message || 'Failed to save scenes');
         }
-        if (data && Array.isArray(data.scenes)) {
-          applyScenesData(data.scenes);
-        }
-        toast(successMessage);
-      } catch (err) {
-        console.error('Failed to save scenes', err);
-        toast(err.message || 'Failed to save scenes');
-      } finally {
-        scenesSaveInFlight = false;
-        if (pendingSceneMessage) {
-          const message = pendingSceneMessage;
-          pendingSceneMessage = null;
-          void persistScenes(message);
-        }
+      });
+      scenesSaveInFlight = false;
+      if (pendingSceneMessage) {
+        const message = pendingSceneMessage;
+        pendingSceneMessage = null;
+        void persistScenes(message);
       }
     }
 
     async function activateScene(scene) {
       const base = serverBase();
-      try {
-        const res = await fetch(`${base}/ticker/scenes/apply`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sceneId: scene.id })
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const message = data?.error || `Failed to activate scene (HTTP ${res.status})`;
-          throw new Error(message);
+      await runQueued(mutationQueues.scenes, async () => {
+        try {
+          await requestJson(`${base}/ticker/scenes/apply`, {
+            init: {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sceneId: scene.id })
+            },
+            validate: validateSceneActivation
+          });
+          toast(`Activated scene “${scene.name}”`);
+        } catch (err) {
+          console.error('Failed to activate scene', err);
+          toast(err.message || 'Failed to activate scene');
         }
-        toast(`Activated scene “${scene.name}”`);
-      } catch (err) {
-        console.error('Failed to activate scene', err);
-        toast(err.message || 'Failed to activate scene');
-      }
+      });
     }
 
     function saveScenePreset(existing) {
@@ -6119,11 +6286,9 @@
           }
           const base = serverBase();
           try {
-            const res = await fetch(`${base}/ticker/state/export`, { cache: 'no-store' });
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}`);
-            }
-            const blob = await res.blob();
+            const blob = await requestBlob(`${base}/ticker/state/export`, {
+              init: { cache: 'no-store' }
+            });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -6163,23 +6328,14 @@
               throw new Error('Selected file is not valid JSON');
             }
             const base = serverBase();
-            const res = await fetch(`${base}/ticker/state/import`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(parsed)
+            await requestJson(`${base}/ticker/state/import`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed)
+              },
+              validate: validateStateImport
             });
-            let data = null;
-            try {
-              data = await res.json();
-            } catch (err) {
-              if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`);
-              }
-            }
-            if (!res.ok || !data || data.ok !== true) {
-              const message = data?.error || data?.message || `Import failed (HTTP ${res.status})`;
-              throw new Error(message);
-            }
             await fetchState({ silent: false });
             toast('State imported');
           } catch (err) {
