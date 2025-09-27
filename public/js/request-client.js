@@ -111,6 +111,33 @@
       ? { ...options.defaultInit }
       : {};
     const queueMap = new Map();
+    const inflightRequests = new Map();
+
+    function resolveDedupeKey(url, config) {
+      if (!config || config.dedupe === false) return null;
+      if (typeof config.dedupeKey === 'string') {
+        return config.dedupeKey || null;
+      }
+      if (typeof config.dedupeKey === 'function') {
+        try {
+          const resolved = config.dedupeKey({ url, config });
+          return typeof resolved === 'string' && resolved ? resolved : null;
+        } catch (err) {
+          console.warn('[request-client] dedupeKey threw', err);
+          return null;
+        }
+      }
+      if (config.dedupe) {
+        const method = config.init && typeof config.init.method === 'string'
+          ? config.init.method.toUpperCase()
+          : 'GET';
+        return `${method}:${url}`;
+      }
+      if (config.dedupe === undefined && (!config.init || !config.init.method || String(config.init.method).toUpperCase() === 'GET')) {
+        return `GET:${url}`;
+      }
+      return null;
+    }
 
     function ensureQueue(key, queueOptions) {
       if (!queueMap.has(key)) {
@@ -130,6 +157,9 @@
       } = config;
 
       const task = async () => {
+        if (typeof fetch !== 'function') {
+          throw new RequestError('Fetch API unavailable', 'unsupported', { url });
+        }
         const mergedInit = { ...defaultInit, ...init };
         const controller = createTimeoutController(timeoutMs, mergedInit.signal);
         let response;
@@ -194,12 +224,24 @@
         return payload;
       };
 
-      if (queueKey) {
-        const queue = ensureQueue(queueKey, queueOptions);
-        return queue.enqueue(task);
+      const dedupeKey = resolveDedupeKey(url, config);
+      if (dedupeKey && inflightRequests.has(dedupeKey)) {
+        return inflightRequests.get(dedupeKey);
       }
 
-      return task();
+      const queueRunner = queueKey
+        ? ensureQueue(queueKey, queueOptions).enqueue(task)
+        : task();
+
+      if (dedupeKey) {
+        const tracked = queueRunner.finally(() => {
+          inflightRequests.delete(dedupeKey);
+        });
+        inflightRequests.set(dedupeKey, tracked);
+        return tracked;
+      }
+
+      return queueRunner;
     }
 
     function requestJson(url, config = {}) {
