@@ -238,6 +238,72 @@
       box-shadow: var(--shadow);
     }
 
+    @keyframes panelBusySpin {
+      to { transform: rotate(360deg); }
+    }
+
+    .panel[data-busy="true"]::before,
+    .panel[data-busy="true"]::after {
+      position: absolute;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .panel[data-busy="true"]::before {
+      content: '';
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid var(--accent-bright);
+      border-top-color: transparent;
+      border-right-color: transparent;
+      top: 20px;
+      right: 40px;
+      animation: panelBusySpin 0.9s linear infinite;
+      opacity: 0.9;
+    }
+
+    .panel[data-busy="true"]::after {
+      content: attr(data-busy-label);
+      top: 16px;
+      right: 18px;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+      color: var(--accent-bright);
+      background: var(--pill-bg);
+      border: 1px solid rgba(124, 92, 255, 0.28);
+      border-radius: 999px;
+      padding: 6px 18px 6px 30px;
+      box-shadow: 0 16px 32px rgba(7, 9, 20, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+
+    .panel[data-busy-state="pending"]::after {
+      color: var(--subtle);
+      border-color: rgba(124, 92, 255, 0.18);
+    }
+
+    .panel[data-busy-state="pending"]::before {
+      border-color: rgba(158, 163, 180, 0.6);
+      border-top-color: transparent;
+      border-right-color: transparent;
+    }
+
+    .panel[data-busy-state="draft"]::before {
+      animation: none;
+      border-color: rgba(124, 92, 255, 0.36);
+      border-top-color: rgba(124, 92, 255, 0.36);
+      border-right-color: rgba(124, 92, 255, 0.36);
+      background: rgba(124, 92, 255, 0.12);
+    }
+
+    .panel[data-busy-state="draft"]::after {
+      color: var(--accent-bright);
+      border-color: rgba(124, 92, 255, 0.28);
+    }
+
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
       .panel {
         backdrop-filter: blur(18px) saturate(1.05);
@@ -2319,6 +2385,7 @@
     const MAX_MESSAGES = EXPORTED_MAX_MESSAGES || 50;
     const MAX_MESSAGE_LENGTH = EXPORTED_MAX_MESSAGE_LENGTH || 280;
     const MAX_POPUP_SECONDS = EXPORTED_MAX_POPUP_SECONDS || 600;
+    const MAX_POPUP_LENGTH = 280;
     const MAX_SLATE_TITLE_LENGTH = EXPORTED_MAX_SLATE_TITLE_LENGTH || 64;
     const MAX_SLATE_TEXT_LENGTH = EXPORTED_MAX_SLATE_TEXT_LENGTH || 200;
     const MAX_SLATE_NOTES = EXPORTED_MAX_SLATE_NOTES || 6;
@@ -3053,11 +3120,20 @@
     let overlaySaveTimer = null;
     let overlaySaveInFlight = false;
     let pendingOverlayPayload = null;
+    let overlayHasPendingLocalChanges = false;
+    let overlayAwaitingServerCommit = false;
+    let overlayAwaitingServerCommitStamp = null;
     let popupSaveTimer = null;
     let popupSaveInFlight = false;
+    let pendingPopupPayload = null;
+    let popupHasPendingLocalChanges = false;
+    let popupAwaitingServerCommit = false;
+    let popupAwaitingServerCommitStamp = null;
     let slateSaveTimer = null;
     let slateSaveInFlight = false;
     let pendingSlatePayload = null;
+    let slateHasPendingLocalChanges = false;
+    let slateAwaitingServerCommit = false;
     let slatePreviewTimer = null;
     let slatePreviewDisplayTimer = null;
     let slatePreviewClockTimer = null;
@@ -3094,6 +3170,75 @@
       slate: createAsyncQueue({ concurrency: 1 }),
       scenes: createAsyncQueue({ concurrency: 1 })
     };
+
+    function setPanelBusy(panelId, busy, options = {}) {
+      const panel = panelSections.get(panelId);
+      if (!panel) return;
+      if (busy) {
+        const { label, state } = options;
+        panel.dataset.busy = 'true';
+        panel.setAttribute('aria-busy', 'true');
+        panel.dataset.busyLabel = label || 'Saving…';
+        if (state) {
+          panel.dataset.busyState = state;
+        } else {
+          delete panel.dataset.busyState;
+        }
+      } else {
+        delete panel.dataset.busy;
+        panel.removeAttribute('aria-busy');
+        delete panel.dataset.busyLabel;
+        delete panel.dataset.busyState;
+      }
+    }
+
+    function updatePanelBusyStates() {
+      let overlayState = null;
+      if (overlaySaveInFlight || overlayAwaitingServerCommit) {
+        overlayState = 'saving';
+      } else if (overlaySaveTimer) {
+        overlayState = 'pending';
+      } else if (overlayHasPendingLocalChanges) {
+        overlayState = 'draft';
+      }
+      setPanelBusy('overlayPanel', Boolean(overlayState), {
+        label: overlayState === 'pending'
+          ? 'Queued…'
+          : overlayState === 'saving'
+            ? 'Saving…'
+            : 'Unsaved changes',
+        state: overlayState
+      });
+
+      const slateStateBusy = slateSaveInFlight ? 'saving' : (slateSaveTimer ? 'pending' : null);
+      setPanelBusy('slatePanel', Boolean(slateStateBusy), {
+        label: slateStateBusy === 'pending' ? 'Queued…' : 'Saving…',
+        state: slateStateBusy
+      });
+
+      let popupStateBusy = null;
+      if (popupSaveInFlight || popupAwaitingServerCommit) {
+        popupStateBusy = 'saving';
+      } else if (popupSaveTimer) {
+        popupStateBusy = 'pending';
+      } else if (popupHasPendingLocalChanges) {
+        popupStateBusy = 'draft';
+      }
+      setPanelBusy('popupPanel', Boolean(popupStateBusy), {
+        label: popupStateBusy === 'pending'
+          ? 'Queued…'
+          : popupStateBusy === 'saving'
+            ? 'Updating…'
+            : 'Unsaved changes',
+        state: popupStateBusy
+      });
+
+      const brbStateBusy = brbSaveInFlight ? 'saving' : (brbSaveTimer ? 'pending' : null);
+      setPanelBusy('brbPanel', Boolean(brbStateBusy), {
+        label: brbStateBusy === 'pending' ? 'Queued…' : 'Updating…',
+        state: brbStateBusy
+      });
+    }
 
     const STREAM_STATES = Object.freeze({
       IDLE: 'idle',
@@ -3793,16 +3938,27 @@
     if (el.slateNotesLabel) el.slateNotesLabel.value = slateState.notesLabel || '';
     if (el.slateNotes) el.slateNotes.value = Array.isArray(slateState.notes) ? slateState.notes.join('\n') : '';
       updateSlatePreview();
+      updatePanelBusyStates();
+    }
+
+    function applySlatePatch(patch, { skipUpdatedAt = false } = {}) {
+      if (!patch || typeof patch !== 'object') return false;
+      let changed = false;
+      for (const [key, value] of Object.entries(patch)) {
+        if (slateState[key] === value) continue;
+        slateState[key] = value;
+        changed = true;
+      }
+      if (changed && !skipUpdatedAt) {
+        slateState.updatedAt = Date.now();
+      }
+      return changed;
     }
 
     function updateSlateBoolean(key, value) {
       const next = !!value;
-      if (slateState[key] === next) return;
-      slateState = {
-        ...slateState,
-        [key]: next,
-        updatedAt: Date.now()
-      };
+      if (!applySlatePatch({ [key]: next })) return;
+      slateHasPendingLocalChanges = true;
       updateSlatePreview();
       queueSlateSave();
     }
@@ -3815,12 +3971,8 @@
     if (el.slateRotationNumber && Number(el.slateRotationNumber.value) !== clamped) {
         el.slateRotationNumber.value = clamped;
       }
-      if (slateState.rotationSeconds === clamped) return;
-      slateState = {
-        ...slateState,
-        rotationSeconds: clamped,
-        updatedAt: Date.now()
-      };
+      if (!applySlatePatch({ rotationSeconds: clamped })) return;
+      slateHasPendingLocalChanges = true;
       updateSlatePreview();
       queueSlateSave();
     }
@@ -3829,14 +3981,10 @@
       const source = typeof rawValue === 'string' ? rawValue : '';
       const clipped = source.slice(0, limit);
       const trimmed = clipped.trim();
-      if (slateState[key] === trimmed) {
+      if (!applySlatePatch({ [key]: trimmed })) {
         return trimmed;
       }
-      slateState = {
-        ...slateState,
-        [key]: trimmed,
-        updatedAt: Date.now()
-      };
+      slateHasPendingLocalChanges = true;
       updateSlatePreview();
       queueSlateSave();
       return trimmed;
@@ -3847,11 +3995,8 @@
       const previous = Array.isArray(slateState.notes) ? slateState.notes : [];
       const changed = notes.length !== previous.length || notes.some((note, index) => note !== previous[index]);
       if (!changed) return notes;
-      slateState = {
-        ...slateState,
-        notes,
-        updatedAt: Date.now()
-      };
+      applySlatePatch({ notes });
+      slateHasPendingLocalChanges = true;
       updateSlatePreview();
       queueSlateSave();
       return notes;
@@ -4394,6 +4539,7 @@
       }
       applyPreviewTheme();
       renderPopupPreviewScale();
+      updatePanelBusyStates();
     }
 
     function renderMessages() {
@@ -4624,7 +4770,11 @@
       destroyPopupPreviewAnimator();
       stopPopupPreviewCountdown();
       popupPreviewCountdownTarget = null;
-      const text = el.popupText.value.trim();
+      const raw = el.popupText ? el.popupText.value : '';
+      const text = raw.trim().slice(0, MAX_POPUP_LENGTH);
+      if (el.popupText && raw !== text) {
+        el.popupText.value = text;
+      }
       const previous = popupPreviewLastText;
       let messageNode = null;
       let shouldAnimate = false;
@@ -4722,12 +4872,13 @@
       el.popupActive.disabled = disabled;
     if (el.popupDuration) el.popupDuration.disabled = disabled;
     if (el.popupCountdownEnabled) el.popupCountdownEnabled.disabled = disabled;
-    if (el.popupCountdownTarget) {
+      if (el.popupCountdownTarget) {
         const countdownEnabled = el.popupCountdownEnabled && el.popupCountdownEnabled.checked;
         el.popupCountdownTarget.disabled = disabled || !countdownEnabled;
       }
     if (el.savePopup) el.savePopup.disabled = disabled;
     if (el.clearPopup) el.clearPopup.disabled = disabled;
+      updatePanelBusyStates();
     }
 
     function renderBrbControls() {
@@ -4761,6 +4912,7 @@
     if (el.statusBrbDot) {
         el.statusBrbDot.classList.toggle('active', brbActive);
       }
+      updatePanelBusyStates();
     }
 
     function renderAll() {
@@ -4773,6 +4925,7 @@
       renderPresets();
       updateOverlayChip();
       saveLocal();
+      updatePanelBusyStates();
     }
 
     function applyTickerData(payload) {
@@ -4795,7 +4948,9 @@
     }
 
     function flushPendingOverlayPayload() {
-      if (!pendingOverlayPayload || overlaySaveTimer || overlaySaveInFlight) return;
+      if (!pendingOverlayPayload) return;
+      if (overlaySaveTimer) return;
+      if (overlaySaveInFlight && !overlayAwaitingServerCommit) return;
       const latest = pendingOverlayPayload;
       pendingOverlayPayload = null;
       applyOverlayData(latest);
@@ -4803,18 +4958,77 @@
 
     function applyOverlayData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      if (overlaySaveTimer || overlaySaveInFlight) {
+
+      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const localStamp = Number(overlayPrefs.updatedAt);
+      const hasRemoteStamp = Number.isFinite(remoteStamp);
+      const hasLocalStamp = Number.isFinite(localStamp);
+      const expectingCommit = overlayAwaitingServerCommit;
+
+      if (overlaySaveTimer || (overlaySaveInFlight && !expectingCommit)) {
         pendingOverlayPayload = payload;
         return;
       }
+
       pendingOverlayPayload = null;
+
+      const remoteIsStale = hasRemoteStamp && hasLocalStamp && remoteStamp < localStamp;
+      if (remoteIsStale) {
+        if (expectingCommit && overlayAwaitingServerCommitStamp !== null && remoteStamp >= overlayAwaitingServerCommitStamp) {
+          overlayAwaitingServerCommit = false;
+          overlayAwaitingServerCommitStamp = null;
+          if (!overlaySaveTimer && !overlaySaveInFlight) {
+            overlayHasPendingLocalChanges = false;
+          }
+          updatePanelBusyStates();
+        }
+        return;
+      }
+
+      const remoteIsSame = hasRemoteStamp && hasLocalStamp && remoteStamp === localStamp;
+      if (remoteIsSame) {
+        if (expectingCommit && overlayAwaitingServerCommitStamp !== null && remoteStamp >= overlayAwaitingServerCommitStamp) {
+          overlayAwaitingServerCommit = false;
+          overlayAwaitingServerCommitStamp = null;
+        }
+        if (!overlaySaveTimer && !overlaySaveInFlight && !overlayAwaitingServerCommit) {
+          overlayHasPendingLocalChanges = false;
+        }
+        pendingOverlayPayload = null;
+        updatePanelBusyStates();
+        return;
+      }
+
+      if (expectingCommit) {
+        overlayAwaitingServerCommit = false;
+        overlayAwaitingServerCommitStamp = null;
+      } else if (overlayHasPendingLocalChanges) {
+        overlayHasPendingLocalChanges = false;
+        toast('Overlay updated on another device. Latest version loaded.');
+      }
+
       const next = normaliseOverlayDataFn(payload);
       Object.keys(overlayPrefs).forEach(key => {
         if (!Object.prototype.hasOwnProperty.call(next, key)) {
           delete overlayPrefs[key];
         }
       });
-      Object.assign(overlayPrefs, next);
+      const resolvedStamp = hasRemoteStamp ? remoteStamp : Date.now();
+      Object.assign(overlayPrefs, next, { updatedAt: resolvedStamp });
+
+      if (!overlaySaveTimer && !overlaySaveInFlight && !overlayAwaitingServerCommit) {
+        overlayHasPendingLocalChanges = false;
+      }
+      updatePanelBusyStates();
+    }
+
+    function flushPendingPopupPayload() {
+      if (!pendingPopupPayload) return;
+      if (popupSaveTimer) return;
+      if (popupSaveInFlight && !popupAwaitingServerCommit) return;
+      const latest = pendingPopupPayload;
+      pendingPopupPayload = null;
+      applyPopupData(latest);
     }
 
     function flushPendingSlatePayload() {
@@ -4826,35 +5040,126 @@
 
     function applySlateData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      if (slateSaveTimer || slateSaveInFlight) {
+      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const localStamp = Number(slateState.updatedAt);
+      const hasRemoteStamp = Number.isFinite(remoteStamp);
+      const hasLocalStamp = Number.isFinite(localStamp);
+
+      if (slateSaveInFlight) {
         pendingSlatePayload = payload;
         return;
       }
-      pendingSlatePayload = null;
-      const next = normaliseSlateDataFn(payload);
-      const stamp = Number(payload._updatedAt ?? payload.updatedAt);
-      if (Number.isFinite(stamp) && Number.isFinite(slateState.updatedAt) && slateState.updatedAt === stamp) {
+
+      const remoteIsStale = hasRemoteStamp && hasLocalStamp && remoteStamp < localStamp;
+      if (remoteIsStale) {
+        console.warn('[dashboard] Ignoring stale slate update', { remoteStamp, localStamp });
         return;
       }
+
+      const remoteIsSame = hasRemoteStamp && hasLocalStamp && remoteStamp === localStamp;
+      const remoteIsNewer = hasRemoteStamp && (!hasLocalStamp || remoteStamp > localStamp);
+
+      if (slateSaveTimer && (remoteIsSame || remoteIsNewer)) {
+        clearTimeout(slateSaveTimer);
+        slateSaveTimer = null;
+      }
+
+      pendingSlatePayload = null;
+
+      if (remoteIsNewer) {
+        if (slateAwaitingServerCommit) {
+          slateHasPendingLocalChanges = false;
+          slateAwaitingServerCommit = false;
+        } else if (slateHasPendingLocalChanges) {
+          slateHasPendingLocalChanges = false;
+          toast('Slate updated on another device. Latest version loaded.');
+        }
+      }
+
+      if (remoteIsSame) {
+        slateHasPendingLocalChanges = false;
+        slateAwaitingServerCommit = false;
+        updatePanelBusyStates();
+        return;
+      }
+
+      const next = normaliseSlateDataFn(payload);
       Object.keys(slateState).forEach(key => {
         if (!Object.prototype.hasOwnProperty.call(next, key)) {
           delete slateState[key];
         }
       });
-      Object.assign(slateState, next, {
-        updatedAt: Number.isFinite(stamp) ? stamp : Date.now()
-      });
+      const resolvedStamp = hasRemoteStamp ? remoteStamp : Date.now();
+      Object.assign(slateState, next, { updatedAt: resolvedStamp });
+      slateHasPendingLocalChanges = false;
+      slateAwaitingServerCommit = false;
+      updatePanelBusyStates();
     }
 
     function applyPopupData(payload) {
       if (!payload || typeof payload !== 'object') return;
+
+      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const localStamp = Number(popupState.updatedAt);
+      const hasRemoteStamp = Number.isFinite(remoteStamp);
+      const hasLocalStamp = Number.isFinite(localStamp);
+      const expectingCommit = popupAwaitingServerCommit;
+
+      if (popupSaveTimer || (popupSaveInFlight && !expectingCommit)) {
+        pendingPopupPayload = payload;
+        return;
+      }
+
+      pendingPopupPayload = null;
+
+      const remoteIsStale = hasRemoteStamp && hasLocalStamp && remoteStamp < localStamp;
+      if (remoteIsStale) {
+        if (expectingCommit && popupAwaitingServerCommitStamp !== null && remoteStamp >= popupAwaitingServerCommitStamp) {
+          popupAwaitingServerCommit = false;
+          popupAwaitingServerCommitStamp = null;
+          if (!popupSaveTimer && !popupSaveInFlight) {
+            popupHasPendingLocalChanges = false;
+          }
+          updatePanelBusyStates();
+        }
+        return;
+      }
+
+      const remoteIsSame = hasRemoteStamp && hasLocalStamp && remoteStamp === localStamp;
+      if (remoteIsSame) {
+        if (expectingCommit && popupAwaitingServerCommitStamp !== null && remoteStamp >= popupAwaitingServerCommitStamp) {
+          popupAwaitingServerCommit = false;
+          popupAwaitingServerCommitStamp = null;
+        }
+        if (!popupSaveTimer && !popupSaveInFlight && !popupAwaitingServerCommit) {
+          popupHasPendingLocalChanges = false;
+        }
+        pendingPopupPayload = null;
+        updatePanelBusyStates();
+        return;
+      }
+
+      if (expectingCommit) {
+        popupAwaitingServerCommit = false;
+        popupAwaitingServerCommitStamp = null;
+      } else if (popupHasPendingLocalChanges) {
+        popupHasPendingLocalChanges = false;
+        toast('Popup updated on another device. Latest version loaded.');
+      }
+
       const next = normalisePopupDataFn(payload);
       Object.keys(popupState).forEach(key => {
         if (!Object.prototype.hasOwnProperty.call(next, key)) {
           delete popupState[key];
         }
       });
-      Object.assign(popupState, next);
+      const resolvedStamp = hasRemoteStamp ? remoteStamp : Date.now();
+      Object.assign(popupState, next, { updatedAt: resolvedStamp });
+
+      if (!popupSaveTimer && !popupSaveInFlight && !popupAwaitingServerCommit) {
+        popupHasPendingLocalChanges = false;
+      }
+      updatePanelBusyStates();
     }
 
     function applyBrbData(payload) {
@@ -5051,8 +5356,11 @@
       clearTimeout(popupSaveTimer);
       popupSaveTimer = setTimeout(() => {
         popupSaveTimer = null;
+        updatePanelBusyStates();
         void persistPopup();
       }, 220);
+      popupHasPendingLocalChanges = true;
+      updatePanelBusyStates();
     }
 
     async function persistPopup() {
@@ -5141,10 +5449,16 @@
       });
 
       if (!changed) {
+        popupHasPendingLocalChanges = false;
+        updatePanelBusyStates();
         return;
       }
 
+      popupAwaitingServerCommit = true;
+      popupAwaitingServerCommitStamp = Number(popupState.updatedAt) || Date.now();
+      popupHasPendingLocalChanges = true;
       popupSaveInFlight = true;
+      updatePanelBusyStates();
       renderPopupControls();
       const payload = {
         text: popupState.text,
@@ -5166,25 +5480,37 @@
           if (data && data.popup) {
             applyPopupData(data.popup);
           } else {
+            popupAwaitingServerCommit = false;
+            popupAwaitingServerCommitStamp = null;
             Object.assign(popupState, payload, { updatedAt: Date.now() });
             renderPopupControls();
+            popupHasPendingLocalChanges = false;
           }
           toast(isActive ? 'Popup updated' : 'Popup cleared');
         } catch (err) {
           console.error('Failed to save popup state', err);
           toast(err.message || 'Failed to update popup');
+          popupAwaitingServerCommit = false;
+          popupAwaitingServerCommitStamp = null;
         }
       });
       popupSaveInFlight = false;
+      updatePanelBusyStates();
       renderPopupControls();
+      flushPendingPopupPayload();
+      if (!popupSaveTimer && !popupSaveInFlight && !popupAwaitingServerCommit) {
+        popupHasPendingLocalChanges = false;
+      }
     }
 
     function queueBrbSave() {
       clearTimeout(brbSaveTimer);
       brbSaveTimer = setTimeout(() => {
         brbSaveTimer = null;
+        updatePanelBusyStates();
         void persistBrb();
       }, 220);
+      updatePanelBusyStates();
     }
 
     async function persistBrb() {
@@ -5201,6 +5527,7 @@
 
       const payload = { text, isActive };
       brbSaveInFlight = true;
+      updatePanelBusyStates();
       renderBrbControls();
       await runQueued(mutationQueues.brb, async () => {
         try {
@@ -5225,6 +5552,7 @@
         }
       });
       brbSaveInFlight = false;
+      updatePanelBusyStates();
       renderBrbControls();
     }
 
@@ -5439,7 +5767,10 @@
         sparkle: overlayPrefs.sparkle,
         theme: overlayPrefs.theme
       };
+      overlayAwaitingServerCommit = true;
+      overlayAwaitingServerCommitStamp = Number(overlayPrefs.updatedAt) || Date.now();
       overlaySaveInFlight = true;
+      updatePanelBusyStates();
       await runQueued(mutationQueues.overlay, async () => {
         try {
           const data = await requestJson(`${base}/ticker/overlay`, {
@@ -5451,35 +5782,43 @@
             validate: validateOverlayMutation
           });
           if (data && data.overlay) {
-            const overlayNext = normaliseOverlayDataFn(data.overlay);
-            Object.keys(overlayPrefs).forEach(key => {
-              if (!Object.prototype.hasOwnProperty.call(overlayNext, key)) {
-                delete overlayPrefs[key];
-              }
-            });
-            Object.assign(overlayPrefs, overlayNext);
+            applyOverlayData(data.overlay);
+          } else {
+            overlayAwaitingServerCommit = false;
+            overlayAwaitingServerCommitStamp = null;
           }
         } catch (err) {
           console.error('Failed to save overlay preferences', err);
           toast(err.message || 'Failed to save overlay preferences');
+          overlayAwaitingServerCommit = false;
+          overlayAwaitingServerCommitStamp = null;
         }
       });
       overlaySaveInFlight = false;
+      updatePanelBusyStates();
       flushPendingOverlayPayload();
+      if (!overlaySaveTimer && !overlaySaveInFlight && !overlayAwaitingServerCommit) {
+        overlayHasPendingLocalChanges = false;
+      }
     }
 
     function queueOverlaySave() {
       clearTimeout(overlaySaveTimer);
       overlaySaveTimer = setTimeout(() => {
         overlaySaveTimer = null;
+        updatePanelBusyStates();
         persistOverlay();
       }, 200);
+      overlayHasPendingLocalChanges = true;
+      updatePanelBusyStates();
     }
 
     async function persistSlate() {
       const base = serverBase();
       const payload = serialiseSlateState();
+      slateAwaitingServerCommit = true;
       slateSaveInFlight = true;
+      updatePanelBusyStates();
       await runQueued(mutationQueues.slate, async () => {
         try {
           const data = await requestJson(`${base}/slate/state`, {
@@ -5499,15 +5838,19 @@
         }
       });
       slateSaveInFlight = false;
+      updatePanelBusyStates();
       flushPendingSlatePayload();
+      slateAwaitingServerCommit = false;
     }
 
     function queueSlateSave() {
       clearTimeout(slateSaveTimer);
       slateSaveTimer = setTimeout(() => {
         slateSaveTimer = null;
+        updatePanelBusyStates();
         persistSlate();
       }, 220);
+      updatePanelBusyStates();
     }
 
     function beginEdit(index) {
@@ -6674,11 +7017,15 @@
           if (!el.popupText.value.trim() && el.popupActive) {
             el.popupActive.checked = false;
           }
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
         });
       }
 
       if (el.popupDuration) {
         el.popupDuration.addEventListener('change', () => {
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
           queuePopupSave();
         });
       }
@@ -6688,9 +7035,13 @@
           if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
             updatePopupPreview();
           }
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
         });
         el.popupCountdownTarget.addEventListener('change', () => {
           if (el.popupCountdownEnabled && el.popupCountdownEnabled.checked) {
+            popupHasPendingLocalChanges = true;
+            updatePanelBusyStates();
             queuePopupSave();
           }
         });
@@ -6714,6 +7065,8 @@
           }
           const hasTarget = el.popupCountdownTarget && el.popupCountdownTarget.value;
           if (!el.popupCountdownEnabled.checked || hasTarget) {
+            popupHasPendingLocalChanges = true;
+            updatePanelBusyStates();
             queuePopupSave();
           }
         });
@@ -6726,12 +7079,16 @@
             toast('Enter popup text before enabling');
             return;
           }
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
           queuePopupSave();
         });
       }
 
       if (el.savePopup) {
         el.savePopup.addEventListener('click', () => {
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
           queuePopupSave();
         });
       }
@@ -6758,6 +7115,8 @@
             countdownTarget: null,
             updatedAt: Date.now()
           });
+          popupHasPendingLocalChanges = true;
+          updatePanelBusyStates();
           queuePopupSave();
         });
       }
@@ -6811,13 +7170,23 @@
         el.scaleRange.addEventListener('input', () => updateScale(el.scaleRange.value));
       }
       if (el.scaleNumber) {
-        el.scaleNumber.addEventListener('change', () => updateScale(el.scaleNumber.value));
+        const handleScaleNumberInput = () => {
+          if (el.scaleNumber.value === '') return;
+          updateScale(el.scaleNumber.value);
+        };
+        el.scaleNumber.addEventListener('input', handleScaleNumberInput);
+        el.scaleNumber.addEventListener('change', handleScaleNumberInput);
       }
       if (el.popupScaleRange) {
         el.popupScaleRange.addEventListener('input', () => updatePopupScale(el.popupScaleRange.value));
       }
       if (el.popupScaleNumber) {
-        el.popupScaleNumber.addEventListener('change', () => updatePopupScale(el.popupScaleNumber.value));
+        const handlePopupScaleInput = () => {
+          if (el.popupScaleNumber.value === '') return;
+          updatePopupScale(el.popupScaleNumber.value);
+        };
+        el.popupScaleNumber.addEventListener('input', handlePopupScaleInput);
+        el.popupScaleNumber.addEventListener('change', handlePopupScaleInput);
       }
 
       if (el.positionButtons) {
