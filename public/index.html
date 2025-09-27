@@ -2362,19 +2362,254 @@
       '!!': 'glitch'
     };
 
-    let state = { ...DEFAULT_STATE };
-    let overlayPrefs = { ...DEFAULT_OVERLAY };
-    let popupState = { ...DEFAULT_POPUP };
-    let slateState = { ...DEFAULT_SLATE };
-    let brbState = { ...DEFAULT_BRB };
-    let presets = [];
-    let scenes = [];
-    let editingIndex = -1;
-    let editingDraft = '';
-    let pendingPresetMessage = null;
+    const serverState = {
+      ticker: { ...DEFAULT_STATE, messages: [...DEFAULT_STATE.messages] },
+      overlay: { ...DEFAULT_OVERLAY },
+      popup: { ...DEFAULT_POPUP },
+      slate: {
+        ...DEFAULT_SLATE,
+        notes: Array.isArray(DEFAULT_SLATE.notes) ? [...DEFAULT_SLATE.notes] : []
+      },
+      brb: { ...DEFAULT_BRB },
+      presets: [],
+      scenes: []
+    };
+
+    let state = serverState.ticker;
+    let overlayPrefs = serverState.overlay;
+    let popupState = serverState.popup;
+    let slateState = serverState.slate;
+    let brbState = serverState.brb;
+    let presets = serverState.presets;
+    let scenes = serverState.scenes;
+
+    const uiState = {
+      editingIndex: -1,
+      editingDraft: '',
+      pendingPresetMessage: null,
+      lastPreviewUrl: '',
+      previewUpdateTimer: null
+    };
+
     let eventSource = null;
-    let lastPreviewUrl = '';
-    let previewUpdateTimer = null;
+
+    function createStateNotifier(callback, { debounce = 0, raf = true } = {}) {
+      let timer = null;
+      let frame = null;
+      return function trigger() {
+        if (debounce > 0) {
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            timer = null;
+            callback();
+          }, debounce);
+          return;
+        }
+        if (raf && typeof requestAnimationFrame === 'function') {
+          if (frame !== null) cancelAnimationFrame(frame);
+          frame = requestAnimationFrame(() => {
+            frame = null;
+            callback();
+          });
+          return;
+        }
+        callback();
+      };
+    }
+
+    function createReactiveState(initialValue, { normalise, onChange } = {}) {
+      const base = Array.isArray(initialValue)
+        ? initialValue.slice()
+        : { ...initialValue };
+
+      const commit = () => {
+        if (typeof normalise === 'function') {
+          normalise(base);
+        }
+        if (typeof onChange === 'function') {
+          try {
+            onChange(base);
+          } catch (err) {
+            console.error('State listener failed', err);
+          }
+        }
+      };
+
+      const proxy = new Proxy(base, {
+        set(target, property, value) {
+          target[property] = value;
+          commit();
+          return true;
+        },
+        deleteProperty(target, property) {
+          delete target[property];
+          commit();
+          return true;
+        }
+      });
+
+      commit();
+      return proxy;
+    }
+
+    function normaliseTickerState(target) {
+      const fallbackDuration = Number.isFinite(target.displayDuration)
+        ? Number(target.displayDuration)
+        : DEFAULT_STATE.displayDuration;
+      const fallbackInterval = Number.isFinite(target.intervalMinutes)
+        ? Number(target.intervalMinutes)
+        : DEFAULT_STATE.intervalMinutes;
+
+      if (Array.isArray(target.messages)) {
+        const sanitised = sanitiseMessagesFn(target.messages);
+        target.messages.length = 0;
+        target.messages.push(...sanitised);
+      } else {
+        const sanitised = sanitiseMessagesFn([]);
+        target.messages = sanitised;
+      }
+
+      target.displayDuration = clampDuration(target.displayDuration, fallbackDuration);
+
+      if (Object.prototype.hasOwnProperty.call(target, 'intervalBetween')) {
+        const seconds = Number(target.intervalBetween);
+        const minutes = Number.isFinite(seconds) ? secondsToMinutes(seconds) : fallbackInterval;
+        delete target.intervalBetween;
+        target.intervalMinutes = clampMinutesValue(minutes, fallbackInterval);
+      } else {
+        target.intervalMinutes = clampMinutesValue(target.intervalMinutes, fallbackInterval);
+      }
+
+      target.isActive = !!target.isActive && target.messages.length > 0;
+
+      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      delete target._updatedAt;
+    }
+
+    function normaliseOverlayState(target) {
+      const next = normaliseOverlayDataFn ? normaliseOverlayDataFn({ ...target }) : { ...target };
+      Object.keys(target).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete target[key];
+        }
+      });
+      Object.assign(target, next);
+      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      delete target._updatedAt;
+    }
+
+    function normalisePopupState(target) {
+      const next = normalisePopupDataFn ? normalisePopupDataFn({ ...target }) : { ...target };
+      Object.keys(target).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete target[key];
+        }
+      });
+      Object.assign(target, next);
+      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      delete target._updatedAt;
+    }
+
+    function normaliseSlateState(target) {
+      const next = normaliseSlateDataFn ? normaliseSlateDataFn({ ...target }) : { ...target };
+      if (Array.isArray(next.notes)) {
+        next.notes = normaliseSlateNotes(next.notes, EXPORTED_MAX_SLATE_NOTES, EXPORTED_MAX_SLATE_TEXT_LENGTH);
+      }
+      Object.keys(target).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete target[key];
+        }
+      });
+      Object.assign(target, next);
+      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      delete target._updatedAt;
+    }
+
+    function normaliseBrbState(target) {
+      const text = typeof target.text === 'string' ? target.text.trim() : '';
+      target.text = text.slice(0, MAX_BRB_LENGTH);
+      target.isActive = !!target.isActive && !!target.text;
+      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      delete target._updatedAt;
+    }
+
+    function normalisePresetList(list) {
+      const sanitised = [];
+      if (Array.isArray(list)) {
+        list.forEach(entry => {
+          if (!entry || typeof entry !== 'object') return;
+          const id = String(entry.id || generateClientId('preset'));
+          const name = String(entry.name || 'Preset').slice(0, MAX_PRESET_NAME_LENGTH);
+          const messages = sanitiseMessagesFn(entry.messages || []);
+          const updatedAt = Number.isFinite(entry.updatedAt) ? Number(entry.updatedAt) : Date.now();
+          sanitised.push({ id, name, messages, updatedAt });
+        });
+      }
+      return sanitised;
+    }
+
+    function normaliseSceneList(list) {
+      if (!Array.isArray(list)) return [];
+      if (normaliseSceneEntryImpl) {
+        return list
+          .map(entry => normaliseSceneEntryImpl(entry, { normaliseOverlayData: normaliseOverlayDataFn }))
+          .filter(Boolean);
+      }
+      return list.map(entry => ({
+        id: String(entry?.id || generateClientId('scene')),
+        name: String(entry?.name || 'Scene').slice(0, MAX_SCENE_NAME_LENGTH),
+        overlay: buildSceneOverlayPayload(entry?.overlay)
+      }));
+    }
+
+    const notifyTickerChange = createStateNotifier(() => {
+      renderTicker();
+      updateQueueControls();
+      renderMessages();
+      saveLocal();
+    });
+
+    const notifyOverlayChange = createStateNotifier(() => {
+      renderOverlayControls();
+      updateHighlightRegex();
+      renderSlateControls();
+      renderMessages();
+      renderPopupControls();
+      updateOverlayChip();
+      saveLocal();
+    }, { debounce: 16 });
+
+    const notifyPopupChange = createStateNotifier(() => {
+      renderPopupControls();
+      updatePopupPreview();
+      updatePopupMeta();
+      saveLocal();
+    }, { debounce: 16 });
+
+    const notifySlateChange = createStateNotifier(() => {
+      renderSlateControls();
+      scheduleSlatePreviewNext();
+      saveLocal();
+    }, { debounce: 32 });
+
+    const notifyBrbChange = createStateNotifier(() => {
+      renderBrbControls();
+      saveLocal();
+    }, { debounce: 16 });
+
+    const notifyPresetsChange = createStateNotifier(() => {
+      renderPresets();
+    }, { debounce: 16, raf: false });
+
+    const notifyScenesChange = createStateNotifier(() => {
+      renderScenes();
+    }, { debounce: 16, raf: false });
+
 
     const el = {
       overlayChip: document.getElementById('overlayUrlChip'),
@@ -2500,6 +2735,70 @@
       }
       return panelSections.size ? panelSections.keys().next().value : PANEL_IDS[0];
     })();
+
+    state = createReactiveState(state, {
+      normalise: normaliseTickerState,
+      onChange: () => {
+        serverState.ticker = state;
+        notifyTickerChange();
+      }
+    });
+
+    overlayPrefs = createReactiveState(overlayPrefs, {
+      normalise: normaliseOverlayState,
+      onChange: () => {
+        serverState.overlay = overlayPrefs;
+        notifyOverlayChange();
+      }
+    });
+
+    popupState = createReactiveState(popupState, {
+      normalise: normalisePopupState,
+      onChange: () => {
+        serverState.popup = popupState;
+        notifyPopupChange();
+      }
+    });
+
+    slateState = createReactiveState(slateState, {
+      normalise: normaliseSlateState,
+      onChange: () => {
+        serverState.slate = slateState;
+        notifySlateChange();
+      }
+    });
+
+    brbState = createReactiveState(brbState, {
+      normalise: normaliseBrbState,
+      onChange: () => {
+        serverState.brb = brbState;
+        notifyBrbChange();
+      }
+    });
+
+    presets = createReactiveState(presets, {
+      normalise: target => {
+        const next = normalisePresetList(target);
+        target.length = 0;
+        target.push(...next);
+      },
+      onChange: () => {
+        serverState.presets = presets;
+        notifyPresetsChange();
+      }
+    });
+
+    scenes = createReactiveState(scenes, {
+      normalise: target => {
+        const next = normaliseSceneList(target);
+        target.length = 0;
+        target.push(...next);
+      },
+      onChange: () => {
+        serverState.scenes = scenes;
+        notifyScenesChange();
+      }
+    });
 
     function orderedPanelIds() {
       return PANEL_IDS.filter(id => panelSections.has(id) && panelTabButtons.has(id));
@@ -3624,8 +3923,8 @@
       const url = buildOverlayUrl();
       el.overlayText.textContent = url;
       el.overlayText.dataset.url = url;
-      if (url !== lastPreviewUrl) {
-        lastPreviewUrl = url;
+      if (url !== uiState.lastPreviewUrl) {
+        uiState.lastPreviewUrl = url;
         schedulePreviewUpdate(url);
       }
     }
@@ -3674,7 +3973,15 @@
         const raw = localStorage.getItem(STORAGE_KEY);
         if (!raw) return;
         const parsed = JSON.parse(raw);
-        if (parsed.overlay) overlayPrefs = normaliseOverlayDataFn({ ...overlayPrefs, ...parsed.overlay });
+        if (parsed.overlay) {
+          const mergedOverlay = normaliseOverlayDataFn({ ...overlayPrefs, ...parsed.overlay });
+          Object.keys(overlayPrefs).forEach(key => {
+            if (!Object.prototype.hasOwnProperty.call(mergedOverlay, key)) {
+              delete overlayPrefs[key];
+            }
+          });
+          Object.assign(overlayPrefs, mergedOverlay);
+        }
         if (typeof parsed.autoStart === 'boolean') el.autoStart.checked = parsed.autoStart;
         if (typeof parsed.serverUrl === 'string') {
           const storedServerUrl = parsed.serverUrl;
@@ -3691,24 +3998,24 @@
     }
 
     function clearEditing() {
-      editingIndex = -1;
-      editingDraft = '';
+      uiState.editingIndex = -1;
+      uiState.editingDraft = '';
     }
 
-    function clampDuration(value) {
+    function clampDuration(value, fallback = state.displayDuration) {
       if (typeof clampDurationSeconds === 'function') {
-        return clampDurationSeconds(value, state.displayDuration);
+        return clampDurationSeconds(value, fallback);
       }
       const numeric = Number(value);
-      if (!Number.isFinite(numeric)) return state.displayDuration;
+      if (!Number.isFinite(numeric)) return fallback;
       return Math.min(Math.max(Math.round(numeric), 2), 90);
     }
 
-    function clampMinutesValue(value) {
+    function clampMinutesValue(value, fallback = state.intervalMinutes) {
       const numeric = Number(value);
-      if (!Number.isFinite(numeric)) return state.intervalMinutes;
+      if (!Number.isFinite(numeric)) return fallback;
       if (typeof clampIntervalSeconds === 'function') {
-        const seconds = clampIntervalSeconds(minutesToSeconds(numeric), minutesToSeconds(state.intervalMinutes));
+        const seconds = clampIntervalSeconds(minutesToSeconds(numeric), minutesToSeconds(fallback));
         return secondsToMinutes(seconds);
       }
       return Math.max(0, Math.min(60, Math.round(numeric * 100) / 100));
@@ -3773,9 +4080,9 @@
 
     function schedulePreviewUpdate(url) {
       if (!el.previewFrame) return;
-      if (previewUpdateTimer) clearTimeout(previewUpdateTimer);
-      previewUpdateTimer = setTimeout(() => {
-        previewUpdateTimer = null;
+      if (uiState.previewUpdateTimer) clearTimeout(uiState.previewUpdateTimer);
+      uiState.previewUpdateTimer = setTimeout(() => {
+        uiState.previewUpdateTimer = null;
         try {
           if (el.previewFrame.src !== url) {
             el.previewFrame.src = url;
@@ -3917,15 +4224,15 @@
     }
 
     function renderMessages() {
-      if (editingIndex >= state.messages.length) clearEditing();
+      if (uiState.editingIndex >= state.messages.length) clearEditing();
       if (!state.messages.length) {
         clearEditing();
         el.messageList.innerHTML = '<div class="empty-state">No messages yet — add a line above or load a preset.</div>';
         return;
       }
       const rows = state.messages.map((msg, index) => {
-        if (index === editingIndex) {
-          const editorValue = editingDraft;
+        if (index === uiState.editingIndex) {
+          const editorValue = uiState.editingDraft;
           const preview = formatMessage(editorValue);
           const previewHtml = preview || '<span class="small">Preview updates as you type.</span>';
           return `<div class="message-item is-editing" data-index="${index}">
@@ -4303,22 +4610,15 @@
         return;
       }
 
-      const messages = sanitiseMessagesFn(payload.messages || []);
-      const messagesChanged = JSON.stringify(state.messages) !== JSON.stringify(messages);
-      state.messages = messages;
-      state.isActive = !!payload.isActive && state.messages.length > 0;
-      state.displayDuration = clampDuration(payload.displayDuration ?? state.displayDuration);
-      const incomingIntervalSeconds = Number.isFinite(payload.intervalBetween)
-        ? payload.intervalBetween
-        : minutesToSeconds(state.intervalMinutes);
-      state.intervalMinutes = secondsToMinutes(incomingIntervalSeconds);
-      state.updatedAt = hasStamp ? nextStampRaw : Date.now();
-      if (!state.messages.length) state.isActive = false;
-      if (messagesChanged) {
-        clearEditing();
-        renderMessages();
+      state.messages = Array.isArray(payload.messages) ? payload.messages.slice() : [];
+      state.isActive = !!payload.isActive;
+      state.displayDuration = payload.displayDuration ?? state.displayDuration;
+      if (Number.isFinite(payload.intervalBetween)) {
+        state.intervalBetween = payload.intervalBetween;
+      } else if (Number.isFinite(payload.intervalMinutes)) {
+        state.intervalMinutes = payload.intervalMinutes;
       }
-      renderTicker();
+      state._updatedAt = hasStamp ? nextStampRaw : Date.now();
     }
 
     function flushPendingOverlayPayload() {
@@ -4335,14 +4635,13 @@
         return;
       }
       pendingOverlayPayload = null;
-      overlayPrefs = normaliseOverlayDataFn(payload);
-      renderOverlayControls();
-      updateHighlightRegex();
-      renderSlateControls();
-      renderMessages();
-      renderPopupControls();
-      updateOverlayChip();
-      saveLocal();
+      const next = normaliseOverlayDataFn(payload);
+      Object.keys(overlayPrefs).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete overlayPrefs[key];
+        }
+      });
+      Object.assign(overlayPrefs, next);
     }
 
     function flushPendingSlatePayload() {
@@ -4364,31 +4663,43 @@
       if (Number.isFinite(stamp) && Number.isFinite(slateState.updatedAt) && slateState.updatedAt === stamp) {
         return;
       }
-      slateState = { ...next };
-      renderSlateControls();
+      Object.keys(slateState).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete slateState[key];
+        }
+      });
+      Object.assign(slateState, next, {
+        updatedAt: Number.isFinite(stamp) ? stamp : Date.now()
+      });
     }
 
     function applyPopupData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      popupState = normalisePopupDataFn(payload);
-      renderPopupControls();
+      const next = normalisePopupDataFn(payload);
+      Object.keys(popupState).forEach(key => {
+        if (!Object.prototype.hasOwnProperty.call(next, key)) {
+          delete popupState[key];
+        }
+      });
+      Object.assign(popupState, next);
     }
 
     function applyBrbData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      brbState = normaliseBrbData(payload);
-      renderBrbControls();
+      const next = normaliseBrbData(payload);
+      Object.assign(brbState, next);
     }
 
     function applyPresetsData(list) {
       if (!Array.isArray(list)) return;
-      presets = list.map(entry => ({
+      const mapped = list.map(entry => ({
         id: String(entry.id || generateClientId('preset')),
         name: String(entry.name || 'Preset'),
         messages: sanitiseMessagesFn(entry.messages || []),
         updatedAt: Number(entry.updatedAt) || Date.now()
       }));
-      renderPresets();
+      presets.length = 0;
+      presets.push(...mapped);
     }
 
     function applyScenesData(list) {
@@ -4403,8 +4714,8 @@
         });
         if (normalised) mapped.push(normalised);
       }
-      scenes = mapped;
-      renderScenes();
+      scenes.length = 0;
+      scenes.push(...mapped);
     }
 
     async function fetchState({ silent = false } = {}) {
@@ -4526,13 +4837,14 @@
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         if (data && Array.isArray(data.presets)) {
-          presets = data.presets.map(entry => ({
+          const mappedPresets = data.presets.map(entry => ({
             id: String(entry.id || generateClientId('preset')),
             name: String(entry.name || 'Preset'),
             messages: sanitiseMessagesFn(entry.messages || []),
             updatedAt: Number(entry.updatedAt) || Date.now()
           }));
-          renderPresets();
+          presets.length = 0;
+          presets.push(...mappedPresets);
         }
         if (notify) toast('Presets saved');
       } catch (err) {
@@ -4637,13 +4949,10 @@
         popupState.countdownEnabled !== nextState.countdownEnabled ||
         popupState.countdownTarget !== nextState.countdownTarget;
 
-      popupState = {
-        ...nextState,
+      Object.assign(popupState, nextState, {
         updatedAt: changed ? Date.now() : popupState.updatedAt
-      };
+      });
 
-      updatePopupPreview();
-      updatePopupMeta();
       if (!changed) {
         return;
       }
@@ -4731,7 +5040,7 @@
         if (data && data.state) {
           applyBrbData(data.state);
         } else {
-          brbState = { ...brbState, text, isActive, updatedAt: Date.now() };
+          Object.assign(brbState, { text, isActive, updatedAt: Date.now() });
           renderBrbControls();
         }
         toast(isActive ? 'BRB updated' : 'BRB hidden');
@@ -4966,13 +5275,13 @@
           throw new Error(message);
         }
         if (data && data.overlay) {
-          overlayPrefs = normaliseOverlayDataFn(data.overlay);
-          renderOverlayControls();
-          updateHighlightRegex();
-          renderMessages();
-          renderPopupControls();
-          updateOverlayChip();
-          saveLocal();
+          const overlayNext = normaliseOverlayDataFn(data.overlay);
+          Object.keys(overlayPrefs).forEach(key => {
+            if (!Object.prototype.hasOwnProperty.call(overlayNext, key)) {
+              delete overlayPrefs[key];
+            }
+          });
+          Object.assign(overlayPrefs, overlayNext);
         }
       } catch (err) {
         console.error('Failed to save overlay preferences', err);
@@ -5035,8 +5344,8 @@
 
     function beginEdit(index) {
       if (index < 0 || index >= state.messages.length) return;
-      editingIndex = index;
-      editingDraft = state.messages[index];
+      uiState.editingIndex = index;
+      uiState.editingDraft = state.messages[index];
       renderMessages();
       const editor = el.messageList.querySelector('.message-item.is-editing .message-edit-input');
       if (editor) {
@@ -5049,7 +5358,7 @@
 
     function commitEdit(index) {
       if (index < 0 || index >= state.messages.length) return;
-      const trimmed = editingDraft.trim();
+      const trimmed = uiState.editingDraft.trim();
       if (!trimmed) {
         toast('Message cannot be empty');
         return;
@@ -5062,11 +5371,7 @@
       const changed = state.messages[index] !== finalText;
       state.messages[index] = finalText;
       clearEditing();
-      renderMessages();
-      if (changed) {
-        renderTicker();
-        queueSave();
-      }
+      if (changed) queueSave();
     }
 
     function cancelEdit() {
@@ -5090,10 +5395,8 @@
         toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
       }
       state.messages.push(finalText);
-    if (el.autoStart.checked) state.isActive = true;
+      if (el.autoStart.checked) state.isActive = true;
       clearEditing();
-      renderMessages();
-      renderTicker();
       queueSave();
       return true;
     }
@@ -5102,11 +5405,9 @@
       if (index < 0 || index >= state.messages.length) return;
       state.messages.splice(index, 1);
       if (!state.messages.length) state.isActive = false;
-      if (editingIndex === index) {
+      if (uiState.editingIndex === index) {
         clearEditing();
       }
-      renderMessages();
-      renderTicker();
       queueSave();
     }
 
@@ -5144,7 +5445,7 @@
         return;
       }
       const defaultName = trimmed.length > 40 ? `${trimmed.slice(0, 40)}…` : trimmed;
-      pendingPresetMessage = {
+      uiState.pendingPresetMessage = {
         index,
         message,
         trigger: triggerButton || null
@@ -5172,8 +5473,8 @@
 
     function closePresetModal(options = {}) {
       const { restoreFocus = false } = options;
-      const trigger = pendingPresetMessage && pendingPresetMessage.trigger;
-      pendingPresetMessage = null;
+      const trigger = uiState.pendingPresetMessage && uiState.pendingPresetMessage.trigger;
+      uiState.pendingPresetMessage = null;
     if (el.presetModal) {
         el.presetModal.classList.remove('is-visible');
         el.presetModal.setAttribute('aria-hidden', 'true');
@@ -5199,7 +5500,7 @@
     }
 
     function confirmPresetModal() {
-      if (!pendingPresetMessage || !el.presetModalName) return;
+      if (!uiState.pendingPresetMessage || !el.presetModalName) return;
       const name = el.presetModalName.value.trim();
       if (!name) {
         updatePresetModalError('Enter a preset name');
@@ -5211,7 +5512,7 @@
         el.presetModalName.focus();
         return;
       }
-      const { index, message: fallback } = pendingPresetMessage;
+      const { index, message: fallback } = uiState.pendingPresetMessage;
       let source = typeof index === 'number' && index >= 0 && index < state.messages.length
         ? state.messages[index]
         : fallback;
@@ -5263,7 +5564,7 @@
           break;
         case 'save': {
           const input = row.querySelector('.message-edit-input');
-          if (input) editingDraft = input.value;
+          if (input) uiState.editingDraft = input.value;
           commitEdit(index);
           break;
         }
@@ -5279,9 +5580,6 @@
         : (['auto', 'marquee', 'chunk'].includes(String(value).toLowerCase()) ? String(value).toLowerCase() : null);
       if (!mode) return;
       overlayPrefs.mode = mode;
-      renderOverlayControls();
-      updateOverlayChip();
-      saveLocal();
       queueOverlaySave();
     }
 
@@ -5290,18 +5588,12 @@
         ? sharedNormalisePosition(value)
         : (String(value).toLowerCase() === 'top' ? 'top' : 'bottom');
       overlayPrefs.position = position;
-      renderOverlayControls();
-      updateOverlayChip();
-      saveLocal();
       queueOverlaySave();
     }
 
     function setTheme(value) {
       if (!THEME_OPTIONS.includes(value)) return;
       overlayPrefs.theme = value;
-      renderOverlayControls();
-      updateOverlayChip();
-      saveLocal();
       queueOverlaySave();
     }
 
@@ -5314,10 +5606,6 @@
             return Math.max(0.75, Math.min(2.5, Math.round(numeric * 100) / 100));
           })();
       overlayPrefs.scale = next;
-      el.scaleRange.value = overlayPrefs.scale;
-      el.scaleNumber.value = overlayPrefs.scale;
-      updateOverlayChip();
-      saveLocal();
       queueOverlaySave();
     }
 
@@ -5330,11 +5618,6 @@
             return Math.max(0.6, Math.min(1.5, Math.round(numeric * 100) / 100));
           })();
       overlayPrefs.popupScale = next;
-    if (el.popupScaleRange) el.popupScaleRange.value = overlayPrefs.popupScale;
-    if (el.popupScaleNumber) el.popupScaleNumber.value = overlayPrefs.popupScale;
-      updateOverlayChip();
-      saveLocal();
-      renderPopupPreviewScale();
       queueOverlaySave();
     }
 
@@ -5355,8 +5638,6 @@
           } else {
             state.isActive = false;
           }
-          renderMessages();
-          renderTicker();
           queueSave();
           {
             const notes = [];
@@ -5380,8 +5661,6 @@
           }
           state.messages.push(...additions);
           if (el.autoStart.checked && state.messages.length) state.isActive = true;
-          renderMessages();
-          renderTicker();
           queueSave();
           {
             const skippedForQueue = appendResult.messages.length - additions.length;
@@ -5394,8 +5673,11 @@
           }
           break;
         case 'delete':
-          presets = presets.filter(item => item.id !== id);
-          renderPresets();
+          {
+            const filtered = presets.filter(item => item.id !== id);
+            presets.length = 0;
+            presets.push(...filtered);
+          }
           persistPresets();
           break;
       }
@@ -5705,7 +5987,11 @@
           toast('Scene save cancelled');
           return;
         }
-        scenes = scenes.map(scene => (scene.id === existingScene.id ? payload : scene));
+        {
+          const updatedScenes = scenes.map(scene => (scene.id === existingScene.id ? payload : scene));
+          scenes.length = 0;
+          scenes.push(...updatedScenes);
+        }
         persistScenes('Scene updated');
       } else {
         const contentTwin = scenes.find(scene =>
@@ -5745,8 +6031,7 @@
         scenes.unshift(payload);
         persistScenes('Scene saved');
       }
-      renderScenes();
-    if (el.sceneName) el.sceneName.value = '';
+      if (el.sceneName) el.sceneName.value = '';
     }
 
     function handleSceneAction(event) {
@@ -5765,8 +6050,11 @@
           saveScenePreset(scene);
           break;
         case 'delete':
-          scenes = scenes.filter(item => item.id !== id);
-          renderScenes();
+          {
+            const filteredScenes = scenes.filter(item => item.id !== id);
+            scenes.length = 0;
+            scenes.push(...filteredScenes);
+          }
           persistScenes('Scene removed');
           break;
       }
@@ -5810,7 +6098,7 @@
       if (el.reloadPreview) {
         el.reloadPreview.addEventListener('click', () => {
           const url = buildOverlayUrl();
-          lastPreviewUrl = url;
+          uiState.lastPreviewUrl = url;
           schedulePreviewUpdate(url);
         });
       }
@@ -6306,16 +6594,14 @@
           if (el.popupText) el.popupText.value = '';
           if (el.popupActive) el.popupActive.checked = false;
           updatePopupPreview();
-          popupState = {
-            ...popupState,
+          Object.assign(popupState, {
             text: '',
             isActive: false,
             durationSeconds: null,
             countdownEnabled: false,
             countdownTarget: null,
             updatedAt: Date.now()
-          };
-          updatePopupMeta();
+          });
           queuePopupSave();
         });
       }
@@ -6348,7 +6634,7 @@
 
           if (el.brbText) el.brbText.value = '';
           if (el.brbActive) el.brbActive.checked = false;
-          brbState = { ...brbState, text: '', isActive: false, updatedAt: Date.now() };
+          Object.assign(brbState, { text: '', isActive: false, updatedAt: Date.now() });
           renderBrbControls();
           queueBrbSave();
         });
@@ -6496,12 +6782,12 @@
         el.messageList.addEventListener('input', event => {
           const textarea = event.target.closest('.message-edit-input');
           if (!textarea) return;
-          editingDraft = textarea.value;
+          uiState.editingDraft = textarea.value;
           const row = textarea.closest('.message-item');
           if (row) {
             const preview = row.querySelector('.message-preview');
             if (preview) {
-              const html = formatMessage(editingDraft);
+              const html = formatMessage(uiState.editingDraft);
               preview.innerHTML = html || '<span class="small">Preview updates as you type.</span>';
             }
           }
