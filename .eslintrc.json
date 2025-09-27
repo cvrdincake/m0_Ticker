@@ -10,12 +10,10 @@
     "sourceType": "script"
   },
   "plugins": [
-    "html",
-    "dom"
+    "html"
   ],
   "extends": [
     "eslint:recommended",
-    "plugin:dom/recommended",
     "prettier"
   ],
   "overrides": [
