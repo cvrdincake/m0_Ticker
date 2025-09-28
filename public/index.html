@@ -3974,69 +3974,84 @@
 
     const stateStore = createStateStore();
 
-    state = stateStore.register('ticker', state, {
-      normalise: normaliseTickerState,
-      validate: validateTickerStateShape,
-      onChange: () => {
-        notifyTickerChange();
+    function initialiseStateStore() {
+      if (stateStoreInitialised) {
+        return;
       }
-    });
 
-    overlayPrefs = stateStore.register('overlay', overlayPrefs, {
-      normalise: normaliseOverlayState,
-      validate: validateOverlayStateShape,
-      onChange: () => {
-        notifyOverlayChange();
-      }
-    });
+      stateStoreInitialised = true;
 
-    popupState = stateStore.register('popup', popupState, {
-      normalise: normalisePopupState,
-      validate: validatePopupStateShape,
-      onChange: () => {
-        notifyPopupChange();
-      }
-    });
+      state = stateStore.register('ticker', state, {
+        normalise: normaliseTickerState,
+        validate: validateTickerStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Ticker state changed');
+          notifyTickerChange();
+        }
+      });
 
-    slateState = stateStore.register('slate', slateState, {
-      normalise: normaliseSlateState,
-      validate: validateSlateStateShape,
-      onChange: () => {
-        notifySlateChange();
-      }
-    });
+      overlayPrefs = stateStore.register('overlay', overlayPrefs, {
+        normalise: normaliseOverlayState,
+        validate: validateOverlayStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Overlay state changed');
+          notifyOverlayChange();
+        }
+      });
 
-    brbState = stateStore.register('brb', brbState, {
-      normalise: normaliseBrbState,
-      validate: validateBrbStateShape,
-      onChange: () => {
-        notifyBrbChange();
-      }
-    });
+      popupState = stateStore.register('popup', popupState, {
+        normalise: normalisePopupState,
+        validate: validatePopupStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Popup state changed');
+          notifyPopupChange();
+        }
+      });
 
-    presets = stateStore.register('presets', presets, {
-      normalise: target => {
-        const next = normalisePresetList(target);
-        target.length = 0;
-        target.push(...next);
-      },
-      validate: validatePresetStateShape,
-      onChange: () => {
-        notifyPresetsChange();
-      }
-    });
+      slateState = stateStore.register('slate', slateState, {
+        normalise: normaliseSlateState,
+        validate: validateSlateStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Slate state changed');
+          notifySlateChange();
+        }
+      });
 
-    scenes = stateStore.register('scenes', scenes, {
-      normalise: target => {
-        const next = normaliseSceneList(target);
-        target.length = 0;
-        target.push(...next);
-      },
-      validate: validateSceneStateShape,
-      onChange: () => {
-        notifyScenesChange();
-      }
-    });
+      brbState = stateStore.register('brb', brbState, {
+        normalise: normaliseBrbState,
+        validate: validateBrbStateShape,
+        onChange: () => {
+          console.log('[DEBUG] BRB state changed');
+          notifyBrbChange();
+        }
+      });
+
+      presets = stateStore.register('presets', presets, {
+        normalise: target => {
+          const next = normalisePresetList(target);
+          target.length = 0;
+          target.push(...next);
+        },
+        validate: validatePresetStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Presets state changed');
+          notifyPresetsChange();
+        }
+      });
+
+      scenes = stateStore.register('scenes', scenes, {
+        normalise: target => {
+          const next = normaliseSceneList(target);
+          target.length = 0;
+          target.push(...next);
+        },
+        validate: validateSceneStateShape,
+        onChange: () => {
+          console.log('[DEBUG] Scenes state changed');
+          notifyScenesChange();
+        }
+      });
+    }
 
     function orderedPanelIds() {
       return PANEL_IDS.filter(id => panelSections.has(id) && panelTabButtons.has(id));
@@ -4159,6 +4174,7 @@
     let isPollingActive = false;
     let handlersRegistered = false;
     let initStarted = false;
+    let stateStoreInitialised = false;
 
     const stateRequestQueue = createAsyncQueue({ concurrency: 1 });
     const mutationQueues = {
@@ -9168,6 +9184,7 @@
     async function init() {
       if (initStarted) return;
       initStarted = true;
+      initialiseStateStore();
       registerEventHandlers();
       applyServerStatus('checking', { force: true });
       loadLocal();
