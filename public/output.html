@@ -2706,13 +2706,24 @@
         return this._factories;
       }
 
+      instantiateEngine(themeKey, colors = {}) {
+        const factories = ThemeVisualController.factories;
+        const factory = factories[themeKey];
+        if (typeof factory !== 'function') {
+          return null;
+        }
+        try {
+          return factory(this.container, { ...colors, reducedMotion: this.reducedMotion });
+        } catch (error) {
+          console.warn(`[ticker] failed to initialise ${themeKey} visuals`, error);
+          return null;
+        }
+      }
+
       setTheme(theme, colors = {}) {
         if (!this.container) return;
         const factories = ThemeVisualController.factories;
-        const resolvedTheme = (theme && factories[theme]) ? theme : 'midnight-glass';
-      if (this.current && this.current.name === resolvedTheme) {
-        if (typeof this.current.updateColors === 'function') {
-          try {
+
             this.current.updateColors(colors);
           } catch (err) {
             console.warn('[ticker] theme colour update failed', err);
@@ -2754,6 +2765,7 @@
         if (this.container) {
           this.container.innerHTML = '';
         }
+
       }
     }
 
@@ -4015,15 +4027,16 @@
         }
       }
 
-      triggerStreamFallback(reason) {
-        if (this.streamPrimed || !this.awaitingInitialStream) return;
+      triggerStreamFallback(reason, options = {}) {
+        const { force = false } = options;
+        if (!force && (this.streamPrimed || !this.awaitingInitialStream)) return;
         if (this.streamFallbackTimer) {
           clearTimeout(this.streamFallbackTimer);
           this.streamFallbackTimer = null;
         }
-        if (this.fetchInFlight) return;
+        if (!force && this.fetchInFlight) return;
         const now = Date.now();
-        if (this.lastStreamFallbackAt && now - this.lastStreamFallbackAt < 1000) {
+        if (!force && this.lastStreamFallbackAt && now - this.lastStreamFallbackAt < 1000) {
           return;
         }
         this.lastStreamFallbackAt = now;
@@ -4040,8 +4053,39 @@
           const pollReason = reason === 'timeout' ? 'prime-timeout' : reason;
           this.startPolling(pollReason);
         }
-        if (!shouldStartPolling || wasPolling) {
-          this.fetchState();
+        this.fetchState();
+      }
+
+      handleStreamPayloadError(kind, error) {
+        console.warn(`[ticker] stream ${kind} payload error`, error);
+        if (!this.pollingTimer) {
+          this.startPolling(`${kind}-parse`);
+        }
+        this.disconnectStream({ preservePolling: true });
+        this.triggerStreamFallback('parse-error', { force: true });
+        this.scheduleStreamReconnect('parse-error');
+        this.fetchState();
+      }
+
+      processStreamPayload(kind, event, handler) {
+        if (!event || typeof event.data !== 'string') {
+          this.handleStreamPayloadError(kind, new Error('Missing event payload'));
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch (err) {
+          this.handleStreamPayloadError(kind, err);
+          return;
+        }
+        try {
+          const applied = handler(parsed);
+          if (applied !== false) {
+            this.markStreamPrimed();
+          }
+        } catch (err) {
+          this.handleStreamPayloadError(kind, err);
         }
       }
 
@@ -4129,58 +4173,38 @@
               this.eventSource = null;
             }
             this.scheduleStreamFallback();
-            this.triggerStreamFallback('error');
+            this.triggerStreamFallback('error', { force: true });
             this.scheduleStreamReconnect('error');
           });
 
           register('ticker', event => {
-            try {
-              const payload = JSON.parse(event.data);
+            this.processStreamPayload('ticker', event, payload => {
               this.handleTickerPayload(payload);
-              this.markStreamPrimed();
-            } catch (err) {
-              console.warn('[ticker] stream ticker parse failed', err);
-            }
+            });
           });
 
           register('overlay', event => {
-            try {
-              const payload = JSON.parse(event.data);
+            this.processStreamPayload('overlay', event, payload => {
               this.applyOverlayData(payload);
-              this.markStreamPrimed();
-            } catch (err) {
-              console.warn('[ticker] stream overlay parse failed', err);
-            }
+            });
           });
 
           register('popup', event => {
-            try {
-              const payload = JSON.parse(event.data);
+            this.processStreamPayload('popup', event, payload => {
               this.handlePopupPayload(payload);
-              this.markStreamPrimed();
-            } catch (err) {
-              console.warn('[ticker] stream popup parse failed', err);
-            }
+            });
           });
 
           register('brb', event => {
-            try {
-              const payload = JSON.parse(event.data);
+            this.processStreamPayload('brb', event, payload => {
               this.handleBrbPayload(payload);
-              this.markStreamPrimed();
-            } catch (err) {
-              console.warn('[ticker] stream brb parse failed', err);
-            }
+            });
           });
 
           register('slate', event => {
-            try {
-              const payload = JSON.parse(event.data);
+            this.processStreamPayload('slate', event, payload => {
               this.handleSlatePayload(payload);
-              this.markStreamPrimed();
-            } catch (err) {
-              console.warn('[ticker] stream slate parse failed', err);
-            }
+            });
           });
         } catch (err) {
           console.error('[ticker] failed to connect to stream', err);
