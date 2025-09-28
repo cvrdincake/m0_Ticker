@@ -8919,14 +8919,18 @@
       }
 
       if (el.messageForm && el.newMessage) {
+        console.log('[DEBUG] Message form found, adding listener');
         el.messageForm.addEventListener('submit', event => {
           event.preventDefault();
+          console.log('[DEBUG] Form submitted, adding message:', el.newMessage.value);
           const added = addMessage(el.newMessage.value);
           if (added) {
             el.newMessage.value = '';
           }
           el.newMessage.focus();
         });
+      } else {
+        console.error('[DEBUG] Message form or input not found:', { form: !!el.messageForm, input: !!el.newMessage });
       }
 
       if (el.clearMessages) {
