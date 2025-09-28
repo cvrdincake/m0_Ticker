@@ -71,10 +71,10 @@
     const maxNameLength = typeof options.maxNameLength === 'number' ? options.maxNameLength : 80;
     const getDisplayDuration = typeof options.getDisplayDuration === 'function'
       ? options.getDisplayDuration
-      : () => options.displayDurationFallback ?? 5;
+      : () => (options.displayDurationFallback == null ? 5 : options.displayDurationFallback);
     const getIntervalMinutes = typeof options.getIntervalMinutes === 'function'
       ? options.getIntervalMinutes
-      : () => options.intervalMinutesFallback ?? 0;
+      : () => (options.intervalMinutesFallback == null ? 0 : options.intervalMinutesFallback);
     const clampDuration = options.clampDuration;
     const clampIntervalSeconds = options.clampIntervalSeconds;
     const minutesToSeconds = typeof options.minutesToSeconds === 'function'
@@ -102,24 +102,35 @@
     if (!name) return null;
 
     const tickerSource = (entry.ticker && typeof entry.ticker === 'object') ? entry.ticker : entry;
-    const tickerMessages = sanitiseMessages(tickerSource.messages ?? entry.messages ?? []);
+    const tickerMessagesSource = tickerSource && tickerSource.messages != null
+      ? tickerSource.messages
+      : (entry && entry.messages != null ? entry.messages : []);
+    const tickerMessages = sanitiseMessages(tickerMessagesSource);
 
-    const displayDurationInput = tickerSource.displayDuration ?? entry.displayDuration ?? getDisplayDuration();
+    const displayDurationSource = tickerSource && tickerSource.displayDuration != null
+      ? tickerSource.displayDuration
+      : (entry && entry.displayDuration != null ? entry.displayDuration : getDisplayDuration());
+    const displayDurationInput = displayDurationSource == null ? getDisplayDuration() : displayDurationSource;
     const displayDuration = typeof clampDuration === 'function'
       ? clampDuration(displayDurationInput)
       : (Number(displayDurationInput) || getDisplayDuration());
 
-    const intervalRaw = tickerSource.intervalBetween ?? entry.intervalBetween;
+    const intervalRaw = tickerSource && tickerSource.intervalBetween != null
+      ? tickerSource.intervalBetween
+      : entry.intervalBetween;
     const fallbackIntervalSeconds = minutesToSeconds(getIntervalMinutes());
     const intervalSeconds = typeof clampIntervalSeconds === 'function'
       ? clampIntervalSeconds(intervalRaw, fallbackIntervalSeconds)
-      : Math.max(0, Math.min(3600, Math.round(Number(intervalRaw ?? fallbackIntervalSeconds) || 0)));
+      : Math.max(0, Math.min(3600, Math.round(Number(intervalRaw == null ? fallbackIntervalSeconds : intervalRaw) || 0)));
 
+    const tickerActiveSource = tickerSource && tickerSource.isActive != null
+      ? tickerSource.isActive
+      : entry.isActive;
     const ticker = {
       messages: tickerMessages,
       displayDuration,
       intervalBetween: intervalSeconds,
-      isActive: !!(tickerSource.isActive ?? entry.isActive) && tickerMessages.length > 0
+      isActive: !!tickerActiveSource && tickerMessages.length > 0
     };
 
     const popup = normalisePopupData(entry.popup || {});
@@ -148,7 +159,8 @@
     const overlay = serialiseOverlayForScene(entry.overlay, options);
 
     const id = String(entry.id || generateId());
-    const updatedAtRaw = Number(entry.updatedAt ?? entry._updatedAt);
+    const updatedAtValue = entry.updatedAt != null ? entry.updatedAt : entry._updatedAt;
+    const updatedAtRaw = Number(updatedAtValue);
     const updatedAt = Number.isFinite(updatedAtRaw) ? updatedAtRaw : now();
 
     return {

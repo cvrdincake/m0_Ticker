@@ -833,9 +833,9 @@
       return cleaned || fallbackClean;
     };
     const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
-      ? (value, fallback) => sharedNormaliseServerBase(value, fallback ?? DEFAULT_SERVER_URL)
+      ? (value, fallback) => sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
       : typeof sharedNormaliseServerBaseUrl === 'function'
-        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
         : manualNormaliseServerBase;
 
     const SPECIAL_MAP = {
@@ -1022,7 +1022,8 @@
         if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
           throw new RequestErrorCtor('Request timed out', 'timeout', { url });
         }
-        throw new RequestErrorCtor(error?.message || 'Network request failed', 'network', { url, cause: error });
+        const message = error && error.message ? error.message : 'Network request failed';
+        throw new RequestErrorCtor(message, 'network', { url, cause: error });
       }
     }
 
@@ -1187,16 +1188,17 @@
     }
 
     function normalisePopupPayload(data) {
-      const text = typeof data?.text === 'string' ? data.text.trim().slice(0, 280) : '';
-      const isActive = !!data?.isActive && !!text;
-      const durationRaw = Number(data?.durationSeconds);
+      const text = data && typeof data.text === 'string' ? data.text.trim().slice(0, 280) : '';
+      const isActive = !!(data && data.isActive) && !!text;
+      const durationRaw = Number(data && data.durationSeconds);
       const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
         ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
         : null;
-      const countdownTargetRaw = Number(data?.countdownTarget);
+      const countdownTargetRaw = Number(data && data.countdownTarget);
       const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
-      const countdownEnabled = !!data?.countdownEnabled && !!text && countdownTarget !== null;
-      const updatedAt = Number(data?._updatedAt ?? data?.updatedAt);
+      const countdownEnabled = !!(data && data.countdownEnabled) && !!text && countdownTarget !== null;
+      const updatedAtSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+      const updatedAt = Number(updatedAtSource);
       return {
         text,
         isActive,
@@ -1208,10 +1210,11 @@
     }
 
     function normaliseBrbPayload(data) {
-      const raw = typeof data?.text === 'string' ? data.text : '';
+      const raw = data && typeof data.text === 'string' ? data.text : '';
       const text = raw.trim().slice(0, MAX_BRB_LENGTH);
-      const isActive = !!data?.isActive && !!text;
-      const updatedAtRaw = Number(data?._updatedAt ?? data?.updatedAt);
+      const isActive = !!(data && data.isActive) && !!text;
+      const updatedAtSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+      const updatedAtRaw = Number(updatedAtSource);
       return {
         text,
         isActive,
@@ -1323,8 +1326,8 @@
         return null;
       }
 
-      const headerChars = Array.isArray(headerSplit?.chars) ? headerSplit.chars : [];
-      const bodyLines = Array.isArray(bodySplit?.lines) ? bodySplit.lines : [];
+      const headerChars = Array.isArray(headerSplit && headerSplit.chars) ? headerSplit.chars : [];
+      const bodyLines = Array.isArray(bodySplit && bodySplit.lines) ? bodySplit.lines : [];
       const timeline = gsap.timeline({ paused: true });
       const scrambleConfig = typeof ScrambleTextPlugin !== 'undefined' ? { text: '#', speed: 0.15 } : null;
 
@@ -1391,8 +1394,12 @@
 
       const revert = () => {
         try {
-          bodySplit?.revert();
-          headerSplit?.revert();
+          if (bodySplit && typeof bodySplit.revert === 'function') {
+            bodySplit.revert();
+          }
+          if (headerSplit && typeof headerSplit.revert === 'function') {
+            headerSplit.revert();
+          }
         } catch (err) {
           console.warn('[ticker] text animation revert failed', err);
         }
@@ -1421,7 +1428,7 @@
       const cleaned = [];
       for (const entry of list) {
         if (cleaned.length >= MAX_MESSAGES) break;
-        let text = String(entry ?? '').trim();
+        let text = String(entry == null ? '' : entry).trim();
         if (!text) continue;
         if (text.length > MAX_MESSAGE_LENGTH) {
           text = text.slice(0, MAX_MESSAGE_LENGTH);
@@ -1512,7 +1519,8 @@
       if (Array.isArray(data.notes) || typeof data.notes === 'string') {
         result.notes = normaliseSlateNotesList(data.notes);
       }
-      const updatedAt = Number(data.updatedAt ?? data._updatedAt);
+      const updatedAtSource = data.updatedAt != null ? data.updatedAt : data._updatedAt;
+      const updatedAt = Number(updatedAtSource);
       if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
       return result;
     }
@@ -2449,11 +2457,21 @@
       const data = JSON.parse(JSON.stringify(ZEN_FLOW_BASE_ANIMATION));
       const primary = colorStringToRgbArray(accent, '#38bdf8');
       const secondary = colorStringToRgbArray(accentSecondary, accent || '#f472b6');
-      if (data.layers[0]?.shapes?.[0]?.it?.[1]?.c) {
-        data.layers[0].shapes[0].it[1].c.k = primary;
+      const firstLayer = Array.isArray(data.layers) && data.layers.length > 0 ? data.layers[0] : null;
+      const secondLayer = Array.isArray(data.layers) && data.layers.length > 1 ? data.layers[1] : null;
+      const firstShape = firstLayer && Array.isArray(firstLayer.shapes) && firstLayer.shapes.length > 0
+        ? firstLayer.shapes[0]
+        : null;
+      const secondShape = secondLayer && Array.isArray(secondLayer.shapes) && secondLayer.shapes.length > 0
+        ? secondLayer.shapes[0]
+        : null;
+      const firstFill = firstShape && Array.isArray(firstShape.it) && firstShape.it.length > 1 ? firstShape.it[1] : null;
+      const secondFill = secondShape && Array.isArray(secondShape.it) && secondShape.it.length > 1 ? secondShape.it[1] : null;
+      if (firstFill && firstFill.c && firstFill.c.k) {
+        firstFill.c.k = primary;
       }
-      if (data.layers[1]?.shapes?.[0]?.it?.[1]?.c) {
-        data.layers[1].shapes[0].it[1].c.k = secondary;
+      if (secondFill && secondFill.c && secondFill.c.k) {
+        secondFill.c.k = secondary;
       }
       return data;
     }
@@ -2996,7 +3014,8 @@
         if (!data || typeof data !== 'object') {
           return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
         }
-        const nextStampRaw = Number(data?._updatedAt ?? data?.updatedAt);
+        const nextStampSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+        const nextStampRaw = Number(nextStampSource);
         const hasStamp = Number.isFinite(nextStampRaw);
         if (hasStamp && this.tickerUpdatedAt !== null && this.tickerUpdatedAt === nextStampRaw) {
           return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
@@ -3004,8 +3023,10 @@
 
         const newMessages = sanitiseMessages(data.messages || []);
         const newActive = !!data.isActive;
-        const newDuration = clampDuration(data.displayDuration ?? this.displayDuration);
-        const newInterval = clampInterval(data.intervalBetween ?? this.intervalSeconds);
+        const durationSource = data.displayDuration != null ? data.displayDuration : this.displayDuration;
+        const intervalSource = data.intervalBetween != null ? data.intervalBetween : this.intervalSeconds;
+        const newDuration = clampDuration(durationSource);
+        const newInterval = clampInterval(intervalSource);
 
         const messagesChanged = JSON.stringify(this.messages) !== JSON.stringify(newMessages);
         const activeChanged = this.isActive !== newActive;
@@ -3078,7 +3099,7 @@
       updateBrbBanner() {
         if (!this.brbNode) return;
         const active = this.isBrbActive();
-        const text = this.brb?.text || '';
+        const text = this.brb && this.brb.text ? this.brb.text : '';
         if (this.brbTextNode) {
           this.brbTextNode.textContent = text;
         } else {
@@ -3111,7 +3132,8 @@
       handleBrbPayload(data) {
         if (!data || typeof data !== 'object') return;
         const next = normaliseBrbPayload(data);
-        const stamp = Number(data?._updatedAt ?? data?.updatedAt);
+        const stampSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+        const stamp = Number(stampSource);
         if (Number.isFinite(stamp)) {
           if (Number.isFinite(this.brbUpdatedAt) && this.brbUpdatedAt === stamp) {
             return;
@@ -3485,7 +3507,8 @@
     refreshSlateCards({ animate = true } = {}) {
       if (!this.slateNode) return;
       this.clearSlateTimers();
-      const previousType = this.slateCards[this.slateIndex]?.type;
+      const previousCard = this.slateCards[this.slateIndex] || null;
+      const previousType = previousCard && previousCard.type ? previousCard.type : null;
       const cards = deriveSlateCards(this.slate, this.overlay);
       this.slateCards = cards;
       if (!this.slate.isEnabled || !cards.length) {
@@ -3699,7 +3722,9 @@
         }
 
         this.applyOverlayStyles({ refreshContent: refresh });
-        this.slateNode?.classList.toggle('push-down', this.overlay.position === 'top');
+        if (this.slateNode && this.slateNode.classList) {
+          this.slateNode.classList.toggle('push-down', this.overlay.position === 'top');
+        }
         if (slateNeedsRefresh) {
           this.refreshSlateCards({ animate: false });
         }
@@ -3709,7 +3734,10 @@
     handleSlatePayload(data) {
       if (!data || typeof data !== 'object') return;
       const next = normaliseSlateData(data);
-      const stamp = Number(data._updatedAt ?? data.updatedAt ?? next.updatedAt);
+      const stampSource = data._updatedAt != null
+        ? data._updatedAt
+        : (data.updatedAt != null ? data.updatedAt : next.updatedAt);
+      const stamp = Number(stampSource);
       if (Number.isFinite(stamp) && Number.isFinite(this.slateUpdatedAt) && this.slateUpdatedAt === stamp) {
         return;
       }

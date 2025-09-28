@@ -230,7 +230,7 @@
         let truncatedCount = 0;
 
         for (const entry of list) {
-          let text = String(entry ?? '').trim();
+          let text = String(entry == null ? '' : entry).trim();
           if (!text) continue;
 
           if (cleaned.length >= maxMessages) {
@@ -356,7 +356,10 @@
       result.countdownTarget = Math.round(applyDefaults.countdownTarget);
     }
     result.countdownEnabled = !!applyDefaults.countdownEnabled && Number.isFinite(result.countdownTarget) && !!result.text;
-    const defaultUpdatedAt = Number(applyDefaults.updatedAt ?? applyDefaults._updatedAt);
+    const defaultUpdatedAtSource = applyDefaults && applyDefaults.updatedAt != null
+      ? applyDefaults.updatedAt
+      : applyDefaults._updatedAt;
+    const defaultUpdatedAt = Number(defaultUpdatedAtSource);
     if (Number.isFinite(defaultUpdatedAt)) {
       result.updatedAt = defaultUpdatedAt;
     }
@@ -407,7 +410,8 @@
       result.countdownEnabled = result.countdownEnabled && !!result.text;
     }
 
-    const updatedAt = Number(data.updatedAt ?? data._updatedAt);
+    const updatedAtSource = data.updatedAt != null ? data.updatedAt : data._updatedAt;
+    const updatedAt = Number(updatedAtSource);
     result.updatedAt = Number.isFinite(updatedAt)
       ? updatedAt
       : (Number.isFinite(result.updatedAt) ? result.updatedAt : Date.now());
@@ -486,7 +490,8 @@
       result.notes = normaliseSlateNotesList(data.notes);
     }
 
-    const updatedAt = Number(data.updatedAt ?? data._updatedAt);
+    const slateUpdatedAtSource = data.updatedAt != null ? data.updatedAt : data._updatedAt;
+    const updatedAt = Number(slateUpdatedAtSource);
     if (Number.isFinite(updatedAt)) {
       result.updatedAt = updatedAt;
     }
@@ -527,7 +532,7 @@
       messages: tickerMessages,
       displayDuration,
       intervalBetween,
-      isActive: !!(tickerSource.isActive ?? entry.isActive) && tickerMessages.length > 0
+      isActive: !!((tickerSource.isActive != null ? tickerSource.isActive : entry.isActive)) && tickerMessages.length > 0
     };
 
     const popup = normalisePopupData(entry.popup || {}, defaultPopup, options);
@@ -600,7 +605,8 @@
     const id = typeof entry.id === 'string' && entry.id.trim()
       ? entry.id
       : String(entry.id || 'scene');
-    const updatedAtRaw = Number(entry.updatedAt ?? entry._updatedAt);
+    const sceneUpdatedAtSource = entry.updatedAt != null ? entry.updatedAt : entry._updatedAt;
+    const updatedAtRaw = Number(sceneUpdatedAtSource);
     const updatedAt = Number.isFinite(updatedAtRaw) ? updatedAtRaw : Date.now();
 
     return { id, name, ticker, popup, overlay, slate, updatedAt };
