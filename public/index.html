@@ -2175,6 +2175,20 @@
       }
     }
 
+    function markErrorHandled(err) {
+      if (!err || typeof err !== 'object') return;
+      Object.defineProperty(err, '__handled', {
+        value: true,
+        enumerable: false,
+        configurable: true,
+        writable: true
+      });
+    }
+
+    function isErrorHandled(err) {
+      return !!(err && typeof err === 'object' && err.__handled);
+    }
+
     function runQueued(queue, task) {
       if (!queue) {
         return task();
@@ -2658,26 +2672,13 @@
       '!!': 'glitch'
     };
 
-    const serverState = {
-      ticker: { ...DEFAULT_STATE, messages: [...DEFAULT_STATE.messages] },
-      overlay: { ...DEFAULT_OVERLAY },
-      popup: { ...DEFAULT_POPUP },
-      slate: {
-        ...DEFAULT_SLATE,
-        notes: Array.isArray(DEFAULT_SLATE.notes) ? [...DEFAULT_SLATE.notes] : []
-      },
-      brb: { ...DEFAULT_BRB },
-      presets: [],
-      scenes: []
-    };
-
-    let state = serverState.ticker;
-    let overlayPrefs = serverState.overlay;
-    let popupState = serverState.popup;
-    let slateState = serverState.slate;
-    let brbState = serverState.brb;
-    let presets = serverState.presets;
-    let scenes = serverState.scenes;
+    let state = deepClone(DEFAULT_STATE);
+    let overlayPrefs = deepClone(DEFAULT_OVERLAY);
+    let popupState = deepClone(DEFAULT_POPUP);
+    let slateState = deepClone(DEFAULT_SLATE);
+    let brbState = deepClone(DEFAULT_BRB);
+    let presets = [];
+    let scenes = [];
 
     const uiState = {
       editingIndex: -1,
@@ -2716,39 +2717,144 @@
       };
     }
 
-    function createReactiveState(initialValue, { normalise, onChange } = {}) {
-      const base = Array.isArray(initialValue)
-        ? initialValue.slice()
-        : { ...initialValue };
+    const PROXY_ARRAY_MUTATORS = new Set([
+      'copyWithin',
+      'fill',
+      'pop',
+      'push',
+      'reverse',
+      'shift',
+      'sort',
+      'splice',
+      'unshift'
+    ]);
 
-      const commit = () => {
-        if (typeof normalise === 'function') {
-          normalise(base);
+    const proxyTargetMap = new WeakMap();
+
+    function deepClone(value) {
+      if (Array.isArray(value)) {
+        return value.map(entry => deepClone(entry));
+      }
+      if (value && typeof value === 'object') {
+        const clone = {};
+        for (const key of Object.keys(value)) {
+          clone[key] = deepClone(value[key]);
         }
-        if (typeof onChange === 'function') {
+        return clone;
+      }
+      return value;
+    }
+
+    function createDeepProxy(target, commit, cache = new WeakMap()) {
+      if (!target || typeof target !== 'object') {
+        return target;
+      }
+      if (cache.has(target)) {
+        return cache.get(target);
+      }
+      const proxy = new Proxy(target, {
+        get(obj, prop, receiver) {
+          if (prop === '__raw__') {
+            return target;
+          }
+          const value = Reflect.get(obj, prop, receiver);
+          if (typeof value === 'function' && Array.isArray(obj) && PROXY_ARRAY_MUTATORS.has(prop)) {
+            return function proxyArrayMutation(...args) {
+              const result = value.apply(obj, args);
+              commit();
+              return result;
+            };
+          }
+          if (value && typeof value === 'object') {
+            return createDeepProxy(value, commit, cache);
+          }
+          return value;
+        },
+        set(obj, prop, value, receiver) {
+          const nextValue = value && typeof value === 'object'
+            ? proxyTargetMap.get(value) || value
+            : value;
+          const changed = Reflect.set(obj, prop, nextValue, receiver);
+          if (changed) {
+            commit();
+          }
+          return changed;
+        },
+        deleteProperty(obj, prop) {
+          const deleted = Reflect.deleteProperty(obj, prop);
+          if (deleted) {
+            commit();
+          }
+          return deleted;
+        }
+      });
+      cache.set(target, proxy);
+      proxyTargetMap.set(proxy, target);
+      return proxy;
+    }
+
+    function createStateStore() {
+      const rawState = new Map();
+      const proxies = new Map();
+      const configs = new Map();
+
+      function commit(key) {
+        const base = rawState.get(key);
+        const proxy = proxies.get(key);
+        if (!base || !proxy) return;
+        const config = configs.get(key) || {};
+        if (typeof config.normalise === 'function') {
+          config.normalise(base);
+        }
+        if (typeof config.validate === 'function') {
+          const result = config.validate(base);
+          if (result !== true && result !== undefined) {
+            console.warn(`[Ticker] ${key} state validation failed`, result);
+          }
+        }
+        if (typeof config.onChange === 'function') {
           try {
-            onChange(base);
+            config.onChange(proxy, base);
           } catch (err) {
             console.error('State listener failed', err);
           }
         }
-      };
+      }
 
-      const proxy = new Proxy(base, {
-        set(target, property, value) {
-          target[property] = value;
-          commit();
-          return true;
+      return {
+        register(key, value, options = {}) {
+          configs.set(key, options);
+          const clone = deepClone(value);
+          rawState.set(key, clone);
+          const proxy = createDeepProxy(clone, () => commit(key));
+          proxies.set(key, proxy);
+          commit(key);
+          return proxy;
         },
-        deleteProperty(target, property) {
-          delete target[property];
-          commit();
-          return true;
+        snapshot() {
+          const snapshot = {};
+          for (const [key, value] of rawState.entries()) {
+            snapshot[key] = deepClone(value);
+          }
+          return snapshot;
+        },
+        get(key) {
+          return proxies.get(key);
         }
-      });
+      };
+    }
 
-      commit();
-      return proxy;
+    function createDebounced(fn, wait = 16) {
+      let timer = null;
+      return (...args) => {
+        if (timer) {
+          clearTimeout(timer);
+        }
+        timer = setTimeout(() => {
+          timer = null;
+          fn(...args);
+        }, Math.max(0, wait));
+      };
     }
 
     function normaliseTickerState(target) {
@@ -2835,6 +2941,49 @@
       const stamp = Number(target._updatedAt ?? target.updatedAt);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
+    }
+
+    function validateTickerStateShape(target) {
+      if (!isRecord(target)) return 'Ticker state must be an object';
+      if (!Array.isArray(target.messages)) return 'Ticker state messages must be an array';
+      if (!Number.isFinite(target.displayDuration)) return 'Ticker display duration is invalid';
+      if (!Number.isFinite(target.intervalMinutes)) return 'Ticker interval is invalid';
+      return true;
+    }
+
+    function validateOverlayStateShape(target) {
+      return isRecord(target) ? true : 'Overlay preferences must be an object';
+    }
+
+    function validatePopupStateShape(target) {
+      if (!isRecord(target)) return 'Popup state must be an object';
+      if (target.durationSeconds != null && !Number.isFinite(target.durationSeconds)) {
+        return 'Popup duration must be a number';
+      }
+      if (target.countdownTarget != null && !Number.isFinite(target.countdownTarget)) {
+        return 'Popup countdown target must be numeric';
+      }
+      return true;
+    }
+
+    function validateSlateStateShape(target) {
+      if (!isRecord(target)) return 'Slate state must be an object';
+      if (target.notes != null && !Array.isArray(target.notes)) {
+        return 'Slate notes must be an array';
+      }
+      return true;
+    }
+
+    function validateBrbStateShape(target) {
+      return isRecord(target) ? true : 'BRB state must be an object';
+    }
+
+    function validatePresetStateShape(target) {
+      return Array.isArray(target) ? true : 'Preset list must be an array';
+    }
+
+    function validateSceneStateShape(target) {
+      return Array.isArray(target) ? true : 'Scene list must be an array';
     }
 
     function normalisePresetList(list) {
@@ -3037,66 +3186,68 @@
       return panelSections.size ? panelSections.keys().next().value : PANEL_IDS[0];
     })();
 
-    state = createReactiveState(state, {
+    const stateStore = createStateStore();
+
+    state = stateStore.register('ticker', state, {
       normalise: normaliseTickerState,
+      validate: validateTickerStateShape,
       onChange: () => {
-        serverState.ticker = state;
         notifyTickerChange();
       }
     });
 
-    overlayPrefs = createReactiveState(overlayPrefs, {
+    overlayPrefs = stateStore.register('overlay', overlayPrefs, {
       normalise: normaliseOverlayState,
+      validate: validateOverlayStateShape,
       onChange: () => {
-        serverState.overlay = overlayPrefs;
         notifyOverlayChange();
       }
     });
 
-    popupState = createReactiveState(popupState, {
+    popupState = stateStore.register('popup', popupState, {
       normalise: normalisePopupState,
+      validate: validatePopupStateShape,
       onChange: () => {
-        serverState.popup = popupState;
         notifyPopupChange();
       }
     });
 
-    slateState = createReactiveState(slateState, {
+    slateState = stateStore.register('slate', slateState, {
       normalise: normaliseSlateState,
+      validate: validateSlateStateShape,
       onChange: () => {
-        serverState.slate = slateState;
         notifySlateChange();
       }
     });
 
-    brbState = createReactiveState(brbState, {
+    brbState = stateStore.register('brb', brbState, {
       normalise: normaliseBrbState,
+      validate: validateBrbStateShape,
       onChange: () => {
-        serverState.brb = brbState;
         notifyBrbChange();
       }
     });
 
-    presets = createReactiveState(presets, {
+    presets = stateStore.register('presets', presets, {
       normalise: target => {
         const next = normalisePresetList(target);
         target.length = 0;
         target.push(...next);
       },
+      validate: validatePresetStateShape,
       onChange: () => {
-        serverState.presets = presets;
         notifyPresetsChange();
       }
     });
 
-    scenes = createReactiveState(scenes, {
+    scenes = stateStore.register('scenes', scenes, {
       normalise: target => {
         const next = normaliseSceneList(target);
         target.length = 0;
         target.push(...next);
       },
+      validate: validateSceneStateShape,
       onChange: () => {
-        serverState.scenes = scenes;
         notifyScenesChange();
       }
     });
@@ -5556,9 +5707,15 @@
               force: true
             });
             if (!silent) toast('Server unreachable');
+            markErrorHandled(err);
             throw err;
           }
         });
+      } catch (err) {
+        console.error('State refresh failed', err);
+        if (!silent && !isErrorHandled(err)) {
+          toast(err?.message || 'Failed to refresh state');
+        }
       } finally {
         fetchInFlight = false;
         if (fetchPending) {
@@ -5578,57 +5735,75 @@
         displayDuration: state.displayDuration,
         intervalBetween: minutesToSeconds(state.intervalMinutes)
       };
-      await runQueued(mutationQueues.ticker, async () => {
-        try {
-          const data = await requestJson(`${base}/ticker/state`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            },
-            validate: validateTickerMutation
-          });
-          if (data && data.state) {
-            applyTickerData(data.state);
+      try {
+        await runQueued(mutationQueues.ticker, async () => {
+          try {
+            const data = await requestJson(`${base}/ticker/state`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              },
+              validate: validateTickerMutation
+            });
+            if (data && data.state) {
+              applyTickerData(data.state);
+            }
+            applyServerStatus('online');
+          } catch (err) {
+            console.error('Failed to save state', err);
+            toast(err.message || 'Failed to save ticker state');
+            applyServerStatus('error', { force: true });
+            markErrorHandled(err);
+            throw err;
           }
-          applyServerStatus('online');
-        } catch (err) {
-          console.error('Failed to save state', err);
-          toast(err.message || 'Failed to save ticker state');
-          applyServerStatus('error', { force: true });
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Ticker state persistence failed', err);
+          toast(err?.message || 'Failed to save ticker state');
         }
-      });
+      }
     }
 
     async function persistPresets(options = {}) {
       const { notify = true } = options;
       const base = serverBase();
-      await runQueued(mutationQueues.presets, async () => {
-        try {
-          const data = await requestJson(`${base}/ticker/presets`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ presets })
-            },
-            validate: validatePresetsMutation
-          });
-          if (data && Array.isArray(data.presets)) {
-            const mappedPresets = data.presets.map(entry => ({
-              id: String(entry.id || generateClientId('preset')),
-              name: String(entry.name || 'Preset'),
-              messages: sanitiseMessagesFn(entry.messages || []),
-              updatedAt: Number(entry.updatedAt) || Date.now()
-            }));
-            presets.length = 0;
-            presets.push(...mappedPresets);
+      try {
+        await runQueued(mutationQueues.presets, async () => {
+          try {
+            const data = await requestJson(`${base}/ticker/presets`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ presets })
+              },
+              validate: validatePresetsMutation
+            });
+            if (data && Array.isArray(data.presets)) {
+              const mappedPresets = data.presets.map(entry => ({
+                id: String(entry.id || generateClientId('preset')),
+                name: String(entry.name || 'Preset'),
+                messages: sanitiseMessagesFn(entry.messages || []),
+                updatedAt: Number(entry.updatedAt) || Date.now()
+              }));
+              presets.length = 0;
+              presets.push(...mappedPresets);
+            }
+            if (notify) toast('Presets saved');
+          } catch (err) {
+            console.error('Failed to save presets', err);
+            if (notify) toast(err.message || 'Failed to save presets');
+            markErrorHandled(err);
+            throw err;
           }
-          if (notify) toast('Presets saved');
-        } catch (err) {
-          console.error('Failed to save presets', err);
-          if (notify) toast(err.message || 'Failed to save presets');
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Preset persistence failed', err);
+          if (notify) toast(err?.message || 'Failed to save presets');
         }
-      });
+      }
     }
 
     function queueSave() {
@@ -5754,50 +5929,60 @@
         countdownTarget: popupState.countdownTarget,
         updatedAt: Number(popupState.updatedAt) || null
       };
-      await runQueued(mutationQueues.popup, async () => {
-        try {
-          const data = await requestJson(`${base}/popup/state`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            },
-            validate: validatePopupMutation
-          });
-          if (data && data.popup) {
-            applyPopupData(data.popup);
-          } else {
+      try {
+        await runQueued(mutationQueues.popup, async () => {
+          try {
+            const data = await requestJson(`${base}/popup/state`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              },
+              validate: validatePopupMutation
+            });
+            if (data && data.popup) {
+              applyPopupData(data.popup);
+            } else {
+              popupAwaitingServerCommit = false;
+              popupAwaitingServerCommitStamp = null;
+              Object.assign(popupState, payload, { updatedAt: Date.now() });
+              renderPopupControls();
+              popupHasPendingLocalChanges = false;
+            }
+            toast(isActive ? 'Popup updated' : 'Popup cleared');
+          } catch (err) {
+            console.error('Failed to save popup state', err);
             popupAwaitingServerCommit = false;
             popupAwaitingServerCommitStamp = null;
-            Object.assign(popupState, payload, { updatedAt: Date.now() });
-            renderPopupControls();
-            popupHasPendingLocalChanges = false;
-          }
-          toast(isActive ? 'Popup updated' : 'Popup cleared');
-        } catch (err) {
-          console.error('Failed to save popup state', err);
-          popupAwaitingServerCommit = false;
-          popupAwaitingServerCommitStamp = null;
-          if (err && err.status === 409) {
-            popupHasPendingLocalChanges = false;
-            const latest = err.response && err.response.popup;
-            if (latest) {
-              applyPopupData(latest);
+            if (err && err.status === 409) {
+              popupHasPendingLocalChanges = false;
+              const latest = err.response && err.response.popup;
+              if (latest) {
+                applyPopupData(latest);
+              } else {
+                void fetchState({ silent: true });
+              }
+              toast('Popup updated on another device. Latest version loaded.');
             } else {
-              void fetchState({ silent: true });
+              toast(err.message || 'Failed to update popup');
             }
-            toast('Popup updated on another device. Latest version loaded.');
-          } else {
-            toast(err.message || 'Failed to update popup');
+            markErrorHandled(err);
+            throw err;
           }
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Popup persistence failed', err);
+          toast(err?.message || 'Failed to update popup');
         }
-      });
-      popupSaveInFlight = false;
-      updatePanelBusyStates();
-      renderPopupControls();
-      flushPendingPopupPayload();
-      if (!popupSaveTimer && !popupSaveInFlight && !popupAwaitingServerCommit) {
-        popupHasPendingLocalChanges = false;
+      } finally {
+        popupSaveInFlight = false;
+        updatePanelBusyStates();
+        renderPopupControls();
+        flushPendingPopupPayload();
+        if (!popupSaveTimer && !popupSaveInFlight && !popupAwaitingServerCommit) {
+          popupHasPendingLocalChanges = false;
+        }
       }
     }
 
@@ -5827,31 +6012,41 @@
       brbSaveInFlight = true;
       updatePanelBusyStates();
       renderBrbControls();
-      await runQueued(mutationQueues.brb, async () => {
-        try {
-          const data = await requestJson(`${base}/brb/state`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            },
-            validate: validateBrbMutation
-          });
-          if (data && data.state) {
-            applyBrbData(data.state);
-          } else {
-            Object.assign(brbState, { text, isActive, updatedAt: Date.now() });
-            renderBrbControls();
+      try {
+        await runQueued(mutationQueues.brb, async () => {
+          try {
+            const data = await requestJson(`${base}/brb/state`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              },
+              validate: validateBrbMutation
+            });
+            if (data && data.state) {
+              applyBrbData(data.state);
+            } else {
+              Object.assign(brbState, { text, isActive, updatedAt: Date.now() });
+              renderBrbControls();
+            }
+            toast(isActive ? 'BRB updated' : 'BRB hidden');
+          } catch (err) {
+            console.error('Failed to save BRB state', err);
+            toast(err.message || 'Failed to update BRB state');
+            markErrorHandled(err);
+            throw err;
           }
-          toast(isActive ? 'BRB updated' : 'BRB hidden');
-        } catch (err) {
-          console.error('Failed to save BRB state', err);
-          toast(err.message || 'Failed to update BRB state');
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('BRB persistence failed', err);
+          toast(err?.message || 'Failed to update BRB state');
         }
-      });
-      brbSaveInFlight = false;
-      updatePanelBusyStates();
-      renderBrbControls();
+      } finally {
+        brbSaveInFlight = false;
+        updatePanelBusyStates();
+        renderBrbControls();
+      }
     }
 
     function markStreamPrimed() {
@@ -5909,7 +6104,8 @@
     }
 
     async function connectStream(options = {}) {
-      const { isRetry = false, reason = 'manual' } = options;
+      try {
+        const { isRetry = false, reason = 'manual' } = options;
       disconnectStream({ preservePolling: true });
       if (!isRetry) {
         connectionRetryAttempt = 0;
@@ -6075,6 +6271,13 @@
         }
         scheduleReconnect(failureReason);
         void fetchState({ silent: true });
+        markErrorHandled(err);
+      }
+    } catch (err) {
+      console.error('Unexpected stream connection failure', err);
+      applyServerStatus('error', { force: true });
+      if (!isErrorHandled(err)) {
+        toast(err?.message || 'Failed to connect to stream');
       }
     }
 
@@ -6098,45 +6301,55 @@
       overlayAwaitingServerCommitStamp = Number(overlayPrefs.updatedAt) || Date.now();
       overlaySaveInFlight = true;
       updatePanelBusyStates();
-      await runQueued(mutationQueues.overlay, async () => {
-        try {
-          const data = await requestJson(`${base}/ticker/overlay`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            },
-            validate: validateOverlayMutation
-          });
-          if (data && data.overlay) {
-            applyOverlayData(data.overlay);
-          } else {
+      try {
+        await runQueued(mutationQueues.overlay, async () => {
+          try {
+            const data = await requestJson(`${base}/ticker/overlay`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              },
+              validate: validateOverlayMutation
+            });
+            if (data && data.overlay) {
+              applyOverlayData(data.overlay);
+            } else {
+              overlayAwaitingServerCommit = false;
+              overlayAwaitingServerCommitStamp = null;
+            }
+          } catch (err) {
+            console.error('Failed to save overlay preferences', err);
             overlayAwaitingServerCommit = false;
             overlayAwaitingServerCommitStamp = null;
-          }
-        } catch (err) {
-          console.error('Failed to save overlay preferences', err);
-          overlayAwaitingServerCommit = false;
-          overlayAwaitingServerCommitStamp = null;
-          if (err && err.status === 409) {
-            overlayHasPendingLocalChanges = false;
-            const latest = err.response && err.response.overlay;
-            if (latest) {
-              applyOverlayData(latest);
+            if (err && err.status === 409) {
+              overlayHasPendingLocalChanges = false;
+              const latest = err.response && err.response.overlay;
+              if (latest) {
+                applyOverlayData(latest);
+              } else {
+                void fetchState({ silent: true });
+              }
+              toast('Overlay updated on another device. Latest version loaded.');
             } else {
-              void fetchState({ silent: true });
+              toast(err.message || 'Failed to save overlay preferences');
             }
-            toast('Overlay updated on another device. Latest version loaded.');
-          } else {
-            toast(err.message || 'Failed to save overlay preferences');
+            markErrorHandled(err);
+            throw err;
           }
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Overlay persistence failed', err);
+          toast(err?.message || 'Failed to save overlay preferences');
         }
-      });
-      overlaySaveInFlight = false;
-      updatePanelBusyStates();
-      flushPendingOverlayPayload();
-      if (!overlaySaveTimer && !overlaySaveInFlight && !overlayAwaitingServerCommit) {
-        overlayHasPendingLocalChanges = false;
+      } finally {
+        overlaySaveInFlight = false;
+        updatePanelBusyStates();
+        flushPendingOverlayPayload();
+        if (!overlaySaveTimer && !overlaySaveInFlight && !overlayAwaitingServerCommit) {
+          overlayHasPendingLocalChanges = false;
+        }
       }
     }
 
@@ -6160,39 +6373,49 @@
       slateAwaitingServerCommit = true;
       slateSaveInFlight = true;
       updatePanelBusyStates();
-      await runQueued(mutationQueues.slate, async () => {
-        try {
-          const data = await requestJson(`${base}/slate/state`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(payload)
-            },
-            validate: validateSlateMutation
-          });
-          if (data && data.slate) {
-            applySlateData(data.slate);
-          }
-        } catch (err) {
-          console.error('Failed to save slate state', err);
-          if (err && err.status === 409) {
-            slateHasPendingLocalChanges = false;
-            const latest = err.response && err.response.slate;
-            if (latest) {
-              applySlateData(latest);
-            } else {
-              void fetchState({ silent: true });
+      try {
+        await runQueued(mutationQueues.slate, async () => {
+          try {
+            const data = await requestJson(`${base}/slate/state`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              },
+              validate: validateSlateMutation
+            });
+            if (data && data.slate) {
+              applySlateData(data.slate);
             }
-            toast('Slate updated on another device. Latest version loaded.');
-          } else {
-            toast(err.message || 'Failed to save slate');
+          } catch (err) {
+            console.error('Failed to save slate state', err);
+            if (err && err.status === 409) {
+              slateHasPendingLocalChanges = false;
+              const latest = err.response && err.response.slate;
+              if (latest) {
+                applySlateData(latest);
+              } else {
+                void fetchState({ silent: true });
+              }
+              toast('Slate updated on another device. Latest version loaded.');
+            } else {
+              toast(err.message || 'Failed to save slate');
+            }
+            markErrorHandled(err);
+            throw err;
           }
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Slate persistence failed', err);
+          toast(err?.message || 'Failed to save slate');
         }
-      });
-      slateSaveInFlight = false;
-      updatePanelBusyStates();
-      flushPendingSlatePayload();
-      slateAwaitingServerCommit = false;
+      } finally {
+        slateSaveInFlight = false;
+        updatePanelBusyStates();
+        flushPendingSlatePayload();
+        slateAwaitingServerCommit = false;
+      }
     }
 
     function queueSlateSave() {
@@ -6812,51 +7035,70 @@
       }
       const base = serverBase();
       scenesSaveInFlight = true;
-      await runQueued(mutationQueues.scenes, async () => {
-        try {
-          const data = await requestJson(`${base}/ticker/scenes`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ scenes })
-            },
-            validate: validateScenesMutation
-          });
-          if (data && Array.isArray(data.scenes)) {
-            applyScenesData(data.scenes);
+      try {
+        await runQueued(mutationQueues.scenes, async () => {
+          try {
+            const data = await requestJson(`${base}/ticker/scenes`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scenes })
+              },
+              validate: validateScenesMutation
+            });
+            if (data && Array.isArray(data.scenes)) {
+              applyScenesData(data.scenes);
+            }
+            toast(successMessage);
+          } catch (err) {
+            console.error('Failed to save scenes', err);
+            toast(err.message || 'Failed to save scenes');
+            markErrorHandled(err);
+            throw err;
           }
-          toast(successMessage);
-        } catch (err) {
-          console.error('Failed to save scenes', err);
-          toast(err.message || 'Failed to save scenes');
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Scenes persistence failed', err);
+          toast(err?.message || 'Failed to save scenes');
         }
-      });
-      scenesSaveInFlight = false;
-      if (pendingSceneMessage) {
-        const message = pendingSceneMessage;
-        pendingSceneMessage = null;
-        void persistScenes(message);
+      } finally {
+        scenesSaveInFlight = false;
+        if (pendingSceneMessage) {
+          const message = pendingSceneMessage;
+          pendingSceneMessage = null;
+          void persistScenes(message);
+        }
       }
     }
 
     async function activateScene(scene) {
       const base = serverBase();
-      await runQueued(mutationQueues.scenes, async () => {
-        try {
-          await requestJson(`${base}/ticker/scenes/apply`, {
-            init: {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ sceneId: scene.id })
-            },
-            validate: validateSceneActivation
-          });
-          toast(`Activated scene “${scene.name}”`);
-        } catch (err) {
-          console.error('Failed to activate scene', err);
-          toast(err.message || 'Failed to activate scene');
+      try {
+        await runQueued(mutationQueues.scenes, async () => {
+          try {
+            await requestJson(`${base}/ticker/scenes/apply`, {
+              init: {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sceneId: scene.id })
+              },
+              validate: validateSceneActivation
+            });
+            toast(`Activated scene “${scene.name}”`);
+          } catch (err) {
+            console.error('Failed to activate scene', err);
+            toast(err.message || 'Failed to activate scene');
+            markErrorHandled(err);
+            throw err;
+          }
+        });
+      } catch (err) {
+        if (!isErrorHandled(err)) {
+          console.error('Scene activation failed', err);
+          toast(err?.message || 'Failed to activate scene');
         }
-      });
+      }
     }
 
     function saveScenePreset(existing) {
@@ -7639,27 +7881,37 @@
         });
       }
 
-      if (el.scaleRange) {
-        el.scaleRange.addEventListener('input', () => updateScale(el.scaleRange.value));
-      }
-      if (el.scaleNumber) {
-        const handleScaleNumberInput = () => {
-          if (el.scaleNumber.value === '') return;
-          updateScale(el.scaleNumber.value);
-        };
-        el.scaleNumber.addEventListener('input', handleScaleNumberInput);
-        el.scaleNumber.addEventListener('change', handleScaleNumberInput);
-      }
-      if (el.popupScaleRange) {
-        el.popupScaleRange.addEventListener('input', () => updatePopupScale(el.popupScaleRange.value));
-      }
-      if (el.popupScaleNumber) {
-        const handlePopupScaleInput = () => {
-          if (el.popupScaleNumber.value === '') return;
-          updatePopupScale(el.popupScaleNumber.value);
-        };
-        el.popupScaleNumber.addEventListener('input', handlePopupScaleInput);
-        el.popupScaleNumber.addEventListener('change', handlePopupScaleInput);
+      const overlayPanelEl = panelSections.get('overlayPanel');
+      const debouncedScaleUpdate = createDebounced(value => updateScale(value), 32);
+      const debouncedPopupScaleUpdate = createDebounced(value => updatePopupScale(value), 32);
+
+      if (overlayPanelEl) {
+        overlayPanelEl.addEventListener('input', event => {
+          const target = event.target;
+          if (!target) return;
+          if (target.matches('#scaleRange')) {
+            debouncedScaleUpdate(target.value);
+          } else if (target.matches('#scaleNumber')) {
+            if (target.value === '') return;
+            debouncedScaleUpdate(target.value);
+          } else if (target.matches('#popupScaleRange')) {
+            debouncedPopupScaleUpdate(target.value);
+          } else if (target.matches('#popupScaleNumber')) {
+            if (target.value === '') return;
+            debouncedPopupScaleUpdate(target.value);
+          }
+        });
+        overlayPanelEl.addEventListener('change', event => {
+          const target = event.target;
+          if (!target) return;
+          if (target.matches('#scaleNumber')) {
+            if (target.value === '') return;
+            debouncedScaleUpdate(target.value);
+          } else if (target.matches('#popupScaleNumber')) {
+            if (target.value === '') return;
+            debouncedPopupScaleUpdate(target.value);
+          }
+        });
       }
 
       if (el.positionButtons) {
