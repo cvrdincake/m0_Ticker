@@ -7054,16 +7054,20 @@
     async function connectStream(options = {}) {
       try {
         const { isRetry = false, reason = 'manual' } = options;
-      disconnectStream({ preservePolling: true });
-      if (!isRetry) {
-        connectionRetryAttempt = 0;
-      }
-      const validation = getValidatedServerBase();
-      if (!validation.ok || !validation.url) {
-        applyServerStatus('invalid', { force: true });
-        stopPolling();
-        return;
-      }
+        console.log('[DEBUG] Connecting stream:', { isRetry, reason, server: serverBase() });
+        disconnectStream({ preservePolling: true });
+        if (!isRetry) {
+          connectionRetryAttempt = 0;
+        }
+
+        const validation = getValidatedServerBase();
+        console.log('[DEBUG] Server validation:', validation);
+        if (!validation.ok || !validation.url) {
+          console.error('[DEBUG] Invalid server URL:', validation);
+          applyServerStatus('invalid', { force: true });
+          stopPolling();
+          return;
+        }
 
       clearReconnectTimer();
       setStreamState(STREAM_STATES.CONNECTING);
@@ -7198,7 +7202,7 @@
         markErrorHandled(err);
       }
     } catch (err) {
-      console.error('Unexpected stream connection failure', err);
+      console.error('[DEBUG] Stream connection failed:', err);
       applyServerStatus('error', { force: true });
       if (!isErrorHandled(err)) {
         toast(resolveErrorMessage(err, 'Failed to connect to stream'));
