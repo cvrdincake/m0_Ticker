@@ -4090,8 +4090,18 @@
         : '';
 
       const fallbackOrigin = (() => {
-        if (typeof location === 'object' && location && typeof location.origin === 'string' && location.origin) {
-          return location.origin;
+        if (typeof location === 'object' && location && typeof location.origin === 'string') {
+          const origin = location.origin.trim();
+          if (origin && origin !== 'null') {
+            try {
+              const parsed = new URL(origin);
+              if (/^https?:$/.test(parsed.protocol)) {
+                return parsed.origin;
+              }
+            } catch (error) {
+              console.warn('[Ticker] Ignoring invalid location.origin', { origin, error });
+            }
+          }
         }
         return DEFAULT_SERVER_URL;
       })();
