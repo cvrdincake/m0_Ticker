@@ -5199,10 +5199,28 @@
       const escaped = tokens
         .map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
         .join('|');
+      if (!escaped) {
+        highlightRegex = null;
+        return;
+      }
       const boundaryClass = '[\\p{L}\\p{N}_]';
-      highlightRegex = escaped
-        ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
-        : null;
+      const unicodePattern = `(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`;
+      const fallbackPattern = `\\b(${escaped})\\b`;
+      try {
+        highlightRegex = new RegExp(unicodePattern, 'giu');
+      } catch (error) {
+        if (error instanceof SyntaxError) {
+          console.warn('Falling back to simplified highlight matcher due to limited RegExp support.', error);
+          try {
+            highlightRegex = new RegExp(fallbackPattern, 'gi');
+          } catch (fallbackError) {
+            console.warn('Disabling highlight matcher after fallback failure.', fallbackError);
+            highlightRegex = null;
+          }
+        } else {
+          throw error;
+        }
+      }
     }
 
     function escapeHtml(str) {
