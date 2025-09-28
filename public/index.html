@@ -2281,6 +2281,70 @@
       }
     }
 
+    function createCleanupBag() {
+      const tasks = new Set();
+      return {
+        add(task) {
+          if (typeof task === 'function') {
+            tasks.add(task);
+            return () => tasks.delete(task);
+          }
+          return () => {};
+        },
+        run() {
+          for (const task of Array.from(tasks)) {
+            tasks.delete(task);
+            try {
+              task();
+            } catch (err) {
+              console.warn('[Ticker] Cleanup task failed', err);
+            }
+          }
+        }
+      };
+    }
+
+    const cleanupBag = createCleanupBag();
+
+    function addManagedCleanup(fn) {
+      return cleanupBag.add(fn);
+    }
+
+    function addManagedEventListener(target, type, handler, options) {
+      if (!target || typeof target.addEventListener !== 'function' || typeof handler !== 'function') {
+        return () => {};
+      }
+      target.addEventListener(type, handler, options);
+      return addManagedCleanup(() => {
+        if (target && typeof target.removeEventListener === 'function') {
+          target.removeEventListener(type, handler, options);
+        }
+      });
+    }
+
+    const CONTROL_CHARS_SINGLE_LINE = /[\u0000-\u001f\u007f]/g;
+    const CONTROL_CHARS_MULTI_LINE = /[\u0000-\u0008\u000b-\u001f\u007f]/g;
+
+    function sanitiseTextInput(value, options = {}) {
+      const {
+        maxLength = Infinity,
+        fallback = '',
+        allowMultiline = false
+      } = options;
+      const pattern = allowMultiline ? CONTROL_CHARS_MULTI_LINE : CONTROL_CHARS_SINGLE_LINE;
+      const raw = typeof value === 'string' || typeof value === 'number'
+        ? String(value)
+        : '';
+      const cleaned = raw.replace(pattern, '').trim();
+      if (!cleaned) {
+        return fallback;
+      }
+      if (!Number.isFinite(maxLength) || maxLength < 0) {
+        return cleaned;
+      }
+      return cleaned.length > maxLength ? cleaned.slice(0, maxLength) : cleaned;
+    }
+
     function safeSetDataset(target, key, value) {
       if (!target || !target.dataset || !key) return;
       if (value == null) {
@@ -2637,6 +2701,7 @@
     const THEME_CLASSNAMES = THEME_OPTIONS.map(theme => `ticker--${theme}`);
     const MAX_PRESET_NAME_LENGTH = 80;
     const MAX_SCENE_NAME_LENGTH = 80;
+    const MAX_OVERLAY_LABEL_LENGTH = 64;
 
     const ScenesModule = window.TickerScenes || {};
     const normaliseSceneEntryImpl = typeof ScenesModule.normaliseSceneEntry === 'function'
@@ -3986,10 +4051,21 @@
     }
 
     function toast(message) {
-      el.toast.textContent = message;
+      if (!el.toast) {
+        console.warn('[Ticker] Toast container missing; message:', message);
+        return;
+      }
+      const text = sanitiseTextInput(message, { fallback: '' }) || '';
+      el.toast.textContent = text;
       el.toast.classList.add('show');
-      clearTimeout(el.toast._hideTimer);
-      el.toast._hideTimer = setTimeout(() => el.toast.classList.remove('show'), 1800);
+      if (el.toast._hideTimer) {
+        clearTimeout(el.toast._hideTimer);
+      }
+      el.toast._hideTimer = setTimeout(() => {
+        if (!el.toast) return;
+        el.toast.classList.remove('show');
+        el.toast._hideTimer = null;
+      }, 1800);
     }
 
     function sanitiseServerUrlInput(value) {
@@ -4494,9 +4570,10 @@
     }
 
     function updateSlateTextField(key, rawValue, limit) {
-      const source = typeof rawValue === 'string' ? rawValue : '';
-      const clipped = source.slice(0, limit);
-      const trimmed = clipped.trim();
+      const trimmed = sanitiseTextInput(rawValue, {
+        maxLength: limit,
+        fallback: ''
+      });
       if (!applySlatePatch({ [key]: trimmed })) {
         return trimmed;
       }
@@ -5995,9 +6072,13 @@
 
     async function persistPopup() {
       const base = serverBase();
-      const raw = el.popupText.value || '';
-      const text = raw.trim().slice(0, 280);
-      if (raw !== text) {
+      const raw = el.popupText ? el.popupText.value : '';
+      const text = sanitiseTextInput(raw, {
+        maxLength: MAX_POPUP_LENGTH,
+        fallback: '',
+        allowMultiline: true
+      });
+      if (el.popupText && raw !== text) {
         el.popupText.value = text;
       }
       const isActive = el.popupActive.checked && !!text;
@@ -6167,13 +6248,17 @@
 
     async function persistBrb() {
       const base = serverBase();
-      const raw = el.brbText ? el.brbText.value || '' : '';
-      const text = raw.trim().slice(0, MAX_BRB_LENGTH);
-    if (el.brbText && raw !== text) {
+      const raw = el.brbText ? el.brbText.value : '';
+      const text = sanitiseTextInput(raw, {
+        maxLength: MAX_BRB_LENGTH,
+        fallback: '',
+        allowMultiline: true
+      });
+      if (el.brbText && raw !== text) {
         el.brbText.value = text;
       }
       const isActive = el.brbActive && el.brbActive.checked && !!text;
-    if (el.brbActive) {
+      if (el.brbActive) {
         el.brbActive.checked = isActive;
       }
 
@@ -6270,6 +6355,47 @@
         setStreamState(STREAM_STATES.IDLE);
       }
       streamPrimed = false;
+    }
+
+    function cancelAllTimers() {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+      clearTimeout(popupSaveTimer);
+      popupSaveTimer = null;
+      clearTimeout(brbSaveTimer);
+      brbSaveTimer = null;
+      clearTimeout(overlaySaveTimer);
+      overlaySaveTimer = null;
+      clearTimeout(slateSaveTimer);
+      slateSaveTimer = null;
+      if (uiState.previewUpdateTimer) {
+        clearTimeout(uiState.previewUpdateTimer);
+        uiState.previewUpdateTimer = null;
+      }
+      if (uiState.previewLoadingTimer) {
+        clearTimeout(uiState.previewLoadingTimer);
+        uiState.previewLoadingTimer = null;
+      }
+      if (el.toast && el.toast._hideTimer) {
+        clearTimeout(el.toast._hideTimer);
+        el.toast._hideTimer = null;
+      }
+      if (streamFallbackTimer) {
+        clearTimeout(streamFallbackTimer);
+        streamFallbackTimer = null;
+      }
+      clearSlatePreviewTimers();
+      stopSlatePreviewClock();
+      clearReconnectTimer();
+      stopHealthChecks();
+      stopPolling();
+    }
+
+    function destroyDashboard() {
+      cancelAllTimers();
+      disconnectStream();
+      cleanupBag.run();
+      handlersRegistered = false;
     }
 
     async function connectStream(options = {}) {
@@ -6613,18 +6739,22 @@
 
     function commitEdit(index) {
       if (index < 0 || index >= state.messages.length) return;
-      const trimmed = uiState.editingDraft.trim();
-      if (!trimmed) {
+      const sanitised = sanitiseTextInput(uiState.editingDraft, {
+        maxLength: MAX_MESSAGE_LENGTH,
+        fallback: ''
+      });
+      if (!sanitised) {
         toast('Message cannot be empty');
         return;
       }
-      let finalText = trimmed;
-      if (finalText.length > MAX_MESSAGE_LENGTH) {
-        finalText = finalText.slice(0, MAX_MESSAGE_LENGTH);
+      const originalLength = typeof uiState.editingDraft === 'string'
+        ? uiState.editingDraft.trim().length
+        : 0;
+      if (originalLength > MAX_MESSAGE_LENGTH) {
         toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
       }
-      const changed = state.messages[index] !== finalText;
-      state.messages[index] = finalText;
+      const changed = state.messages[index] !== sanitised;
+      state.messages[index] = sanitised;
       clearEditing();
       if (changed) queueSave();
     }
@@ -6635,21 +6765,23 @@
     }
 
     function addMessage(text) {
-      const trimmed = String(text || '').trim();
-      if (!trimmed) {
+      const sanitised = sanitiseTextInput(text, {
+        maxLength: MAX_MESSAGE_LENGTH,
+        fallback: ''
+      });
+      if (!sanitised) {
         toast('Enter a message before adding');
         return false;
+      }
+      const originalLength = typeof text === 'string' ? text.trim().length : 0;
+      if (originalLength > MAX_MESSAGE_LENGTH) {
+        toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
       }
       if (state.messages.length >= MAX_MESSAGES) {
         toast(`Queue is full (max ${MAX_MESSAGES} messages)`);
         return false;
       }
-      let finalText = trimmed;
-      if (finalText.length > MAX_MESSAGE_LENGTH) {
-        finalText = finalText.slice(0, MAX_MESSAGE_LENGTH);
-        toast(`Message trimmed to ${MAX_MESSAGE_LENGTH} characters`);
-      }
-      state.messages.push(finalText);
+      state.messages.push(sanitised);
       if (el.autoStart.checked) state.isActive = true;
       clearEditing();
       queueSave();
@@ -6756,13 +6888,18 @@
 
     function confirmPresetModal() {
       if (!uiState.pendingPresetMessage || !el.presetModalName) return;
-      const name = el.presetModalName.value.trim();
-      if (!name) {
+      const rawName = el.presetModalName.value;
+      const cleanedName = sanitiseTextInput(rawName, {
+        maxLength: MAX_PRESET_NAME_LENGTH,
+        fallback: ''
+      });
+      if (!cleanedName) {
         updatePresetModalError('Enter a preset name');
         el.presetModalName.focus();
         return;
       }
-      if (name.length > MAX_PRESET_NAME_LENGTH) {
+      const trimmedOriginal = typeof rawName === 'string' ? rawName.trim() : '';
+      if (trimmedOriginal.length > MAX_PRESET_NAME_LENGTH) {
         updatePresetModalError(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer.`);
         el.presetModalName.focus();
         return;
@@ -6778,11 +6915,11 @@
       }
       const payload = {
         id: generateClientId('preset'),
-        name,
+        name: cleanedName,
         messages: sanitised.messages,
         updatedAt: Date.now()
       };
-      const existingIndex = presets.findIndex(item => item.name.toLowerCase() === name.toLowerCase());
+      const existingIndex = presets.findIndex(item => item.name.toLowerCase() === cleanedName.toLowerCase());
       if (existingIndex >= 0) {
         payload.id = presets[existingIndex].id;
         presets.splice(existingIndex, 1, payload);
@@ -6791,7 +6928,7 @@
       }
       renderPresets();
       void persistPresets({ notify: false });
-      toast(`Saved “${name}” to presets`);
+      toast(`Saved “${cleanedName}” to presets`);
       closePresetModal({ restoreFocus: true });
     }
 
@@ -7094,12 +7231,15 @@
     }
 
     function buildScenePayload(name, existingId, fallbackName = '') {
-      const baseName = String(name || fallbackName || '').trim();
+      const baseName = sanitiseTextInput(name || fallbackName, {
+        maxLength: MAX_SCENE_NAME_LENGTH,
+        fallback: ''
+      });
       if (!baseName) {
         toast('Enter a scene name');
         return null;
       }
-      const trimmedName = baseName.slice(0, MAX_SCENE_NAME_LENGTH);
+      const trimmedName = baseName;
       const tickerResult = sanitiseMessagesFn(state.messages, { includeMeta: true });
       const messages = tickerResult.messages;
       const popup = normalisePopupDataFn(popupState);
@@ -7271,8 +7411,15 @@
     }
 
     function saveScenePreset(existing) {
-      const nameInput = el.sceneName ? el.sceneName.value : '';
-      const payload = buildScenePayload(nameInput, existing?.id || null, existing?.name || '');
+      const rawName = el.sceneName ? el.sceneName.value : '';
+      const cleanedName = sanitiseTextInput(rawName, {
+        maxLength: MAX_SCENE_NAME_LENGTH,
+        fallback: ''
+      });
+      if (el.sceneName && cleanedName !== rawName) {
+        el.sceneName.value = cleanedName;
+      }
+      const payload = buildScenePayload(cleanedName || rawName, existing?.id || null, existing?.name || '');
       if (!payload) return;
       const existingScene = existing
         ? scenes.find(scene => scene.id === existing.id)
@@ -7370,6 +7517,8 @@
       if (handlersRegistered) return;
       handlersRegistered = true;
 
+      const on = addManagedEventListener;
+
       // Defensive: log missing elements
       for (const [key, value] of Object.entries(el)) {
         if (!value) {
@@ -7381,10 +7530,10 @@
         for (const [id, tab] of panelTabButtons.entries()) {
           if (!tab) continue;
           tab.tabIndex = id === activePanelId ? 0 : -1;
-          tab.addEventListener('click', () => {
+          on(tab, 'click', () => {
             setActivePanel(id);
           });
-          tab.addEventListener('keydown', event => {
+          on(tab, 'keydown', event => {
             switch (event.key) {
               case 'ArrowRight':
               case 'ArrowDown':
@@ -7425,10 +7574,10 @@
       }
 
       if (el.previewFrame) {
-        el.previewFrame.addEventListener('load', () => {
+        on(el.previewFrame, 'load', () => {
           setPreviewLoading(false);
         });
-        el.previewFrame.addEventListener('error', () => {
+        on(el.previewFrame, 'error', () => {
           setPreviewLoading(false);
           toast('Preview failed to load');
         });
@@ -7621,8 +7770,15 @@
       }
 
       if (el.overlayLabel) {
-        el.overlayLabel.addEventListener('input', () => {
-          overlayPrefs.label = el.overlayLabel.value.trim() || 'LIVE';
+        on(el.overlayLabel, 'input', () => {
+          const cleaned = sanitiseTextInput(el.overlayLabel.value, {
+            maxLength: MAX_OVERLAY_LABEL_LENGTH,
+            fallback: 'LIVE'
+          }) || 'LIVE';
+          if (el.overlayLabel.value !== cleaned) {
+            el.overlayLabel.value = cleaned;
+          }
+          overlayPrefs.label = cleaned;
           updateOverlayChip();
           saveLocal();
           queueOverlaySave();
@@ -8197,8 +8353,8 @@
       }
 
       if (el.messageList) {
-        el.messageList.addEventListener('click', handleMessageAction);
-        el.messageList.addEventListener('input', event => {
+        on(el.messageList, 'click', handleMessageAction);
+        on(el.messageList, 'input', event => {
           const textarea = event.target.closest('.message-edit-input');
           if (!textarea) return;
           uiState.editingDraft = textarea.value;
@@ -8214,24 +8370,29 @@
       }
 
       if (el.savePreset) {
-        el.savePreset.addEventListener('click', () => {
-          const name = el.presetName ? el.presetName.value.trim() : '';
-          if (!name) {
+        on(el.savePreset, 'click', () => {
+          const rawName = el.presetName ? el.presetName.value : '';
+          const cleanedName = sanitiseTextInput(rawName, {
+            maxLength: MAX_PRESET_NAME_LENGTH,
+            fallback: ''
+          });
+          if (!cleanedName) {
             toast('Enter a preset name');
-            return;
-          }
-          if (name.length > MAX_PRESET_NAME_LENGTH) {
-            toast(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer`);
             return;
           }
           if (!state.messages.length) {
             toast('Nothing to save');
             return;
           }
-          const existing = presets.find(p => p.name.toLowerCase() === name.toLowerCase());
+          const trimmedOriginal = typeof rawName === 'string' ? rawName.trim() : '';
+          if (trimmedOriginal.length > MAX_PRESET_NAME_LENGTH) {
+            toast(`Preset names must be ${MAX_PRESET_NAME_LENGTH} characters or fewer`);
+            return;
+          }
+          const existing = presets.find(p => p.name.toLowerCase() === cleanedName.toLowerCase());
           const payload = {
             id: existing ? existing.id : generateClientId('preset'),
-            name,
+            name: cleanedName,
             messages: [...state.messages],
             updatedAt: Date.now()
           };
@@ -8249,17 +8410,17 @@
       }
 
       if (el.presetList) {
-        el.presetList.addEventListener('click', handlePresetAction);
+        on(el.presetList, 'click', handlePresetAction);
       }
 
       if (el.presetModalCancel) {
-        el.presetModalCancel.addEventListener('click', () => closePresetModal({ restoreFocus: true }));
+        on(el.presetModalCancel, 'click', () => closePresetModal({ restoreFocus: true }));
       }
       if (el.presetModalSave) {
-        el.presetModalSave.addEventListener('click', () => confirmPresetModal());
+        on(el.presetModalSave, 'click', () => confirmPresetModal());
       }
       if (el.presetModalName) {
-        el.presetModalName.addEventListener('keydown', event => {
+        on(el.presetModalName, 'keydown', event => {
           if (event.key === 'Enter') {
             event.preventDefault();
             confirmPresetModal();
@@ -8268,17 +8429,17 @@
             closePresetModal({ restoreFocus: true });
           }
         });
-        el.presetModalName.addEventListener('input', () => updatePresetModalError(''));
+        on(el.presetModalName, 'input', () => updatePresetModalError(''));
       }
       if (el.presetModal) {
-        el.presetModal.addEventListener('click', event => {
+        on(el.presetModal, 'click', event => {
           if (event.target === el.presetModal) {
             closePresetModal({ restoreFocus: true });
           }
         });
       }
       if (typeof document !== 'undefined') {
-        document.addEventListener('keydown', event => {
+        addManagedEventListener(document, 'keydown', event => {
           if (event.key === 'Escape' && isPresetModalOpen()) {
             event.preventDefault();
             closePresetModal({ restoreFocus: true });
@@ -8287,13 +8448,13 @@
       }
 
       if (el.saveScene) {
-        el.saveScene.addEventListener('click', () => {
+        addManagedEventListener(el.saveScene, 'click', () => {
           saveScenePreset();
         });
       }
 
       if (el.sceneName) {
-        el.sceneName.addEventListener('keydown', event => {
+        addManagedEventListener(el.sceneName, 'keydown', event => {
           if (event.key === 'Enter') {
             event.preventDefault();
             saveScenePreset();
@@ -8302,11 +8463,12 @@
       }
 
       if (el.sceneList) {
-        el.sceneList.addEventListener('click', handleSceneAction);
+        addManagedEventListener(el.sceneList, 'click', handleSceneAction);
       }
 
       if (typeof window !== 'undefined') {
-        window.addEventListener('beforeunload', () => disconnectStream());
+        addManagedEventListener(window, 'beforeunload', () => destroyDashboard());
+        addManagedEventListener(window, 'pagehide', () => destroyDashboard());
       }
     }
 
