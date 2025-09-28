@@ -937,10 +937,17 @@ if (assetDir === DEFAULT_ASSET_DIR) {
 
 async function start() {
   await loadStateFromDisk();
-  const host = process.env.HTTP_HOST || '0.0.0.0';
-  const port = Number(process.env.HTTP_PORT) || 3000;
+  const host =
+    process.env.HTTP_HOST ||
+    process.env.HOST ||
+    (process.platform === 'win32' ? '127.0.0.1' : '0.0.0.0');
+  const port = Number(process.env.HTTP_PORT || process.env.PORT) || 3000;
   const server = app.listen(port, host, () => {
-    console.log(`listening on http://${host}:${port}`);
+    const baseUrl = `http://${host}:${port}`;
+    console.log(`[ticker] listening on ${baseUrl}`);
+    console.log(`[ticker] dashboard available at ${baseUrl}/ticker/index.html`);
+    console.log(`[ticker] overlay available at ${baseUrl}/ticker/output.html`);
+    console.log(`[ticker] SSE stream available at ${baseUrl}/ticker/stream`);
   });
   const shutdown = () => {
     server.close(() => {
