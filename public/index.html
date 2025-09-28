@@ -8150,7 +8150,15 @@
 
       const on = addManagedEventListener;
 
-      // Defensive: log missing elements
+      // Defensive: log missing elements and bail early for critical ones
+      const criticalElements = ['messageForm', 'newMessage', 'serverUrl'];
+      for (const key of criticalElements) {
+        if (!el[key]) {
+          console.error(`[Ticker] Critical element missing: ${key}`);
+          return;
+        }
+      }
+
       for (const [key, value] of Object.entries(el)) {
         if (!value) {
           console.warn(`[Ticker] Missing DOM element: el.${key}`);
