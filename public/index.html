@@ -581,6 +581,16 @@
     .control-hint { margin: 2px 0 0; font-size: 12px; color: rgba(201, 208, 230, 0.7); }
     .control-hint.is-warning { color: rgba(255, 205, 130, 0.9); }
     .control-hint.is-error { color: rgba(255, 152, 152, 0.85); }
+    .control-hint--status { margin-top: 6px; }
+    .control-hint--status[hidden] { display: none !important; }
+    .control-hint--status[data-tone="success"] { color: var(--success); }
+    .control-hint--status[data-tone="warning"] { color: #facc6b; }
+    .control-hint--status[data-tone="error"] { color: var(--danger); }
+    .control-hint--status[data-tone="neutral"] { color: var(--subtle); }
+    input[aria-invalid="true"] {
+      border-color: var(--danger);
+      box-shadow: 0 0 0 1px var(--danger-soft);
+    }
     .accent-inputs { display: flex; align-items: center; gap: 10px; }
     .accent-inputs input[type="color"] {
       width: 44px;
@@ -1682,7 +1692,8 @@
         <div class="config-drawer__content">
           <div class="config-drawer__field">
             <label for="serverUrl">Server URL</label>
-            <input type="text" id="serverUrl" placeholder="http://127.0.0.1:3000" />
+            <input type="text" id="serverUrl" placeholder="http://127.0.0.1:3000" aria-describedby="serverUrlStatus" />
+            <p class="control-hint control-hint--status" id="serverUrlStatus" hidden aria-live="polite"></p>
           </div>
           <label class="config-drawer__toggle" for="autoStart">
             <input type="checkbox" id="autoStart" />
@@ -2903,6 +2914,7 @@
       overlayChip: document.getElementById('overlayUrlChip'),
       overlayText: document.getElementById('overlayUrlText'),
       serverUrl: document.getElementById('serverUrl'),
+      serverUrlStatus: document.getElementById('serverUrlStatus'),
       stateExport: document.getElementById('exportState'),
       stateImport: document.getElementById('importState'),
       stateImportInput: document.getElementById('importStateInput'),
@@ -3144,53 +3156,6 @@
       }
     }
 
-    if (panelTabButtons.size) {
-      for (const [id, tab] of panelTabButtons.entries()) {
-        if (!tab) continue;
-        tab.tabIndex = id === activePanelId ? 0 : -1;
-        tab.addEventListener('click', () => {
-          setActivePanel(id);
-        });
-        tab.addEventListener('keydown', event => {
-          switch (event.key) {
-            case 'ArrowRight':
-            case 'ArrowDown':
-              event.preventDefault();
-              focusAdjacentPanel(id, 1);
-              break;
-            case 'ArrowLeft':
-            case 'ArrowUp':
-              event.preventDefault();
-              focusAdjacentPanel(id, -1);
-              break;
-            case 'Home':
-              event.preventDefault();
-              {
-                const ids = orderedPanelIds();
-                if (!ids.length) break;
-                const firstId = ids[0];
-                setActivePanel(firstId);
-                panelTabButtons.get(firstId)?.focus();
-              }
-              break;
-            case 'End':
-              event.preventDefault();
-              {
-                const ids = orderedPanelIds();
-                if (!ids.length) break;
-                const lastId = ids[ids.length - 1];
-                setActivePanel(lastId);
-                panelTabButtons.get(lastId)?.focus();
-              }
-              break;
-            default:
-              break;
-          }
-        });
-      }
-      setActivePanel(activePanelId, { skipSave: true, force: true });
-    }
-
     const compositeSlateNotesLimit = MAX_SLATE_NOTES * MAX_SLATE_TEXT_LENGTH;
 
     if (el.slateClockLabel) el.slateClockLabel.maxLength = MAX_SLATE_TITLE_LENGTH;
@@ -3384,17 +3349,72 @@
     const POLLING_INTERVAL_MS = 6000;
 
     const SERVER_STATUS_CONFIG = {
-      checking: { text: 'Checking…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
-      online: { text: 'Online', valueClass: 'status-value--success', dotClass: 'status-dot--success' },
-      reconnecting: { text: 'Reconnecting…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
-      offline: { text: 'Offline', valueClass: 'status-value--offline', dotClass: 'status-dot--offline' },
-      polling: { text: 'Polling…', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' },
-      invalid: { text: 'Invalid URL', valueClass: 'status-value--error', dotClass: 'status-dot--error' },
-      error: { text: 'Stream error', valueClass: 'status-value--error', dotClass: 'status-dot--error' },
-      degraded: { text: 'Degraded', valueClass: 'status-value--warning', dotClass: 'status-dot--warning' }
+      checking: {
+        text: 'Checking…',
+        valueClass: 'status-value--warning',
+        dotClass: 'status-dot--warning',
+        hint: 'Validating server health…',
+        tone: 'warning'
+      },
+      online: {
+        text: 'Online',
+        valueClass: 'status-value--success',
+        dotClass: 'status-dot--success',
+        hint: 'Connected to server.',
+        tone: 'success'
+      },
+      reconnecting: {
+        text: 'Reconnecting…',
+        valueClass: 'status-value--warning',
+        dotClass: 'status-dot--warning',
+        hint: 'Attempting to reconnect…',
+        tone: 'warning'
+      },
+      offline: {
+        text: 'Offline',
+        valueClass: 'status-value--offline',
+        dotClass: 'status-dot--offline',
+        hint: 'Unable to reach server at the configured URL.',
+        tone: 'error'
+      },
+      polling: {
+        text: 'Polling…',
+        valueClass: 'status-value--warning',
+        dotClass: 'status-dot--warning',
+        hint: 'Realtime stream unavailable; using polling fallback.',
+        tone: 'warning'
+      },
+      invalid: {
+        text: 'Invalid URL',
+        valueClass: 'status-value--error',
+        dotClass: 'status-dot--error',
+        hint: 'Enter a valid HTTP(S) URL.',
+        tone: 'error',
+        invalid: true
+      },
+      error: {
+        text: 'Stream error',
+        valueClass: 'status-value--error',
+        dotClass: 'status-dot--error',
+        hint: 'Realtime stream error. Retrying…',
+        tone: 'error'
+      },
+      degraded: {
+        text: 'Degraded',
+        valueClass: 'status-value--warning',
+        dotClass: 'status-dot--warning',
+        hint: 'Health checks failing intermittently.',
+        tone: 'warning'
+      }
     };
 
-    const DEFAULT_SERVER_STATUS = { text: 'Status unknown', valueClass: 'status-value--neutral', dotClass: 'status-dot--neutral' };
+    const DEFAULT_SERVER_STATUS = {
+      text: 'Status unknown',
+      valueClass: 'status-value--neutral',
+      dotClass: 'status-dot--neutral',
+      hint: 'Server status unknown.',
+      tone: 'neutral'
+    };
 
     const STATUS_VALUE_CLASSNAMES = [
       'status-value--success',
@@ -3412,19 +3432,76 @@
       'status-dot--neutral'
     ];
 
+    const HEALTH_REASON_MESSAGES = {
+      timeout: 'Server health check timed out.',
+      network: 'Unable to reach server at the configured URL.',
+      'http-error': 'Server responded with an error.',
+      'invalid-response': 'Health endpoint returned unexpected payload.',
+      unsupported: 'Health check unsupported in this environment.',
+      'invalid-url': 'Enter a valid HTTP(S) URL.'
+    };
+
+    function resolveHealthMessage(reason, status) {
+      if (typeof reason === 'string' && HEALTH_REASON_MESSAGES[reason]) {
+        return HEALTH_REASON_MESSAGES[reason];
+      }
+      if (status && SERVER_STATUS_CONFIG[status] && SERVER_STATUS_CONFIG[status].hint) {
+        return SERVER_STATUS_CONFIG[status].hint;
+      }
+      return 'Server health check failed.';
+    }
+
+    function updateServerUrlStatus(status, message, statusConfig = DEFAULT_SERVER_STATUS) {
+      if (!el.serverUrlStatus) return;
+      const config = statusConfig || DEFAULT_SERVER_STATUS;
+      const hasExplicitMessage = message !== undefined && message !== null;
+      const resolvedMessage = hasExplicitMessage
+        ? String(message).trim()
+        : (config.hint || DEFAULT_SERVER_STATUS.hint || '');
+
+      if (resolvedMessage) {
+        safeSetText(el.serverUrlStatus, resolvedMessage);
+        el.serverUrlStatus.hidden = false;
+      } else {
+        safeSetText(el.serverUrlStatus, '');
+        el.serverUrlStatus.hidden = true;
+      }
+
+      if (el.serverUrlStatus.dataset) {
+        const tone = config.tone || DEFAULT_SERVER_STATUS.tone || 'neutral';
+        if (tone) {
+          el.serverUrlStatus.dataset.tone = tone;
+        } else {
+          delete el.serverUrlStatus.dataset.tone;
+        }
+      }
+
+      if (el.serverUrl) {
+        const shouldMarkInvalid = config.invalid === true && status === 'invalid';
+        if (shouldMarkInvalid) {
+          el.serverUrl.setAttribute('aria-invalid', 'true');
+        } else {
+          el.serverUrl.removeAttribute('aria-invalid');
+        }
+      }
+    }
+
     function applyServerStatus(status, options = {}) {
-      const { message, force = false } = options;
+      const { message, label, force = false } = options;
       if (!force && isPollingActive && status !== 'polling') {
         return;
       }
       const config = SERVER_STATUS_CONFIG[status] || DEFAULT_SERVER_STATUS;
-      if (!force && currentServerStatus === status && !message) {
+      if (!force && currentServerStatus === status && !message && !label) {
         return;
       }
       currentServerStatus = status;
-      const finalMessage = message || config.text || DEFAULT_SERVER_STATUS.text;
+      const fallbackText = config.text || DEFAULT_SERVER_STATUS.text || '';
+      const statusLabel = typeof label === 'string' && label.trim()
+        ? label.trim()
+        : fallbackText || (typeof message === 'string' && message.trim() ? message.trim() : fallbackText);
       if (el.statusServer) {
-        safeSetText(el.statusServer, finalMessage);
+        safeSetText(el.statusServer, statusLabel);
         safeSetDataset(el.statusServer, 'status', status);
         if (el.statusServer.style) {
           el.statusServer.style.removeProperty('color');
@@ -3445,6 +3522,8 @@
           el.statusServerDot.classList.add(dotClass);
         }
       }
+
+      updateServerUrlStatus(status, message, config);
     }
 
     function clearReconnectTimer() {
@@ -3468,10 +3547,10 @@
         if (!result.ok) {
           if (!isPollingActive) {
             const nextStatus = currentServerStatus === 'online' ? 'degraded' : 'offline';
-            const message = currentServerStatus === 'online' ? 'Health check failed' : undefined;
+            const message = resolveHealthMessage(result.reason, nextStatus);
             applyServerStatus(nextStatus, { message, force: true });
           }
-        } else if (!isPollingActive && currentServerStatus === 'degraded') {
+        } else if (!isPollingActive && currentServerStatus !== 'online') {
           applyServerStatus('online', { force: true });
         }
       }, HEALTH_CHECK_INTERVAL_MS);
@@ -3528,6 +3607,40 @@
       return { base, ...validation };
     }
 
+    function deriveHealthErrorReason(error) {
+      if (!error || typeof error !== 'object') {
+        return 'network';
+      }
+      const code = error.code || error?.cause?.code;
+      if (code === 'timeout' || error.name === 'AbortError' || error.name === 'TimeoutError') {
+        return 'timeout';
+      }
+      if (code === 'http_error') {
+        return 'http-error';
+      }
+      if (code === 'invalid_response' || code === 'parse_error') {
+        return 'invalid-response';
+      }
+      if (code === 'unsupported') {
+        return 'unsupported';
+      }
+      if (code === 'network') {
+        return 'network';
+      }
+      if (typeof error.status === 'number' && error.status >= 400) {
+        return 'http-error';
+      }
+      if (typeof error.message === 'string') {
+        if (/^HTTP\s+\d+/i.test(error.message)) {
+          return 'http-error';
+        }
+        if (/timed out/i.test(error.message)) {
+          return 'timeout';
+        }
+      }
+      return 'network';
+    }
+
     async function checkServerHealth() {
       const { ok, url, reason } = getValidatedServerBase();
       if (!ok || !url) {
@@ -3542,7 +3655,7 @@
         });
         return { ok: true, url };
       } catch (error) {
-        return { ok: false, url, error };
+        return { ok: false, url, error, reason: deriveHealthErrorReason(error) };
       }
     }
 
@@ -3550,9 +3663,14 @@
       if (connectionRetryTimer) {
         return;
       }
-      const delay = Math.min(
+      const baseDelay = Math.min(
         STREAM_BACKOFF_BASE_MS * Math.pow(2, connectionRetryAttempt),
         STREAM_BACKOFF_MAX_MS
+      );
+      const jitterMultiplier = 0.8 + Math.random() * 0.4;
+      const delay = Math.max(
+        STREAM_BACKOFF_BASE_MS,
+        Math.round(baseDelay * jitterMultiplier)
       );
       connectionRetryAttempt = Math.min(connectionRetryAttempt + 1, 32);
       if (connectionRetryAttempt >= STREAM_MAX_FAILURES_BEFORE_POLLING && !isPollingActive) {
@@ -3566,7 +3684,13 @@
         connectionRetryTimer = null;
         void connectStream({ isRetry: true, reason });
       }, delay);
-      console.warn('[Ticker] Event stream reconnect scheduled', { attempt: connectionRetryAttempt, delay, reason });
+      console.warn('[Ticker] Event stream reconnect scheduled', {
+        attempt: connectionRetryAttempt,
+        delay,
+        baseDelay,
+        jitterMultiplier,
+        reason
+      });
     }
 
     function toast(message) {
@@ -5427,7 +5551,10 @@
             }
           } catch (err) {
             console.error('Failed to fetch state', err);
-            applyServerStatus('offline', { message: 'Unreachable' });
+            applyServerStatus('offline', {
+              message: resolveHealthMessage('network', 'offline'),
+              force: true
+            });
             if (!silent) toast('Server unreachable');
             throw err;
           }
@@ -5468,7 +5595,7 @@
         } catch (err) {
           console.error('Failed to save state', err);
           toast(err.message || 'Failed to save ticker state');
-          applyServerStatus('error', { message: 'Error' });
+          applyServerStatus('error', { force: true });
         }
       });
     }
@@ -5784,25 +5911,25 @@
     async function connectStream(options = {}) {
       const { isRetry = false, reason = 'manual' } = options;
       disconnectStream({ preservePolling: true });
+      if (!isRetry) {
+        connectionRetryAttempt = 0;
+      }
       const validation = getValidatedServerBase();
       if (!validation.ok || !validation.url) {
-        applyServerStatus('invalid', { message: 'Invalid URL', force: true });
+        applyServerStatus('invalid', { force: true });
         stopPolling();
         return;
       }
 
       clearReconnectTimer();
       setStreamState(STREAM_STATES.CONNECTING);
-      applyServerStatus(isRetry ? 'reconnecting' : 'checking', {
-        message: isRetry ? 'Reconnecting…' : 'Connecting…',
-        force: true
-      });
+      applyServerStatus(isRetry ? 'reconnecting' : 'checking', { force: true });
 
       const health = await checkServerHealth();
       if (!health.ok || !health.url) {
         console.warn('[Ticker] Health check failed before stream connection', health);
         const status = health.reason === 'invalid-url' ? 'invalid' : 'offline';
-        const message = status === 'invalid' ? 'Invalid URL' : 'Offline';
+        const message = resolveHealthMessage(health.reason, status);
         applyServerStatus(status, { message, force: true });
         if (status === 'invalid') {
           setStreamState(STREAM_STATES.IDLE, { reason: 'health-check' });
@@ -5834,6 +5961,9 @@
           streamFallbackTimer = null;
           if (!streamPrimed) {
             void fetchState({ silent: true });
+            if (!isPollingActive) {
+              startPolling('prime-timeout');
+            }
           }
         }, STREAM_PRIME_TIMEOUT_MS);
 
@@ -5939,7 +6069,7 @@
         disconnectStream({ preservePolling: true });
         const failureReason = reason || 'exception';
         setStreamState(STREAM_STATES.ERROR, { reason: failureReason });
-        applyServerStatus('error', { message: 'Stream error', force: true });
+        applyServerStatus('error', { force: true });
         if (!isPollingActive) {
           startPolling('stream-error');
         }
@@ -6834,6 +6964,53 @@
         if (!value) {
           console.warn(`[Ticker] Missing DOM element: el.${key}`);
         }
+      }
+
+      if (panelTabButtons.size) {
+        for (const [id, tab] of panelTabButtons.entries()) {
+          if (!tab) continue;
+          tab.tabIndex = id === activePanelId ? 0 : -1;
+          tab.addEventListener('click', () => {
+            setActivePanel(id);
+          });
+          tab.addEventListener('keydown', event => {
+            switch (event.key) {
+              case 'ArrowRight':
+              case 'ArrowDown':
+                event.preventDefault();
+                focusAdjacentPanel(id, 1);
+                break;
+              case 'ArrowLeft':
+              case 'ArrowUp':
+                event.preventDefault();
+                focusAdjacentPanel(id, -1);
+                break;
+              case 'Home':
+                event.preventDefault();
+                {
+                  const ids = orderedPanelIds();
+                  if (!ids.length) break;
+                  const firstId = ids[0];
+                  setActivePanel(firstId);
+                  panelTabButtons.get(firstId)?.focus();
+                }
+                break;
+              case 'End':
+                event.preventDefault();
+                {
+                  const ids = orderedPanelIds();
+                  if (!ids.length) break;
+                  const lastId = ids[ids.length - 1];
+                  setActivePanel(lastId);
+                  panelTabButtons.get(lastId)?.focus();
+                }
+                break;
+              default:
+                break;
+            }
+          });
+        }
+        setActivePanel(activePanelId, { skipSave: true, force: true });
       }
 
       if (el.previewFrame) {
