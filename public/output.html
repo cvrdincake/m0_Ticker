@@ -949,6 +949,77 @@
     const requestManager = typeof requestClientApi.create === 'function'
       ? requestClientApi.create({ defaultTimeoutMs: 8000 })
       : null;
+    const RequestErrorCtor = typeof requestClientApi.RequestError === 'function'
+      ? requestClientApi.RequestError
+      : class RequestError extends Error {
+          constructor(message, code, details = {}) {
+            super(message || 'Request failed');
+            this.name = 'RequestError';
+            this.code = code || 'request_error';
+            if (details && typeof details === 'object') {
+              Object.assign(this, details);
+            }
+          }
+        };
+
+    function createFallbackTimeoutController(timeoutMs, upstreamSignal) {
+      if (typeof AbortController !== 'function') {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+      const numericTimeout = Number(timeoutMs);
+      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+
+      const controller = new AbortController();
+      let timeoutId = null;
+      let upstreamAbortListener = null;
+
+      if (upstreamSignal) {
+        if (upstreamSignal.aborted) {
+          controller.abort(upstreamSignal.reason);
+        } else {
+          upstreamAbortListener = () => controller.abort(upstreamSignal.reason);
+          upstreamSignal.addEventListener('abort', upstreamAbortListener, { once: true });
+        }
+      }
+
+      const timeoutError = new Error('Request timed out');
+      timeoutError.name = 'TimeoutError';
+      timeoutId = setTimeout(() => controller.abort(timeoutError), numericTimeout);
+
+      return {
+        signal: controller.signal,
+        cleanup() {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          if (upstreamAbortListener && upstreamSignal) {
+            upstreamSignal.removeEventListener('abort', upstreamAbortListener);
+            upstreamAbortListener = null;
+          }
+        }
+      };
+    }
+
+    async function performFallbackFetch(url, init = {}, timeoutMs) {
+      const controller = createFallbackTimeoutController(timeoutMs, init.signal);
+      const mergedInit = { ...init };
+      if (controller.signal) {
+        mergedInit.signal = controller.signal;
+      }
+      try {
+        const response = await fetch(url, mergedInit);
+        return { response, cleanup: controller.cleanup };
+      } catch (error) {
+        controller.cleanup();
+        if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+          throw new RequestErrorCtor('Request timed out', 'timeout', { url });
+        }
+        throw new RequestErrorCtor(error?.message || 'Network request failed', 'network', { url, cause: error });
+      }
+    }
 
     function createAsyncQueue(options = {}) {
       if (requestManager && typeof requestManager.createQueue === 'function') {
@@ -973,17 +1044,48 @@
         return requestManager.requestJson(url, options);
       }
       const init = options.init || {};
-      const response = await fetch(url, init);
+      const timeoutMs = options.timeoutMs;
+      const validate = options.validate;
+      const { response, cleanup } = await performFallbackFetch(url, init, timeoutMs);
+      let payload = null;
+      const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+      const expectsJson = /json/i.test(contentType || '');
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        if (expectsJson) {
+          payload = await response.json().catch(() => null);
+        } else {
+          payload = await response.text().catch(() => null);
+        }
+        cleanup();
+        const message = typeof payload === 'object' && payload && typeof payload.error === 'string'
+          ? payload.error
+          : `Request failed with status ${response.status}`;
+        throw new RequestErrorCtor(message, 'http_error', { url, status: response.status, response: payload });
       }
-      const data = await response.json();
-      if (typeof options.validate === 'function') {
-        const result = options.validate(data);
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        cleanup();
+        throw new RequestErrorCtor('Failed to parse response', 'parse_error', { url, cause: error });
+      }
+
+      cleanup();
+
+      if (typeof validate === 'function') {
+        const result = validate(data);
         if (result !== true && result !== undefined) {
-          throw new Error(typeof result === 'string' ? result : 'Invalid response');
+          const message = typeof result === 'string'
+            ? result
+            : (result && typeof result === 'object' && typeof result.message === 'string'
+              ? result.message
+              : 'Response validation failed');
+          throw new RequestErrorCtor(message, 'invalid_response', { url, response: data });
         }
       }
+
       return data;
     }
 
@@ -991,6 +1093,15 @@
       if (!queue) return task();
       return queue.enqueue(task);
     }
+
+    const STREAM_STATES = Object.freeze({
+      IDLE: 'idle',
+      CONNECTING: 'connecting',
+      OPEN: 'open',
+      ERROR: 'error',
+      POLLING: 'polling'
+    });
+    const STREAM_POLL_INTERVAL_MS = 8000;
 
     function isRecord(value) {
       return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -2776,12 +2887,15 @@
         this.chunkTimer = null;
         this.fetchInFlight = false;
         this.eventSource = null;
+        this.eventSourceListeners = [];
         this.streamFallbackTimer = null;
         this.streamReconnectTimer = null;
         this.streamPrimed = false;
         this.awaitingInitialStream = true;
         this.lastStreamFallbackAt = 0;
         this.streamRetryAttempt = 0;
+        this.streamState = STREAM_STATES.IDLE;
+        this.pollingTimer = null;
         this.stateRequestQueue = createAsyncQueue({ concurrency: 1 });
         this.rafId = null;
         this.distance = 0;
@@ -2827,6 +2941,7 @@
 
       dispose() {
         this.disconnectStream();
+        this.stopPolling();
         this.clearTimers();
         if (this.measureNode && this.measureNode.parentNode) {
           this.measureNode.parentNode.removeChild(this.measureNode);
@@ -3681,6 +3796,57 @@
         }
       }
 
+      setStreamState(nextState) {
+        if (!Object.values(STREAM_STATES).includes(nextState)) return;
+        if (this.streamState === nextState) return;
+        this.streamState = nextState;
+        if (nextState === STREAM_STATES.OPEN) {
+          this.streamRetryAttempt = 0;
+        }
+      }
+
+      detachEventSourceListeners(source = this.eventSource) {
+        if (!source || !Array.isArray(this.eventSourceListeners)) {
+          this.eventSourceListeners = [];
+          return;
+        }
+        for (const entry of this.eventSourceListeners) {
+          const { type, handler } = entry || {};
+          if (!type || typeof handler !== 'function') continue;
+          try {
+            source.removeEventListener(type, handler);
+          } catch (err) {
+            // ignore listener removal errors
+          }
+        }
+        this.eventSourceListeners = [];
+      }
+
+      startPolling(reason = 'stream-error') {
+        const alreadyPolling = Boolean(this.pollingTimer);
+        if (!alreadyPolling) {
+          const poll = () => {
+            if (!this.fetchInFlight) {
+              this.fetchState();
+            }
+          };
+          poll();
+          this.pollingTimer = setInterval(poll, STREAM_POLL_INTERVAL_MS);
+        }
+        this.setStreamState(STREAM_STATES.POLLING);
+        this.debugSet('Status', `polling (${reason})`);
+      }
+
+      stopPolling() {
+        if (this.pollingTimer) {
+          clearInterval(this.pollingTimer);
+          this.pollingTimer = null;
+        }
+        if (this.streamState === STREAM_STATES.POLLING) {
+          this.setStreamState(STREAM_STATES.IDLE);
+        }
+      }
+
       scheduleStreamFallback() {
         if (this.streamPrimed || !this.awaitingInitialStream) return;
         if (this.streamFallbackTimer) {
@@ -3721,7 +3887,15 @@
             ? 'initialising; fetching state'
             : 'stream error; fetching';
         this.debugSet('Status', status);
-        this.fetchState();
+        const shouldStartPolling = reason !== 'manual';
+        const wasPolling = Boolean(this.pollingTimer);
+        if (shouldStartPolling) {
+          const pollReason = reason === 'timeout' ? 'prime-timeout' : reason;
+          this.startPolling(pollReason);
+        }
+        if (!shouldStartPolling || wasPolling) {
+          this.fetchState();
+        }
       }
 
       scheduleStreamReconnect(reason = 'error') {
@@ -3733,12 +3907,20 @@
           this.streamReconnectTimer = null;
           this.connectStream();
         }, delay);
+        this.awaitingInitialStream = true;
+        this.setStreamState(STREAM_STATES.ERROR);
         this.debugSet('Status', `stream reconnecting (${reason})`);
       }
 
-      disconnectStream() {
+      disconnectStream(options = {}) {
+        const { preservePolling = false } = options;
         if (this.eventSource) {
-          this.eventSource.close();
+          this.detachEventSourceListeners(this.eventSource);
+          try {
+            this.eventSource.close();
+          } catch (err) {
+            // ignore close errors
+          }
           this.eventSource = null;
         }
         if (this.streamFallbackTimer) {
@@ -3750,29 +3932,48 @@
           this.streamReconnectTimer = null;
         }
         this.awaitingInitialStream = false;
+        if (!preservePolling) {
+          this.stopPolling();
+          this.setStreamState(STREAM_STATES.IDLE);
+        } else if (this.pollingTimer) {
+          this.setStreamState(STREAM_STATES.POLLING);
+        } else {
+          this.setStreamState(STREAM_STATES.IDLE);
+        }
       }
 
       connectStream() {
-        this.disconnectStream();
+        this.disconnectStream({ preservePolling: true });
         try {
           const source = new EventSource(`${this.server}/ticker/stream`);
           this.eventSource = source;
+          this.eventSourceListeners = [];
           this.streamPrimed = false;
           this.awaitingInitialStream = true;
+          this.setStreamState(STREAM_STATES.CONNECTING);
+          this.debugSet('Status', 'stream connecting');
           this.scheduleStreamFallback();
 
-          source.addEventListener('open', () => {
-            this.streamRetryAttempt = 0;
+          const register = (type, handler) => {
+            if (!type || typeof handler !== 'function') return;
+            source.addEventListener(type, handler);
+            this.eventSourceListeners.push({ type, handler });
+          };
+
+          register('open', () => {
             if (this.streamReconnectTimer) {
               clearTimeout(this.streamReconnectTimer);
               this.streamReconnectTimer = null;
             }
+            this.setStreamState(STREAM_STATES.OPEN);
             this.debugSet('Status', 'stream online');
+            this.stopPolling();
           });
 
-          source.addEventListener('error', () => {
+          register('error', () => {
             this.debugSet('Status', 'stream reconnecting');
             if (this.eventSource === source) {
+              this.detachEventSourceListeners(source);
               try {
                 source.close();
               } catch (err) {
@@ -3785,7 +3986,7 @@
             this.scheduleStreamReconnect('error');
           });
 
-          source.addEventListener('ticker', event => {
+          register('ticker', event => {
             try {
               const payload = JSON.parse(event.data);
               this.handleTickerPayload(payload);
@@ -3795,7 +3996,7 @@
             }
           });
 
-          source.addEventListener('overlay', event => {
+          register('overlay', event => {
             try {
               const payload = JSON.parse(event.data);
               this.applyOverlayData(payload);
@@ -3805,7 +4006,7 @@
             }
           });
 
-          source.addEventListener('popup', event => {
+          register('popup', event => {
             try {
               const payload = JSON.parse(event.data);
               this.handlePopupPayload(payload);
@@ -3815,7 +4016,7 @@
             }
           });
 
-          source.addEventListener('brb', event => {
+          register('brb', event => {
             try {
               const payload = JSON.parse(event.data);
               this.handleBrbPayload(payload);
@@ -3825,7 +4026,7 @@
             }
           });
 
-          source.addEventListener('slate', event => {
+          register('slate', event => {
             try {
               const payload = JSON.parse(event.data);
               this.handleSlatePayload(payload);
@@ -3839,6 +4040,7 @@
           this.debugSet('Status', 'stream error');
           this.streamPrimed = false;
           this.triggerStreamFallback('error');
+          this.startPolling('exception');
           this.scheduleStreamReconnect('exception');
         }
       }
