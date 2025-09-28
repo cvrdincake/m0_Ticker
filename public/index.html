@@ -6825,8 +6825,16 @@
     }
 
     function registerEventHandlers() {
+
       if (handlersRegistered) return;
       handlersRegistered = true;
+
+      // Defensive: log missing elements
+      for (const [key, value] of Object.entries(el)) {
+        if (!value) {
+          console.warn(`[Ticker] Missing DOM element: el.${key}`);
+        }
+      }
 
       if (el.previewFrame) {
         el.previewFrame.addEventListener('load', () => {
