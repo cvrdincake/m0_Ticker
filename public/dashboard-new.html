@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticker Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .dashboard {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .panel h2 {
+      margin-bottom: 15px;
+      color: #fff;
+      font-size: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 10px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4444;
+    }
+
+    .status-dot.connected {
+      background: #44ff44;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+
+    input, button, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+      font-size: 14px;
+    }
+
+    input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    button {
+      background: rgba(74, 144, 226, 0.8);
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: rgba(74, 144, 226, 1);
+      transform: translateY(-1px);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    button.danger {
+      background: rgba(255, 68, 68, 0.8);
+    }
+
+    button.danger:hover {
+      background: rgba(255, 68, 68, 1);
+    }
+
+    button.success {
+      background: rgba(34, 197, 94, 0.8);
+    }
+
+    button.success:hover {
+      background: rgba(34, 197, 94, 1);
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .message-list {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+
+    .message-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      margin-bottom: 5px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+    }
+
+    .message-text {
+      flex: 1;
+      margin-right: 10px;
+      word-break: break-word;
+    }
+
+    .delete-btn {
+      background: rgba(255, 68, 68, 0.8);
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      width: auto;
+    }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+    }
+
+    .control-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: end;
+    }
+
+    .tabs {
+      display: flex;
+      margin-bottom: 20px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 4px;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .tab.active {
+      background: rgba(74, 144, 226, 0.8);
+      color: white;
+    }
+
+    .widget-content {
+      display: none;
+    }
+
+    .widget-content.active {
+      display: block;
+    }
+
+    .loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(255, 255, 255, 0.3);
+      border-top: 4px solid white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      border-left: 4px solid #4a90e2;
+      z-index: 1001;
+      transform: translateX(400px);
+      transition: transform 0.3s ease;
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast.error {
+      border-left-color: #ff4444;
+    }
+
+    .toast.success {
+      border-left-color: #44ff44;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Status Panel -->
+    <div class="panel">
+      <h2>Server Status</h2>
+      <div class="status">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
+    </div>
+
+    <!-- Ticker Controls -->
+    <div class="panel">
+      <h2>Ticker Controls</h2>
+      <div class="controls">
+        <div class="form-group">
+          <label>Duration (seconds)</label>
+          <input type="number" id="duration" value="5" min="1" max="60">
+        </div>
+        <div class="form-group">
+          <label>Interval (minutes)</label>
+          <input type="number" id="interval" value="0" min="0" max="60" step="0.1">
+        </div>
+        <div class="button-row">
+          <button id="startTicker" class="success">Start</button>
+          <button id="stopTicker" class="danger">Stop</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages Panel -->
+    <div class="panel">
+      <h2>Ticker Messages</h2>
+      <div class="form-group">
+        <input type="text" id="messageInput" placeholder="Enter ticker message...">
+      </div>
+      <div class="button-row">
+        <button id="addMessage">Add Message</button>
+        <button id="clearMessages" class="danger">Clear All</button>
+      </div>
+      <div class="message-list" id="messageList">
+        <div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 20px;">
+          No messages yet
+        </div>
+      </div>
+    </div>
+
+    <!-- Widgets Panel -->
+    <div class="panel">
+      <h2>Widgets</h2>
+      <div class="tabs">
+        <button class="tab active" data-widget="overlay">Overlay</button>
+        <button class="tab" data-widget="popup">Popup</button>
+        <button class="tab" data-widget="brb">BRB</button>
+        <button class="tab" data-widget="themes">Themes</button>
+      </div>
+
+      <!-- Overlay Widget -->
+      <div class="widget-content active" id="overlay-widget">
+        <div class="form-group">
+          <label>Server URL</label>
+          <input type="text" id="serverUrl" value="ws://localhost:3000/ws">
+        </div>
+        <div class="button-row">
+          <button id="testOverlay">Test Overlay</button>
+          <button id="openOverlay">Open Overlay</button>
+        </div>
+      </div>
+
+      <!-- Popup Widget -->
+      <div class="widget-content" id="popup-widget">
+        <div class="form-group">
+          <label>Popup Message</label>
+          <input type="text" id="popupMessage" placeholder="Enter popup message...">
+        </div>
+        <div class="form-group">
+          <label>Duration (seconds)</label>
+          <input type="number" id="popupDuration" value="3" min="1" max="30">
+        </div>
+        <button id="showPopup">Show Popup</button>
+      </div>
+
+      <!-- BRB Widget -->
+      <div class="widget-content" id="brb-widget">
+        <div class="form-group">
+          <label>BRB Message</label>
+          <input type="text" id="brbMessage" placeholder="Be Right Back..." value="Be Right Back">
+        </div>
+        <div class="button-row">
+          <button id="startBrb" class="success">Start BRB</button>
+          <button id="stopBrb" class="danger">Stop BRB</button>
+        </div>
+      </div>
+
+      <!-- Themes Widget -->
+      <div class="widget-content" id="themes-widget">
+        <div class="form-group">
+          <label>Theme</label>
+          <select id="themeSelect">
+            <option value="default">Default</option>
+            <option value="neon">Neon</option>
+            <option value="minimal">Minimal</option>
+            <option value="retro">Retro</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Accent Color</label>
+          <input type="color" id="accentColor" value="#4a90e2">
+        </div>
+        <button id="applyTheme">Apply Theme</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <script>
+    // Global state
+    var state = {
+      messages: [],
+      isRunning: false,
+      websocket: null,
+      connected: false
+    };
+
+    var elements = {};
+
+    // Initialize DOM elements
+    function initElements() {
+      elements.statusDot = document.getElementById('statusDot');
+      elements.statusText = document.getElementById('statusText');
+      elements.messageInput = document.getElementById('messageInput');
+      elements.messageList = document.getElementById('messageList');
+      elements.addMessage = document.getElementById('addMessage');
+      elements.clearMessages = document.getElementById('clearMessages');
+      elements.startTicker = document.getElementById('startTicker');
+      elements.stopTicker = document.getElementById('stopTicker');
+      elements.duration = document.getElementById('duration');
+      elements.interval = document.getElementById('interval');
+      elements.loading = document.getElementById('loading');
+      
+      // Widget elements
+      elements.serverUrl = document.getElementById('serverUrl');
+      elements.testOverlay = document.getElementById('testOverlay');
+      elements.openOverlay = document.getElementById('openOverlay');
+      elements.popupMessage = document.getElementById('popupMessage');
+      elements.popupDuration = document.getElementById('popupDuration');
+      elements.showPopup = document.getElementById('showPopup');
+      elements.brbMessage = document.getElementById('brbMessage');
+      elements.startBrb = document.getElementById('startBrb');
+      elements.stopBrb = document.getElementById('stopBrb');
+      elements.themeSelect = document.getElementById('themeSelect');
+      elements.accentColor = document.getElementById('accentColor');
+      elements.applyTheme = document.getElementById('applyTheme');
+    }
+
+    // WebSocket functions
+    function connectWebSocket() {
+      if (state.websocket) {
+        state.websocket.close();
+      }
+
+      try {
+        showLoading();
+        updateStatus('connecting', 'Connecting to server...');
+        
+        var wsUrl = elements.serverUrl.value.replace('http://', 'ws://').replace('https://', 'wss://');
+        if (!wsUrl.includes('/ws')) {
+          wsUrl = wsUrl.replace(':3000', ':3000/ws');
+        }
+        
+        state.websocket = new WebSocket(wsUrl);
+        
+        state.websocket.onopen = function() {
+          hideLoading();
+          updateStatus('connected', 'Connected to server');
+          state.connected = true;
+          showToast('Connected to server', 'success');
+        };
+        
+        state.websocket.onmessage = function(event) {
+          try {
+            var data = JSON.parse(event.data);
+            handleWebSocketMessage(data);
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+        
+        state.websocket.onclose = function() {
+          updateStatus('disconnected', 'Disconnected from server');
+          state.connected = false;
+          hideLoading();
+          
+          // Attempt to reconnect after 3 seconds
+          setTimeout(connectWebSocket, 3000);
+        };
+        
+        state.websocket.onerror = function(error) {
+          hideLoading();
+          updateStatus('error', 'Connection error');
+          console.error('WebSocket error:', error);
+          showToast('Connection failed', 'error');
+        };
+        
+      } catch (error) {
+        hideLoading();
+        updateStatus('error', 'Failed to connect');
+        showToast('Failed to connect: ' + error.message, 'error');
+      }
+    }
+
+    function sendWebSocketMessage(type, data) {
+      if (!state.websocket || state.websocket.readyState !== WebSocket.OPEN) {
+        showToast('Not connected to server', 'error');
+        return false;
+      }
+      
+      try {
+        var message = {
+          type: type,
+          data: data || {}
+        };
+        state.websocket.send(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        showToast('Failed to send message: ' + error.message, 'error');
+        return false;
+      }
+    }
+
+    function handleWebSocketMessage(message) {
+      switch (message.type) {
+        case 'state-update':
+          if (message.data && message.data.messages) {
+            state.messages = message.data.messages;
+            renderMessages();
+          }
+          break;
+        case 'ticker-status':
+          state.isRunning = message.data.isRunning;
+          updateTickerButtons();
+          break;
+        default:
+          console.log('Unknown message type:', message.type);
+      }
+    }
+
+    // UI Update functions
+    function updateStatus(status, text) {
+      elements.statusText.textContent = text;
+      elements.statusDot.className = 'status-dot' + (status === 'connected' ? ' connected' : '');
+    }
+
+    function showLoading() {
+      elements.loading.classList.add('show');
+    }
+
+    function hideLoading() {
+      elements.loading.classList.remove('show');
+    }
+
+    function showToast(message, type) {
+      // Remove existing toast
+      var existingToast = document.querySelector('.toast');
+      if (existingToast) {
+        existingToast.remove();
+      }
+      
+      var toast = document.createElement('div');
+      toast.className = 'toast ' + (type || '');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      
+      // Show toast
+      setTimeout(function() {
+        toast.classList.add('show');
+      }, 100);
+      
+      // Auto hide after 3 seconds
+      setTimeout(function() {
+        toast.classList.remove('show');
+        setTimeout(function() {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      }, 3000);
+      
+      // Click to dismiss
+      toast.addEventListener('click', function() {
+        toast.classList.remove('show');
+        setTimeout(function() {
+          if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+          }
+        }, 300);
+      });
+    }
+
+    function renderMessages() {
+      if (state.messages.length === 0) {
+        elements.messageList.innerHTML = '<div style="text-align: center; color: rgba(255, 255, 255, 0.6); padding: 20px;">No messages yet</div>';
+        return;
+      }
+      
+      var html = '';
+      for (var i = 0; i < state.messages.length; i++) {
+        var message = state.messages[i];
+        html += '<div class="message-item">';
+        html += '<span class="message-text">' + escapeHtml(message.text || message) + '</span>';
+        html += '<button class="delete-btn" onclick="removeMessage(' + i + ')">Remove</button>';
+        html += '</div>';
+      }
+      elements.messageList.innerHTML = html;
+    }
+
+    function updateTickerButtons() {
+      elements.startTicker.disabled = state.isRunning;
+      elements.stopTicker.disabled = !state.isRunning;
+      
+      if (state.isRunning) {
+        elements.startTicker.textContent = 'Running';
+        elements.stopTicker.textContent = 'Stop';
+      } else {
+        elements.startTicker.textContent = 'Start';
+        elements.stopTicker.textContent = 'Stopped';
+      }
+    }
+
+    // Message functions
+    function addMessage() {
+      var messageText = elements.messageInput.value.trim();
+      if (!messageText) {
+        showToast('Please enter a message', 'error');
+        return;
+      }
+      
+      showLoading();
+      if (sendWebSocketMessage('add-message', { text: messageText })) {
+        elements.messageInput.value = '';
+        showToast('Message added', 'success');
+      }
+      hideLoading();
+    }
+
+    function removeMessage(index) {
+      showLoading();
+      if (sendWebSocketMessage('remove-message', { index: index })) {
+        showToast('Message removed', 'success');
+      }
+      hideLoading();
+    }
+
+    function clearMessages() {
+      if (state.messages.length === 0) {
+        showToast('No messages to clear', 'error');
+        return;
+      }
+      
+      if (confirm('Clear all messages?')) {
+        showLoading();
+        if (sendWebSocketMessage('clear-messages')) {
+          showToast('All messages cleared', 'success');
+        }
+        hideLoading();
+      }
+    }
+
+    // Ticker control functions
+    function startTicker() {
+      var duration = parseInt(elements.duration.value) || 5;
+      var interval = parseFloat(elements.interval.value) || 0;
+      
+      if (state.messages.length === 0) {
+        showToast('Add some messages first', 'error');
+        return;
+      }
+      
+      showLoading();
+      if (sendWebSocketMessage('start-ticker', { 
+        duration: duration,
+        interval: interval * 60 * 1000 // convert minutes to milliseconds
+      })) {
+        showToast('Ticker started', 'success');
+      }
+      hideLoading();
+    }
+
+    function stopTicker() {
+      showLoading();
+      if (sendWebSocketMessage('stop-ticker')) {
+        showToast('Ticker stopped', 'success');
+      }
+      hideLoading();
+    }
+
+    // Widget functions
+    function initWidgets() {
+      // Tab switching
+      var tabs = document.querySelectorAll('.tab');
+      var contents = document.querySelectorAll('.widget-content');
+      
+      tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          var widgetName = this.getAttribute('data-widget');
+          
+          // Update active tab
+          tabs.forEach(function(t) { t.classList.remove('active'); });
+          this.classList.add('active');
+          
+          // Update active content
+          contents.forEach(function(c) { c.classList.remove('active'); });
+          document.getElementById(widgetName + '-widget').classList.add('active');
+        });
+      });
+      
+      // Widget-specific functionality
+      elements.testOverlay.addEventListener('click', function() {
+        showLoading();
+        if (sendWebSocketMessage('test-overlay')) {
+          showToast('Overlay test sent', 'success');
+        }
+        hideLoading();
+      });
+      
+      elements.openOverlay.addEventListener('click', function() {
+        var overlayUrl = window.location.origin + '/ticker/output.html';
+        window.open(overlayUrl, '_blank');
+        showToast('Overlay opened in new window', 'success');
+      });
+      
+      elements.showPopup.addEventListener('click', function() {
+        var message = elements.popupMessage.value.trim();
+        var duration = parseInt(elements.popupDuration.value) || 3;
+        
+        if (!message) {
+          showToast('Enter a popup message', 'error');
+          return;
+        }
+        
+        showLoading();
+        if (sendWebSocketMessage('show-popup', { 
+          message: message,
+          duration: duration * 1000
+        })) {
+          showToast('Popup shown', 'success');
+          elements.popupMessage.value = '';
+        }
+        hideLoading();
+      });
+      
+      elements.startBrb.addEventListener('click', function() {
+        var message = elements.brbMessage.value.trim() || 'Be Right Back';
+        
+        showLoading();
+        if (sendWebSocketMessage('start-brb', { message: message })) {
+          showToast('BRB mode started', 'success');
+        }
+        hideLoading();
+      });
+      
+      elements.stopBrb.addEventListener('click', function() {
+        showLoading();
+        if (sendWebSocketMessage('stop-brb')) {
+          showToast('BRB mode stopped', 'success');
+        }
+        hideLoading();
+      });
+      
+      elements.applyTheme.addEventListener('click', function() {
+        var theme = elements.themeSelect.value;
+        var accent = elements.accentColor.value;
+        
+        showLoading();
+        if (sendWebSocketMessage('set-theme', { 
+          theme: theme,
+          accent: accent
+        })) {
+          showToast('Theme applied', 'success');
+        }
+        hideLoading();
+      });
+    }
+
+    // Event handlers
+    function initEventHandlers() {
+      elements.addMessage.addEventListener('click', addMessage);
+      elements.clearMessages.addEventListener('click', clearMessages);
+      elements.startTicker.addEventListener('click', startTicker);
+      elements.stopTicker.addEventListener('click', stopTicker);
+      
+      // Enter key support
+      elements.messageInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          addMessage();
+        }
+      });
+      
+      elements.popupMessage.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          elements.showPopup.click();
+        }
+      });
+      
+      elements.brbMessage.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          elements.startBrb.click();
+        }
+      });
+    }
+
+    // Utility functions
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initialize dashboard
+    function init() {
+      initElements();
+      initEventHandlers();
+      initWidgets();
+      connectWebSocket();
+      updateTickerButtons();
+    }
+
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

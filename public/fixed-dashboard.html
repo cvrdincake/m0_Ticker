@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quick Dashboard Fix</title>
+    <style>
+        .tab-button { margin: 5px; padding: 10px; }
+        .tab-button.active { background-color: #007cba; color: white; }
+        .panel { display: none; padding: 20px; }
+        .panel.active { display: block; }
+        .message-form { margin: 20px 0; }
+        .message-form input { padding: 10px; width: 300px; }
+        .message-form button { padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Ticker Dashboard - Fixed Version</h1>
+    
+    <!-- Tab Navigation -->
+    <div id="tabContainer">
+        <button class="tab-button active" data-panel="overlay">Overlay</button>
+        <button class="tab-button" data-panel="popup">Popup</button>
+        <button class="tab-button" data-panel="slate">Slate</button>
+        <button class="tab-button" data-panel="brb">BRB</button>
+    </div>
+    
+    <!-- Message Form -->
+    <div class="message-form">
+        <form id="messageForm">
+            <input type="text" id="newMessage" placeholder="Add a ticker message…" />
+            <button type="submit">Add Message</button>
+        </form>
+        <div id="messageStatus"></div>
+    </div>
+    
+    <!-- Panels -->
+    <div id="overlay" class="panel active">
+        <h2>Overlay Settings</h2>
+        <p>Overlay customization controls would go here...</p>
+    </div>
+    
+    <div id="popup" class="panel">
+        <h2>Popup Settings</h2>
+        <p>Popup customization controls would go here...</p>
+    </div>
+    
+    <div id="slate" class="panel">
+        <h2>Slate Settings</h2>
+        <p>Slate customization controls would go here...</p>
+    </div>
+    
+    <div id="brb" class="panel">
+        <h2>BRB Settings</h2>
+        <p>BRB customization controls would go here...</p>
+    </div>
+
+    <script>
+        // Simple, reliable tab switching
+        function initTabSwitching() {
+            var tabButtons = document.querySelectorAll('.tab-button');
+            var panels = document.querySelectorAll('.panel');
+            
+            for (var i = 0; i < tabButtons.length; i++) {
+                tabButtons[i].addEventListener('click', function() {
+                    var targetPanel = this.getAttribute('data-panel');
+                    
+                    // Remove active class from all tabs and panels
+                    for (var j = 0; j < tabButtons.length; j++) {
+                        tabButtons[j].classList.remove('active');
+                    }
+                    for (var k = 0; k < panels.length; k++) {
+                        panels[k].classList.remove('active');
+                    }
+                    
+                    // Add active class to clicked tab and corresponding panel
+                    this.classList.add('active');
+                    var panel = document.getElementById(targetPanel);
+                    if (panel) {
+                        panel.classList.add('active');
+                    }
+                    
+                    console.log('Switched to panel:', targetPanel);
+                });
+            }
+        }
+        
+        // Simple message form handling
+        function initMessageForm() {
+            var form = document.getElementById('messageForm');
+            var input = document.getElementById('newMessage');
+            var status = document.getElementById('messageStatus');
+            
+            if (form && input && status) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var message = input.value.trim();
+                    
+                    if (message) {
+                        status.innerHTML = 'Message added: ' + message;
+                        input.value = '';
+                        
+                        // Here you would normally send to server
+                        console.log('Would send message:', message);
+                    } else {
+                        status.innerHTML = 'Please enter a message';
+                    }
+                });
+            }
+        }
+        
+        // Initialize everything when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initTabSwitching();
+            initMessageForm();
+            console.log('Dashboard initialized successfully');
+        });
+    </script>
+</body>
+</html>

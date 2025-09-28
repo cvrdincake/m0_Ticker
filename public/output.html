@@ -13,6 +13,11 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <link rel="stylesheet" href="css/themes.css">
+  <script src="js/shared-utils.js"></script>
+  <script src="js/shared-config.js"></script>
+  <script src="js/scene-normaliser.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/ticker-websocket.js"></script>
   <style>
     :root {
       --ui-scale: 1.75;
@@ -160,11 +165,23 @@
     }
 
     .ticker.brb-hidden,
-    .popup.brb-hidden {
+    .popup.brb-hidden,
+    .slate-widget.brb-hidden {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
       transition: none !important;
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .ticker {
@@ -805,42 +822,41 @@
   <script src="js/shared-utils.js"></script>
   <script src="js/request-client.js"></script>
   <script>
-    const {
-      OVERLAY_THEMES,
-      normaliseHighlightList,
-      normaliseMode: sharedNormaliseMode,
-      normalisePosition: sharedNormalisePosition,
-      normaliseTheme: sharedNormaliseTheme,
-      normaliseServerBase: sharedNormaliseServerBase,
-      normaliseServerBaseUrl: sharedNormaliseServerBaseUrl,
-      isSafeCssColor,
-      clampScaleValue,
-      clampPopupScaleValue,
-      clampSlateRotationSeconds,
-      normaliseSlateNotes,
+    var TickerShared = window.TickerShared || {};
+    var OVERLAY_THEMES = TickerShared.OVERLAY_THEMES;
+    var normaliseHighlightList = TickerShared.normaliseHighlightList;
+    var sharedNormaliseMode = TickerShared.normaliseMode;
+    var sharedNormalisePosition = TickerShared.normalisePosition;
+    var sharedNormaliseTheme = TickerShared.normaliseTheme;
+    var sharedNormaliseServerBase = TickerShared.normaliseServerBase;
+    var sharedNormaliseServerBaseUrl = TickerShared.normaliseServerBaseUrl;
+    var isSafeCssColor = TickerShared.isSafeCssColor;
+    var clampScaleValue = TickerShared.clampScaleValue;
+    var clampPopupScaleValue = TickerShared.clampPopupScaleValue;
+    var clampSlateRotationSeconds = TickerShared.clampSlateRotationSeconds;
+    var normaliseSlateNotes = TickerShared.normaliseSlateNotes;
 
-    } = window.TickerShared || {};
-
-    const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
-    const manualNormaliseServerBase = (value, fallback = DEFAULT_SERVER_URL) => {
-      const fallbackValue = typeof fallback === 'string' && fallback.trim()
+    var DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
+    var manualNormaliseServerBase = function(value, fallback) {
+      fallback = fallback || DEFAULT_SERVER_URL;
+      var fallbackValue = typeof fallback === 'string' && fallback.trim()
         ? fallback.trim()
         : DEFAULT_SERVER_URL;
-      const raw = typeof value === 'string' ? value.trim() : '';
-      const target = raw || fallbackValue;
-      const cleaned = target
+      var raw = typeof value === 'string' ? value.trim() : '';
+      var target = raw || fallbackValue;
+      var cleaned = target
         .replace(/(?:\/ticker)+\/?$/i, '')
         .replace(/\/+$/g, '');
-      const fallbackClean = fallbackValue.replace(/\/+$/g, '');
+      var fallbackClean = fallbackValue.replace(/\/+$/g, '');
       return cleaned || fallbackClean;
     };
-    const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
-      ? (value, fallback) => sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
+    var normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
+      ? function(value, fallback) { return sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback); }
       : typeof sharedNormaliseServerBaseUrl === 'function'
-        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
+        ? function(value, fallback) { return sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback); }
         : manualNormaliseServerBase;
 
-    const SPECIAL_MAP = {
+    var SPECIAL_MAP = {
       '~~': 'rainbow',
       '%%': 'sparkle',
       '^^': 'bounce',
@@ -848,39 +864,40 @@
       '!!': 'glitch'
     };
 
-    const sharedConfig = window.SharedConfig || {};
+    var sharedConfig = window.SharedConfig || {};
 
     function normaliseThemeList(list) {
       if (!Array.isArray(list)) return [];
-      const seen = new Set();
-      const normalised = [];
-      for (const entry of list) {
+      var seen = new Set();
+      var normalised = [];
+      for (var i = 0; i < list.length; i++) {
+        var entry = list[i];
         if (typeof entry !== 'string') continue;
-        const trimmed = entry.trim().toLowerCase();
+        var trimmed = entry.trim().toLowerCase();
         if (!trimmed || seen.has(trimmed)) continue;
         seen.add(trimmed);
         normalised.push(trimmed);
       }
       return normalised;
     }
-    const DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
+    var DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
       ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
       : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
-    const DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+    var DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
       ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
       : DEFAULT_HIGHLIGHTS.join(',');
-    const MAX_MESSAGES = 50;
-    const MAX_MESSAGE_LENGTH = 280;
-    const MAX_POPUP_SECONDS = 600;
-    const MAX_BRB_LENGTH = 280;
-    const MAX_SLATE_TITLE_LENGTH = 64;
-    const MAX_SLATE_TEXT_LENGTH = 200;
-    const MAX_SLATE_NOTES = 6;
-    const HIDE_TRANSITION_FALLBACK_MS = 700;
-    const themeOptions = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
+    var MAX_MESSAGES = 50;
+    var MAX_MESSAGE_LENGTH = 280;
+    var MAX_POPUP_SECONDS = 600;
+    var MAX_BRB_LENGTH = 280;
+    var MAX_SLATE_TITLE_LENGTH = 64;
+    var MAX_SLATE_TEXT_LENGTH = 200;
+    var MAX_SLATE_NOTES = 6;
+    var HIDE_TRANSITION_FALLBACK_MS = 700;
+    var themeOptions = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
       ? OVERLAY_THEMES.slice()
       : normaliseThemeList(sharedConfig.OVERLAY_THEMES);
-    const THEME_CLASSNAMES = themeOptions.map(theme => `ticker--${theme}`);
+    var THEME_CLASSNAMES = themeOptions.map(function(theme) { return 'ticker--' + theme; });
 
     const DEFAULT_OVERLAY = {
       label: 'LIVE',
@@ -2000,8 +2017,11 @@
       return [colorStringToNumber(base), colorStringToNumber(alt)];
     }
 
-    class MidnightGlassEngine {
-      constructor(container, options = {}) {
+    function MidnightGlassEngine(container, options) {
+        if (!(this instanceof MidnightGlassEngine)) {
+            return new MidnightGlassEngine(container, options);
+        }
+        options = options || {};
         this.name = 'midnight-glass';
         this.container = container;
         this.reducedMotion = !!options.reducedMotion;
@@ -2048,16 +2068,16 @@
         }
       }
 
-      createOrbs() {
+      MidnightGlassEngine.prototype.createOrbs = function() {
         if (!this.app) return;
-        const width = this.app.renderer.width;
-        const height = this.app.renderer.height;
-        const count = Math.max(10, Math.round((width + height) / 160));
+        var width = this.app.renderer.width;
+        var height = this.app.renderer.height;
+        var count = Math.max(10, Math.round((width + height) / 160));
         this.orbs = [];
-        for (let i = 0; i < count; i++) {
-          const graphic = new PIXI.Graphics();
-          const radius = this.randomBetween(70, 160);
-          const color = this.palette[i % this.palette.length];
+        for (var i = 0; i < count; i++) {
+          var graphic = new PIXI.Graphics();
+          var radius = this.randomBetween(70, 160);
+          var color = this.palette[i % this.palette.length];
           graphic.beginFill(color, 0.12);
           graphic.drawCircle(0, 0, radius);
           graphic.endFill();
@@ -2067,23 +2087,25 @@
           this.app.stage.addChild(graphic);
           this.orbs.push({
             sprite: graphic,
-            radius,
+            radius: radius,
             vx: (Math.random() - 0.5) * 0.25,
             vy: (Math.random() - 0.5) * 0.25,
             drift: 0.4 + Math.random() * 0.6
           });
         }
-      }
+      };
 
-      randomBetween(min, max) {
+      MidnightGlassEngine.prototype.randomBetween = function(min, max) {
         return min + Math.random() * (max - min);
-      }
+      };
 
-      tick(delta) {
+      MidnightGlassEngine.prototype.tick = function(delta) {
         if (!this.app || this.reducedMotion) return;
-        const width = this.app.renderer.width;
-        const height = this.app.renderer.height;
-        for (const orb of this.orbs) {
+        var width = this.app.renderer.width;
+        var height = this.app.renderer.height;
+        var orb;
+        for (var i = 0; i < this.orbs.length; i++) {
+          orb = this.orbs[i];
           orb.sprite.x += orb.vx * delta * orb.drift;
           orb.sprite.y += orb.vy * delta * orb.drift;
           if (orb.sprite.x < -orb.radius) orb.sprite.x = width + orb.radius;
@@ -2091,20 +2113,22 @@
           if (orb.sprite.y < -orb.radius) orb.sprite.y = height + orb.radius;
           if (orb.sprite.y > height + orb.radius) orb.sprite.y = -orb.radius;
         }
-      }
+      };
 
-      updateColors(colors = {}) {
+      MidnightGlassEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
         this.palette = createMidnightPalette(colors.accent, colors.accentSecondary);
-        this.orbs.forEach((orb, index) => {
-          const color = this.palette[index % this.palette.length];
+        var self = this;
+        this.orbs.forEach(function(orb, index) {
+          var color = self.palette[index % self.palette.length];
           orb.sprite.clear();
           orb.sprite.beginFill(color, 0.12);
           orb.sprite.drawCircle(0, 0, orb.radius);
           orb.sprite.endFill();
         });
-      }
+      };
 
-      setReducedMotion(flag) {
+      MidnightGlassEngine.prototype.setReducedMotion = function(flag) {
         this.reducedMotion = !!flag;
         if (!this.app) return;
         if (this.reducedMotion) {
@@ -2112,31 +2136,33 @@
         } else {
           this.app.ticker.start();
         }
-      }
+      };
 
-      resize() {
+      MidnightGlassEngine.prototype.resize = function() {
         if (!this.app || !this.container) return;
-        const width = this.container.clientWidth || 1;
-        const height = this.container.clientHeight || 1;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
         this.app.renderer.resize(width, height);
         this.createOrbs();
         if (this.reducedMotion) {
           this.app.render();
         }
-      }
+      };
 
-      destroy() {
+      MidnightGlassEngine.prototype.destroy = function() {
         if (this.app) {
           this.app.ticker.remove(this.tick, this);
           this.app.destroy(true, { children: true, texture: true, baseTexture: true });
           this.app = null;
         }
         this.orbs = [];
-      }
     }
 
-    class AuroraNightEngine {
-      constructor(container, options = {}) {
+    function AuroraNightEngine(container, options) {
+        if (!(this instanceof AuroraNightEngine)) {
+            return new AuroraNightEngine(container, options);
+        }
+        options = options || {};
         this.name = 'aurora-night';
         this.container = container;
         this.reducedMotion = !!options.reducedMotion;
@@ -2146,117 +2172,244 @@
         this.mesh = null;
         this.uniforms = null;
         this.render = this.render.bind(this);
+        this.frameId = null;
+        
         if (!container || typeof THREE === 'undefined') return;
+        
         try {
-          this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-          const context = typeof this.renderer.getContext === 'function'
-            ? this.renderer.getContext()
-            : null;
-          if (!context) {
-            throw new Error('WebGL context unavailable');
-          }
-          this.renderer.setPixelRatio(window.devicePixelRatio || 1);
-          this.renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
-          this.renderer.domElement.style.width = '100%';
-          this.renderer.domElement.style.height = '100%';
-          this.renderer.domElement.style.pointerEvents = 'none';
-          container.appendChild(this.renderer.domElement);
-
-          this.scene = new THREE.Scene();
-          this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-          this.uniforms = {
-            u_time: { value: 0 },
-            u_colorA: { value: new THREE.Color(resolveColorString(options.accent, '#38bdf8')) },
-            u_colorB: { value: new THREE.Color(resolveColorString(options.accentSecondary, options.accent || '#f472b6')) }
-          };
-          const geometry = new THREE.PlaneGeometry(2, 2);
-          const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-          const fragmentShader = `precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }`;
-          const material = new THREE.ShaderMaterial({
-            uniforms: this.uniforms,
-            vertexShader,
-            fragmentShader,
-            transparent: true,
-            depthTest: false,
-            depthWrite: false
-          });
-          this.mesh = new THREE.Mesh(geometry, material);
-          this.scene.add(this.mesh);
+          this.initRenderer();
+          this.initScene();
           if (!this.reducedMotion) {
-            this.renderer.setAnimationLoop(this.render);
+            this.animate();
           } else {
-            this.render(performance.now());
+            this.render();
           }
         } catch (err) {
-          console.warn('[ticker] failed to initialise WebGL renderer', err);
-          if (this.renderer) {
-            try {
-              this.renderer.setAnimationLoop(null);
-            } catch (loopErr) {
-              // ignore
-            }
-            try {
-              this.renderer.dispose();
-            } catch (disposeErr) {
-              console.warn('[ticker] WebGL renderer dispose failed', disposeErr);
-            }
-            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
-              this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
-            }
-          }
-          this.renderer = null;
-          this.scene = null;
-          this.camera = null;
-          this.mesh = null;
-          this.uniforms = null;
+          console.warn('[ticker] failed to initialise Three.js renderer', err);
         }
+    }
+
+    AuroraNightEngine.prototype.initRenderer = function() {
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true, 
+            alpha: true 
+        });
+        
+        var context = this.renderer.getContext();
+        if (!context) {
+            throw new Error('WebGL context unavailable');
+        }
+
+        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+        this.renderer.setSize(
+            this.container.clientWidth || 1, 
+            this.container.clientHeight || 1
+        );
+        
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.pointerEvents = 'none';
+        
+        this.container.appendChild(this.renderer.domElement);
       }
 
-      render(time = performance.now()) {
+    AuroraNightEngine.prototype.initScene = function() {
+        if (!this.container || !this.renderer) return;
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        
+        this.uniforms = {
+            u_time: { value: 0 },
+            u_colorA: { value: new THREE.Color('#38bdf8') },
+            u_colorB: { value: new THREE.Color('#f472b6') }
+        };
+
+        try {
+            if (this.options.accent) {
+                this.uniforms.u_colorA.value.set(this.options.accent);
+            }
+            if (this.options.accentSecondary) {
+                this.uniforms.u_colorB.value.set(this.options.accentSecondary);
+            }
+        } catch (err) {
+            console.warn('[ticker] Failed to set initial colors', err);
+        }
+        
+        var geometry = new THREE.PlaneGeometry(2, 2);
+        var material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+            fragmentShader: 'precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }',
+            transparent: true
+        });
+
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.scene.add(this.mesh);
+      }
+
+    AuroraNightEngine.prototype.animate = function() {
+        if (this.reducedMotion) return;
+        this.frameId = requestAnimationFrame(this.animate.bind(this));
+        this.render();
+    };
+
+    AuroraNightEngine.prototype.render = function() {
+        if (!this.renderer || !this.uniforms) return;
+        this.uniforms.u_time.value = performance.now() * 0.001;
+        this.renderer.render(this.scene, this.camera);
+    };
+
+    AuroraNightEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        if (!this.uniforms) return;
+        var primary = resolveColorString(colors.accent, '#38bdf8');
+        var secondary = resolveColorString(colors.accentSecondary, primary);
+        
+        try {
+            this.uniforms.u_colorA.value.set(primary);
+            this.uniforms.u_colorB.value.set(secondary);
+        } catch (err) {
+            console.warn('[ticker] color update failed', err);
+        }
+
+        if (this.reducedMotion) {
+            this.render();
+        }
+    };
+
+    AuroraNightEngine.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.renderer) return;
+
+        if (this.frameId) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+
+        if (this.reducedMotion) {
+            this.render();
+        } else {
+            this.animate();
+        }
+    };
+
+    AuroraNightEngine.prototype.resize = function() {
+        if (!this.renderer || !this.container) return;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
+        this.renderer.setSize(width, height);
+        if (this.reducedMotion) {
+            this.render();
+        }
+    };
+
+    AuroraNightEngine.prototype.destroy = function() {
+        if (this.frameId) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+
+        if (this.renderer) {
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
+            this.renderer.dispose();
+            this.renderer = null;
+        }
+
+        if (this.mesh) {
+            this.mesh.geometry.dispose();
+            this.mesh.material.dispose();
+        }
+
+        this.scene = null;
+        this.camera = null;
+        this.mesh = null;
+        this.uniforms = null;
+    };
+
+    function cleanupRenderer(renderer) {
+        if (!renderer) return;
+        
+        function safeDispose() {
+            try {
+                if (renderer.dispose) {
+                    renderer.dispose();
+                }
+            } catch (disposeErr) {
+                console.warn('[ticker] WebGL renderer dispose failed', disposeErr);
+            }
+        }
+        
+        function safeRemove() {
+            if (renderer.domElement && renderer.domElement.parentNode) {
+                renderer.domElement.parentNode.removeChild(renderer.domElement);
+            }
+        }
+        
+        try {
+            if (renderer.setAnimationLoop) renderer.setAnimationLoop(null);
+        } catch (loopErr) {
+            // ignore
+        }
+        
+    safeDispose();
+    safeRemove();
+  // Clean up properties
+  this.renderer = null;
+  this.scene = null;
+  this.camera = null;
+  this.mesh = null;
+  this.uniforms = null;
+
+    AuroraNightEngine.prototype.render = function(time) {
+        time = time || performance.now();
         if (!this.renderer || !this.uniforms) return;
         this.uniforms.u_time.value = time * 0.001;
         this.renderer.render(this.scene, this.camera);
-      }
+    };
 
-      updateColors(colors = {}) {
+    AuroraNightEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
         if (!this.uniforms) return;
-        const primary = resolveColorString(colors.accent, '#38bdf8');
-        const secondary = resolveColorString(colors.accentSecondary, primary);
+        var primary = resolveColorString(colors.accent, '#38bdf8');
+        var secondary = resolveColorString(colors.accentSecondary, primary);
         try {
-          this.uniforms.u_colorA.value.set(primary);
-          this.uniforms.u_colorB.value.set(secondary);
+            this.uniforms.u_colorA.value.set(primary);
+            this.uniforms.u_colorB.value.set(secondary);
         } catch (err) {
-          // ignore colour conversion errors
+            // ignore colour conversion errors
         }
         if (this.reducedMotion) {
-          this.render(performance.now());
+            this.render(performance.now());
         }
-      }
+    };
 
-      setReducedMotion(flag) {
+    AuroraNightEngine.prototype.setReducedMotion = function(flag) {
         this.reducedMotion = !!flag;
         if (!this.renderer) return;
         if (this.reducedMotion) {
-          this.renderer.setAnimationLoop(null);
-          this.render(performance.now());
+            this.renderer.setAnimationLoop(null);
+            this.render(performance.now());
         } else {
-          this.renderer.setAnimationLoop(this.render);
+            this.renderer.setAnimationLoop(this.render);
         }
-      }
+    };
 
-      resize() {
+    AuroraNightEngine.prototype.resize = function() {
         if (!this.renderer || !this.container) return;
-        const width = this.container.clientWidth || 1;
-        const height = this.container.clientHeight || 1;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
         this.renderer.setSize(width, height);
         if (this.reducedMotion) {
-          this.render(performance.now());
+            this.render(performance.now());
         }
-      }
+    };
 
-      destroy() {
+    AuroraNightEngine.prototype.destroy = function() {
         if (this.renderer) {
-          this.renderer.setAnimationLoop(null);
+            this.renderer.setAnimationLoop(null);
           this.renderer.dispose();
           if (this.renderer.domElement && this.renderer.domElement.parentNode) {
             this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
@@ -2266,11 +2419,13 @@
         this.scene = null;
         this.mesh = null;
         this.uniforms = null;
-      }
-    }
+      };
 
-    class NexusGridEngine {
-      constructor(container, options = {}) {
+    function NexusGridEngine(container, options) {
+        if (!(this instanceof NexusGridEngine)) {
+            return new NexusGridEngine(container, options);
+        }
+        options = options || {};
         this.name = 'nexus-grid';
         this.container = container;
         this.reducedMotion = !!options.reducedMotion;
@@ -2305,34 +2460,35 @@
         }
       }
 
-      initNodes() {
+    NexusGridEngine.prototype.initNodes = function() {
         if (!this.canvas) return;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
-        const count = Math.max(18, Math.round((width + height) / 80));
+        var width = this.canvas.width;
+        var height = this.canvas.height;
+        var count = Math.max(18, Math.round((width + height) / 80));
         this.nodes = [];
-        for (let i = 0; i < count; i++) {
-          this.nodes.push({
-            x: Math.random() * width,
-            y: Math.random() * height,
-            vx: (Math.random() - 0.5) * 0.35,
-            vy: (Math.random() - 0.5) * 0.35,
-            pulse: Math.random() * Math.PI * 2
-          });
+        for (var i = 0; i < count; i++) {
+            this.nodes.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: (Math.random() - 0.5) * 0.35,
+                pulse: Math.random() * Math.PI * 2
+            });
         }
-      }
+    };
 
-      animate() {
+    NexusGridEngine.prototype.animate = function() {
         if (this.reducedMotion) return;
         this.draw();
-        this.animFrame = requestAnimationFrame(() => this.animate());
-      }
+        var self = this;
+        this.animFrame = requestAnimationFrame(function() { self.animate(); });
+    };
 
-      draw() {
+    NexusGridEngine.prototype.draw = function() {
         if (!this.ctx || !this.canvas) return;
-        const ctx = this.ctx;
-        const width = this.canvas.width;
-        const height = this.canvas.height;
+        var ctx = this.ctx;
+        var width = this.canvas.width;
+        var height = this.canvas.height;
         ctx.clearRect(0, 0, width, height);
         ctx.fillStyle = 'rgba(8, 12, 20, 0.45)';
         ctx.fillRect(0, 0, width, height);
@@ -2375,43 +2531,44 @@
         }
       }
 
-      updateColors(colors = {}) {
+    NexusGridEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
         this.accent = resolveColorString(colors.accent, this.accent);
         this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
         if (this.reducedMotion) {
-          this.draw();
+            this.draw();
         }
-      }
+    };
 
-      setReducedMotion(flag) {
+    NexusGridEngine.prototype.setReducedMotion = function(flag) {
         this.reducedMotion = !!flag;
         if (this.reducedMotion) {
-          if (this.animFrame) {
-            cancelAnimationFrame(this.animFrame);
-            this.animFrame = null;
-          }
-          this.draw();
+            if (this.animFrame) {
+                cancelAnimationFrame(this.animFrame);
+                this.animFrame = null;
+            }
+            this.draw();
         } else {
-          this.animate();
+            this.animate();
         }
-      }
+    };
 
-      resize() {
+    NexusGridEngine.prototype.resize = function() {
         if (!this.canvas || !this.container) return;
-        const width = this.container.clientWidth || 1;
-        const height = this.container.clientHeight || 1;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
         this.canvas.width = width;
         this.canvas.height = height;
         this.initNodes();
         if (this.reducedMotion) {
-          this.draw();
+            this.draw();
         }
-      }
+    };
 
-      destroy() {
+    NexusGridEngine.prototype.destroy = function() {
         if (this.animFrame) {
-          cancelAnimationFrame(this.animFrame);
-          this.animFrame = null;
+            cancelAnimationFrame(this.animFrame);
+            this.animFrame = null;
         }
         if (this.canvas && this.canvas.parentNode) {
           this.canvas.parentNode.removeChild(this.canvas);
@@ -2419,8 +2576,7 @@
         this.canvas = null;
         this.ctx = null;
         this.nodes = [];
-      }
-    }
+      };
 
     const ZEN_FLOW_BASE_ANIMATION = {
       v: '5.7.6',
@@ -2760,65 +2916,65 @@
       }
     }
 
-    class ThemeVisualController {
-      constructor(container, options = {}) {
+    function ThemeVisualController(container, options) {
+        if (!(this instanceof ThemeVisualController)) {
+            return new ThemeVisualController(container, options);
+        }
+        options = options || {};
         this.container = container;
         this.reducedMotion = !!options.reducedMotion;
         this.current = null;
-      }
+    }
 
-      static get factories() {
-        if (!this._factories) {
-          this._factories = {
-            'midnight-glass': (container, opts) => new MidnightGlassEngine(container, opts),
-            'aurora-night': (container, opts) => new AuroraNightEngine(container, opts),
-            'nexus-grid': (container, opts) => new NexusGridEngine(container, opts),
-            'zen-flow': (container, opts) => new ZenFlowEngine(container, opts),
-            'duotone-fusion': (container, opts) => new DuotoneFusionEngine(container, opts)
-          };
-        }
-        return this._factories;
-      }
+    ThemeVisualController.factories = {
+        'midnight-glass': function(container, opts) { return new MidnightGlassEngine(container, opts); },
+        'aurora-night': function(container, opts) { return new AuroraNightEngine(container, opts); },
+        'nexus-grid': function(container, opts) { return new NexusGridEngine(container, opts); },
+        'zen-flow': function(container, opts) { return new ZenFlowEngine(container, opts); },
+        'duotone-fusion': function(container, opts) { return new DuotoneFusionEngine(container, opts); }
+    };
 
-      instantiateEngine(themeKey, colors = {}) {
-        const factories = ThemeVisualController.factories;
-        const factory = factories[themeKey];
-        if (typeof factory !== 'function') {
-          return null;
-        }
+    ThemeVisualController.prototype.instantiateEngine = function(themeKey, colors) {
+        colors = colors || {};
+        var factory = ThemeVisualController.factories[themeKey];
+        if (!factory) return null;
         try {
-          return factory(this.container, { ...colors, reducedMotion: this.reducedMotion });
+            return factory(this.container, { 
+                accent: colors.accent,
+                accentSecondary: colors.accentSecondary,
+                reducedMotion: this.reducedMotion 
+            });
         } catch (error) {
-          console.warn(`[ticker] failed to initialise ${themeKey} visuals`, error);
-          return null;
+            console.warn('[ticker] failed to initialise ' + themeKey + ' visuals', error);
+            return null;
         }
-      }
+    };
 
-      setTheme(theme, colors = {}) {
+    ThemeVisualController.prototype.setTheme = function(theme, colors) {
+        colors = colors || {};
         if (!this.container) return;
-        const factories = ThemeVisualController.factories;
+        var resolvedTheme = theme || 'aurora-night';
 
+        try {
             this.current.updateColors(colors);
-          } catch (err) {
+        } catch (err) {
             console.warn('[ticker] theme colour update failed', err);
-          }
         }
+
         if (typeof this.current.setReducedMotion === 'function') {
-          try {
-            this.current.setReducedMotion(this.reducedMotion);
-          } catch (err) {
-            console.warn('[ticker] theme reduced motion sync failed', err);
-          }
+            try {
+                this.current.setReducedMotion(this.reducedMotion);
+            } catch (err) {
+                console.warn('[ticker] theme reduced motion sync failed', err);
+            }
         }
         return;
-      }
-      if (this.current && typeof this.current.destroy === 'function') {
+    }
+    if (this.current && typeof this.current.destroy === 'function') {
         try {
-          this.current.destroy();
+            this.current.destroy();
         } catch (err) {
-          console.warn('[ticker] theme destroy failed', err);
-        }
-      }
+            console.warn('[ticker] theme destroy failed', err);
       this.current = null;
       if (this.container) {
         this.container.innerHTML = '';
@@ -2839,55 +2995,118 @@
         if (this.container) {
           this.container.innerHTML = '';
         }
+      };
 
-      }
-    }
-
-    updateColors(colors = {}) {
-      if (this.current && typeof this.current.updateColors === 'function') {
-        try {
-          this.current.updateColors(colors);
-        } catch (err) {
-          console.warn('[ticker] theme colour refresh failed', err);
+    ThemeVisualController.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        if (this.current && typeof this.current.updateColors === 'function') {
+            try {
+                this.current.updateColors(colors);
+            } catch (err) {
+                console.warn('[ticker] theme colour refresh failed', err);
+            }
         }
-      }
-    }
+    };
 
-    setReducedMotion(flag) {
-      this.reducedMotion = !!flag;
-      if (this.current && typeof this.current.setReducedMotion === 'function') {
-        try {
-          this.current.setReducedMotion(this.reducedMotion);
-        } catch (err) {
-          console.warn('[ticker] theme reduced motion update failed', err);
+    ThemeVisualController.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (this.current && typeof this.current.setReducedMotion === 'function') {
+            try {
+                this.current.setReducedMotion(this.reducedMotion);
+            } catch (err) {
+                console.warn('[ticker] theme reduced motion update failed', err);
+            }
         }
-      }
-    }
+    };
 
-    resize() {
-      if (this.current && typeof this.current.resize === 'function') {
-        try {
-          this.current.resize();
-        } catch (err) {
-          console.warn('[ticker] theme resize failed', err);
+    ThemeVisualController.prototype.resize = function() {
+        if (this.current && typeof this.current.resize === 'function') {
+            try {
+                this.current.resize();
+            } catch (err) {
+                console.warn('[ticker] theme resize failed', err);
+            }
         }
-      }
-    }
+    };
 
-    destroy() {
-      if (this.current && typeof this.current.destroy === 'function') {
-        try {
-          this.current.destroy();
-        } catch (err) {
-          console.warn('[ticker] theme destroy failed', err);
+    ThemeVisualController.prototype.destroy = function() {
+        if (this.current && typeof this.current.destroy === 'function') {
+            try {
+                this.current.destroy();
+            } catch (err) {
+                console.warn('[ticker] theme destroy failed', err);
+            }
         }
+        this.current = null;
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+    };
+
+    function SlateManager() {
+        this.state = null;
+        this.titleFormatter = null;
+        this.subtitleFormatter = null;
+        this.metaFormatter = null;
+        this.dotsFormatter = null;
+        this.websocket = null;
+        this.container = document.createElement('div');
+        this.container.className = 'slate-widget';
+        this.container.style.cssText = [
+            'position: fixed',
+            'top: 24px',
+            'right: 24px',
+            'display: flex',
+            'flex-direction: column',
+            'gap: 12px',
+            'width: max-content',
+            'max-width: 420px',
+            'z-index: 1300',
+            'opacity: 0',
+            'visibility: hidden',
+            'pointer-events: none',
+            'transition: opacity 0.4s var(--ease-smooth), visibility 0.4s var(--ease-smooth)'
+        ].join(';');
+        document.body.appendChild(this.container);
+
+        this.stateManager = window.stateManager;
+        this.stateManager.registerHandler('slate', state => this.onStateUpdate(state));
       }
-      this.current = null;
-      if (this.container) {
-        this.container.innerHTML = '';
-      }
-    }
-    }
+
+    SlateManager.prototype.onStateUpdate = function(state) {
+        var isVisible = state.visible && state.text && state.text.trim();
+        this.container.style.opacity = isVisible ? '1' : '0';
+        this.container.style.visibility = isVisible ? 'visible' : 'hidden';
+        this.container.style.pointerEvents = isVisible ? 'auto' : 'none';
+
+        if (isVisible) {
+            var formattedText = this.formatText(state.text);
+            this.container.innerHTML = 
+                '<div class="slate-content" style="' +
+                'padding: 14px 18px;' +
+                'background: var(--popup-surface-a);' +
+                'color: var(--popup-text-color);' +
+                'font-size: calc(14px * var(--ui-scale));' +
+                'font-weight: 600;' +
+                'line-height: 1.4;' +
+                'box-shadow: var(--popup-shadow);' +
+                'border: 1px solid var(--popup-border-color);' +
+                'border-radius: 6px;' +
+                'white-space: pre-line;' +
+                'animation: fadeSlideIn 0.5s var(--ease-premium) forwards;' +
+                '">' + formattedText + '</div>';
+        }
+    };
+
+    SlateManager.prototype.formatText = function(text) {
+        if (!text) return '';
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/_([^_]+)_/g, '<u>$1</u>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
+    };
 
     class TickerOverlay {
       constructor() {
@@ -4717,20 +4936,21 @@
 
       buildMarqueeHtml() {
         if (!this.messages.length) return '';
-        const separator = '<span class="message-separator"></span>';
-        const formatted = this.messages.map(msg => formatMessage(msg, this.highlightRegex)).join(separator);
-        return `${formatted}${separator}${formatted}`;
+        var separator = '<span class="message-separator"></span>';
+        var formatted = this.messages.map(function(msg) { return formatMessage(msg, this.highlightRegex); }.bind(this)).join(separator);
+        return formatted + separator + formatted;
       }
 
       updateLabel() {
         this.labelNode.textContent = this.overlay.label;
-        const combined = this.messages.join(' ').toLowerCase();
-        const isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
+        var combined = this.messages.join(' ').toLowerCase();
+        var isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
         this.labelNode.classList.toggle('is-breaking', isBreaking);
       }
     }
 
     new TickerOverlay();
+    new SlateManager();
   </script>
 </body>
 </html>

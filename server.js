@@ -5,6 +5,9 @@ const fs = require('fs');
 const { randomUUID } = require('crypto');
 const express = require('express');
 const cors = require('cors');
+const expressWs = require('express-ws');
+const WebSocket = require('ws');
+const { v4: uuidv4 } = require('uuid');
 
 const fsp = fs.promises;
 
@@ -1011,6 +1014,11 @@ app.get('/ticker/stream', (req, res) => {
   });
 });
 
+// Specific route for new dashboard
+app.get('/ticker/dashboard', (req, res) => {
+  res.sendFile(path.join(assetDir, 'dashboard-new.html'));
+});
+
 app.use('/ticker', express.static(assetDir));
 
 if (assetDir === DEFAULT_ASSET_DIR) {
@@ -1024,13 +1032,63 @@ async function start() {
     process.env.HOST ||
     (process.platform === 'win32' ? '127.0.0.1' : '0.0.0.0');
   const port = Number(process.env.HTTP_PORT || process.env.PORT) || 3000;
-  const server = app.listen(port, host, () => {
-    const baseUrl = `http://${host}:${port}`;
-    console.log(`[ticker] listening on ${baseUrl}`);
-    console.log(`[ticker] dashboard available at ${baseUrl}/ticker/index.html`);
-    console.log(`[ticker] overlay available at ${baseUrl}/ticker/output.html`);
-    console.log(`[ticker] SSE stream available at ${baseUrl}/ticker/stream`);
+  
+  const server = app.listen(port, host);
+  const wsInstance = expressWs(app, server);
+
+  // WebSocket endpoint for real-time communication
+  app.ws('/ws', (ws, req) => {
+    const clientId = uuidv4();
+    ws.clientId = clientId;
+    console.log(`[ticker] Client ${clientId} connected`);
+
+    ws.on('message', async (msg) => {
+      try {
+        const data = JSON.parse(msg);
+        const { type, payload } = data;
+        
+        switch (type) {
+          case 'ticker':
+            await handleTickerUpdate(payload);
+            break;
+          case 'overlay':
+            await handleOverlayUpdate(payload);
+            break;
+          case 'popup':
+            await handlePopupUpdate(payload);
+            break;
+          case 'slate':
+            await handleSlateUpdate(payload);
+            break;
+          case 'brb':
+            await handleBrbUpdate(payload);
+            break;
+        }
+
+        broadcastToAllClients({ type, payload: state[type] });
+      } catch (error) {
+        console.error('[ticker] WebSocket message error:', error);
+        ws.send(JSON.stringify({ 
+          type: 'error', 
+          error: error.message 
+        }));
+      }
+    });
+
+    ws.on('close', () => {
+      console.log(`[ticker] Client ${clientId} disconnected`);
+    });
+
+    // Send initial state
+    ws.send(JSON.stringify({ type: 'init', state }));
   });
+
+  const baseUrl = `http://${host}:${port}`;
+  console.log(`[ticker] listening on ${baseUrl}`);
+  console.log(`[ticker] dashboard available at ${baseUrl}/ticker/index.html`);
+  console.log(`[ticker] NEW dashboard available at ${baseUrl}/ticker/dashboard`);
+  console.log(`[ticker] overlay available at ${baseUrl}/ticker/output.html`);
+  console.log(`[ticker] WebSocket available at ws://${host}:${port}/ws`);
   const shutdown = () => {
     server.close(() => {
       clearHeartbeat();

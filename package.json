@@ -6,14 +6,18 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-  "lint": "eslint --config eslint.config.cjs \"server.js\" \"tests/**/*.js\" \"public/**/*.js\"",
+    "lint": "eslint --config eslint.config.cjs \"server.js\" \"tests/**/*.js\" \"public/**/*.js\"",
     "lint:fix": "npm run lint -- --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
   "dependencies": {
     "cors": "^2.8.5",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "express-ws": "^5.0.2",
+    "lodash": "^4.17.21",
+    "uuid": "^13.0.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
@@ -21,5 +25,5 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-html": "^7.1.0",
     "prettier": "^3.2.5"
-    }
   }
+}

@@ -1666,6 +1666,118 @@
   </style>
 </head>
 <body>
+  <!-- Loading State Overlay -->
+  <div id="loadingOverlay" style="
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    color: white;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: none;
+  ">
+    <div style="text-align: center;">
+      <div style="
+        width: 40px;
+        height: 40px;
+        border: 3px solid #333;
+        border-top-color: #007cba;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      "></div>
+      <div id="loadingText">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Error Toast Container -->
+  <div id="errorToastContainer" style="
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+  "></div>
+
+  <!-- Connection Status Indicator -->
+  <div id="connectionStatus" style="
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 12px;
+    background: #28a745;
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: system-ui, -apple-system, sans-serif;
+    display: none;
+  ">
+    Connected
+  </div>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error-toast {
+      background: #dc3545;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .error-toast:hover {
+      opacity: 0.9;
+    }
+    
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    
+    .success-toast {
+      background: #28a745;
+      color: white;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      animation: slideIn 0.3s ease;
+      cursor: pointer;
+    }
+    
+    .connection-status--connected {
+      background: #28a745 !important;
+    }
+    
+    .connection-status--disconnected {
+      background: #dc3545 !important;
+    }
+    
+    .connection-status--reconnecting {
+      background: #ffc107 !important;
+      color: #212529 !important;
+    }
+  </style>
+
   <div class="app">
     <div class="panel panel--accent">
       <div class="header">
@@ -2044,78 +2156,256 @@
   <script src="js/shared-utils.js"></script>
   <script src="js/request-client.js"></script>
   <script src="js/client-normalisers.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/ticker-websocket.js"></script>
+  <script src="js/popup-manager.js"></script>
+  <script src="js/brb-manager.js"></script>
+  <script src="js/slate-manager.js"></script>
+  <script src="js/dashboard-init.js"></script>
 
   <script>
-    const {
-      OVERLAY_THEMES,
-      clampDurationSeconds,
-      clampIntervalSeconds,
-      clampScaleValue,
-      clampPopupScaleValue,
-      clampSlateRotationSeconds,
-      normaliseHighlightList,
-      normaliseMode: sharedNormaliseMode,
-      normalisePosition: sharedNormalisePosition,
-      normaliseTheme: sharedNormaliseTheme,
-      normaliseSlateNotes,
-      normaliseServerBase: sharedNormaliseServerBase,
+    // Enhanced Loading States and Error Handling System
+    var LoadingManager = {
+      overlay: null,
+      text: null,
+      
+      init: function() {
+        this.overlay = document.getElementById('loadingOverlay');
+        this.text = document.getElementById('loadingText');
+      },
+      
+      show: function(message) {
+        if (!this.overlay) this.init();
+        this.text.textContent = message || 'Loading...';
+        this.overlay.style.display = 'flex';
+      },
+      
+      hide: function() {
+        if (!this.overlay) this.init();
+        this.overlay.style.display = 'none';
+      },
+      
+      update: function(message) {
+        if (!this.text) this.init();
+        this.text.textContent = message;
+      }
+    };
+    
+    var ToastManager = {
+      container: null,
+      
+      init: function() {
+        this.container = document.getElementById('errorToastContainer');
+      },
+      
+      show: function(message, type, duration) {
+        if (!this.container) this.init();
+        type = type || 'error';
+        duration = duration || 5000;
+        
+        var toast = document.createElement('div');
+        toast.className = type + '-toast';
+        toast.textContent = message;
+        
+        var self = this;
+        toast.addEventListener('click', function() {
+          self.remove(toast);
+        });
+        
+        this.container.appendChild(toast);
+        
+        setTimeout(function() {
+          self.remove(toast);
+        }, duration);
+      },
+      
+      remove: function(toast) {
+        if (toast && toast.parentNode) {
+          toast.style.animation = 'slideIn 0.3s ease reverse';
+          setTimeout(function() {
+            if (toast.parentNode) {
+              toast.parentNode.removeChild(toast);
+            }
+          }, 300);
+        }
+      },
+      
+      error: function(message, duration) {
+        this.show(message, 'error', duration);
+      },
+      
+      success: function(message, duration) {
+        this.show(message, 'success', duration);
+      }
+    };
+    
+    var ConnectionManager = {
+      indicator: null,
+      status: 'disconnected',
+      
+      init: function() {
+        this.indicator = document.getElementById('connectionStatus');
+      },
+      
+      setStatus: function(status, message) {
+        if (!this.indicator) this.init();
+        this.status = status;
+        
+        this.indicator.className = 'connection-status--' + status;
+        this.indicator.textContent = message || status.charAt(0).toUpperCase() + status.slice(1);
+        this.indicator.style.display = 'block';
+        
+        if (status === 'connected') {
+          setTimeout(function() {
+            if (ConnectionManager.indicator) {
+              ConnectionManager.indicator.style.display = 'none';
+            }
+          }, 3000);
+        }
+      }
+    };
+    
+    // Enhanced Error Handling
+    function handleNetworkError(error, context) {
+      console.error('[Dashboard] Network error in ' + context + ':', error);
+      
+      var message = 'Network error';
+      if (error.message) {
+        if (error.message.includes('timeout')) {
+          message = 'Request timed out - please try again';
+        } else if (error.message.includes('abort')) {
+          message = 'Request was cancelled';
+        } else if (error.message.includes('fetch')) {
+          message = 'Unable to connect to server';
+        } else {
+          message = error.message;
+        }
+      }
+      
+      ToastManager.error(message + ' (' + context + ')');
+      return false;
+    }
+    
+    // Enhanced Promise utilities for ES5 compatibility
+    function promiseTimeout(promise, timeoutMs, errorMessage) {
+      timeoutMs = timeoutMs || 10000;
+      errorMessage = errorMessage || 'Operation timed out';
+      
+      return new Promise(function(resolve, reject) {
+        var timeoutId = setTimeout(function() {
+          reject(new Error(errorMessage));
+        }, timeoutMs);
+        
+        promise.then(
+          function(result) {
+            clearTimeout(timeoutId);
+            resolve(result);
+          },
+          function(error) {
+            clearTimeout(timeoutId);
+            reject(error);
+          }
+        );
+      });
+    }
+    
+    function retryOperation(operation, maxRetries, delay) {
+      maxRetries = maxRetries || 3;
+      delay = delay || 1000;
+      
+      return new Promise(function(resolve, reject) {
+        var attempt = 0;
+        
+        function tryOperation() {
+          attempt++;
+          operation().then(resolve).catch(function(error) {
+            if (attempt < maxRetries) {
+              setTimeout(tryOperation, delay * attempt);
+            } else {
+              reject(error);
+            }
+          });
+        }
+        
+        tryOperation();
+      });
+    }
 
-      isSafeCssColor: sharedIsSafeCssColor
-    } = window.TickerShared || {};
+    var TickerShared = window.TickerShared || {};
+    var OVERLAY_THEMES = TickerShared.OVERLAY_THEMES;
+    var clampDurationSeconds = TickerShared.clampDurationSeconds;
+    var clampIntervalSeconds = TickerShared.clampIntervalSeconds;
+    var clampScaleValue = TickerShared.clampScaleValue;
+    var clampPopupScaleValue = TickerShared.clampPopupScaleValue;
+    var clampSlateRotationSeconds = TickerShared.clampSlateRotationSeconds;
+    var normaliseHighlightList = TickerShared.normaliseHighlightList;
+    var sharedNormaliseMode = TickerShared.normaliseMode;
+    var sharedNormalisePosition = TickerShared.normalisePosition;
+    var sharedNormaliseTheme = TickerShared.normaliseTheme;
+    var normaliseSlateNotes = TickerShared.normaliseSlateNotes;
+    var sharedNormaliseServerBase = TickerShared.normaliseServerBase;
+    var sharedIsSafeCssColor = TickerShared.isSafeCssColor;
 
-    const sharedConfigWindow = window.SharedConfig || {};
-    const normaliserExports = window.TickerClientNormalisers || {};
-    const {
-      DEFAULT_OVERLAY: BASE_DEFAULT_OVERLAY,
-      DEFAULT_POPUP: BASE_DEFAULT_POPUP,
-      DEFAULT_SLATE: BASE_DEFAULT_SLATE,
-      DEFAULT_HIGHLIGHTS: BASE_DEFAULT_HIGHLIGHTS,
-      DEFAULT_HIGHLIGHT_STRING: BASE_DEFAULT_HIGHLIGHT_STRING,
-      THEME_OPTIONS: BASE_THEME_OPTIONS,
-      MAX_MESSAGES: EXPORTED_MAX_MESSAGES,
-      MAX_MESSAGE_LENGTH: EXPORTED_MAX_MESSAGE_LENGTH,
-      MAX_POPUP_SECONDS: EXPORTED_MAX_POPUP_SECONDS,
-      MAX_SLATE_TITLE_LENGTH: EXPORTED_MAX_SLATE_TITLE_LENGTH,
-      MAX_SLATE_TEXT_LENGTH: EXPORTED_MAX_SLATE_TEXT_LENGTH,
-      MAX_SLATE_NOTES: EXPORTED_MAX_SLATE_NOTES,
-      normaliseHighlightInput,
-      normaliseOverlayData,
-      normalisePopupData,
-      normaliseSlateNotesList,
-      normaliseSlateData,
-      normaliseSceneEntry,
-      sanitiseMessages
-    } = normaliserExports;
+    var sharedConfigWindow = window.SharedConfig || {};
+    var normaliserExports = window.TickerClientNormalisers || {};
+    var BASE_DEFAULT_OVERLAY = normaliserExports.DEFAULT_OVERLAY;
+    var BASE_DEFAULT_POPUP = normaliserExports.DEFAULT_POPUP;
+    var BASE_DEFAULT_SLATE = normaliserExports.DEFAULT_SLATE;
+    var BASE_DEFAULT_HIGHLIGHTS = normaliserExports.DEFAULT_HIGHLIGHTS;
+    var BASE_DEFAULT_HIGHLIGHT_STRING = normaliserExports.DEFAULT_HIGHLIGHT_STRING;
+    var BASE_THEME_OPTIONS = normaliserExports.THEME_OPTIONS;
+    var EXPORTED_MAX_MESSAGES = normaliserExports.MAX_MESSAGES;
+    var EXPORTED_MAX_MESSAGE_LENGTH = normaliserExports.MAX_MESSAGE_LENGTH;
+    var EXPORTED_MAX_POPUP_SECONDS = normaliserExports.MAX_POPUP_SECONDS;
+    var EXPORTED_MAX_SLATE_TITLE_LENGTH = normaliserExports.MAX_SLATE_TITLE_LENGTH;
+    var EXPORTED_MAX_SLATE_TEXT_LENGTH = normaliserExports.MAX_SLATE_TEXT_LENGTH;
+    var EXPORTED_MAX_SLATE_NOTES = normaliserExports.MAX_SLATE_NOTES;
+    var normaliseHighlightInput = normaliserExports.normaliseHighlightInput;
+    var normaliseOverlayData = normaliserExports.normaliseOverlayData;
+    var normalisePopupData = normaliserExports.normalisePopupData;
+    var normaliseSlateNotesList = normaliserExports.normaliseSlateNotesList;
+    var normaliseSlateData = normaliserExports.normaliseSlateData;
+    var normaliseSceneEntry = normaliserExports.normaliseSceneEntry;
+    var sanitiseMessages = normaliserExports.sanitiseMessages;
 
-    const requestClientApi = window.RequestClient || {};
-    const requestManager = typeof requestClientApi.create === 'function'
+    var requestClientApi = window.RequestClient || {};
+    var requestManager = typeof requestClientApi.create === 'function'
       ? requestClientApi.create({ defaultTimeoutMs: 8000 })
       : null;
-    const RequestErrorCtor = typeof requestClientApi.RequestError === 'function'
-      ? requestClientApi.RequestError
-      : class RequestError extends Error {
-          constructor(message, code, details = {}) {
-            super(message || 'Request failed');
-            this.name = 'RequestError';
-            this.code = code || 'request_error';
-            if (details && typeof details === 'object') {
-              Object.assign(this, details);
-            }
+    
+    function RequestError(message, code, details) {
+      Error.captureStackTrace && Error.captureStackTrace(this, this.constructor);
+      this.name = 'RequestError';
+      this.message = message || 'Request failed';
+      this.code = code || 'request_error';
+      details = details || {};
+      if (details && typeof details === 'object') {
+        for (var key in details) {
+          if (details.hasOwnProperty(key)) {
+            this[key] = details[key];
           }
-        };
+        }
+      }
+    }
+    RequestError.prototype = Object.create(Error.prototype);
+    RequestError.prototype.constructor = RequestError;
+    
+    var RequestErrorCtor = typeof requestClientApi.RequestError === 'function'
+      ? requestClientApi.RequestError
+      : RequestError;
 
     function createFallbackTimeoutController(timeoutMs, upstreamSignal) {
       if (typeof AbortController !== 'function') {
-        return { signal: upstreamSignal, cleanup() {} };
+        return { signal: upstreamSignal, cleanup: function() {} };
       }
-      const numericTimeout = Number(timeoutMs);
+      var numericTimeout = Number(timeoutMs);
       if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
-        return { signal: upstreamSignal, cleanup() {} };
+        return { signal: upstreamSignal, cleanup: function() {} };
       }
 
-      const controller = new AbortController();
-      let timeoutId = null;
-      let upstreamAbortListener = null;
+      var controller = new AbortController();
+      var timeoutId = null;
+      var upstreamAbortListener = null;
 
       if (upstreamSignal) {
         if (upstreamSignal.aborted) {
@@ -8208,13 +8498,14 @@
       if (handlersRegistered) return;
       handlersRegistered = true;
 
-      const on = addManagedEventListener;
+      var on = addManagedEventListener;
 
       // Defensive: log missing elements and bail early for critical ones
-      const criticalElements = ['messageForm', 'newMessage', 'serverUrl'];
-      for (const key of criticalElements) {
+      var criticalElements = ['messageForm', 'newMessage', 'serverUrl'];
+      for (var i = 0; i < criticalElements.length; i++) {
+        var key = criticalElements[i];
         if (!el[key]) {
-          console.error(`[Ticker] Critical element missing: ${key}`);
+          console.error('[Ticker] Critical element missing: ' + key);
           return;
         }
       }
@@ -8226,13 +8517,13 @@
       }
 
       if (panelTabButtons.size) {
-        for (const [id, tab] of panelTabButtons.entries()) {
-          if (!tab) continue;
+        panelTabButtons.forEach(function(tab, id) {
+          if (!tab) return;
           tab.tabIndex = id === activePanelId ? 0 : -1;
-          on(tab, 'click', () => {
+          on(tab, 'click', function() {
             setActivePanel(id);
           });
-          on(tab, 'keydown', event => {
+          on(tab, 'keydown', function(event) {
             switch (event.key) {
               case 'ArrowRight':
               case 'ArrowDown':
@@ -8989,18 +9280,33 @@
       }
 
       if (el.messageForm && el.newMessage) {
-        console.log('[DEBUG] Message form found, adding listener');
-        el.messageForm.addEventListener('submit', event => {
+        el.messageForm.addEventListener('submit', function(event) {
           event.preventDefault();
-          console.log('[DEBUG] Form submitted, adding message:', el.newMessage.value);
-          const added = addMessage(el.newMessage.value);
-          if (added) {
-            el.newMessage.value = '';
+          
+          try {
+            var message = el.newMessage.value.trim();
+            if (!message) {
+              ToastManager.error('Please enter a message before adding');
+              return;
+            }
+            
+            LoadingManager.show('Adding message...');
+            var added = addMessage(message);
+            LoadingManager.hide();
+            
+            if (added) {
+              el.newMessage.value = '';
+              ToastManager.success('Message added successfully');
+            }
+            el.newMessage.focus();
+          } catch (error) {
+            LoadingManager.hide();
+            handleNetworkError(error, 'Add Message');
           }
-          el.newMessage.focus();
         });
       } else {
-        console.error('[DEBUG] Message form or input not found:', { form: !!el.messageForm, input: !!el.newMessage });
+        console.error('Message form or input not found:', { form: !!el.messageForm, input: !!el.newMessage });
+        ToastManager.error('Message form not found - please refresh the page');
       }
 
       if (el.clearMessages) {
@@ -9186,8 +9492,18 @@
     async function init() {
       if (initStarted) return;
       initStarted = true;
-      initialiseStateStore();
-      registerEventHandlers();
+      
+      // Initialize UI management systems
+      LoadingManager.init();
+      ToastManager.init();
+      ConnectionManager.init();
+      
+      LoadingManager.show('Initializing dashboard...');
+      
+      try {
+        initialiseStateStore();
+        registerEventHandlers();
+        LoadingManager.update('Loading configuration...');
       applyServerStatus('checking', { force: true });
       loadLocal();
       renderOverlayControls();
@@ -9199,7 +9515,20 @@
       renderPresets();
       renderScenes();
       updateOverlayChip();
+      LoadingManager.update('Connecting to server...');
       void connectStream({ reason: 'initial' });
+      
+      // Hide loading after successful initialization
+      setTimeout(function() {
+        LoadingManager.hide();
+        ConnectionManager.setStatus('connected', 'Dashboard ready');
+      }, 1000);
+      
+      } catch (error) {
+        LoadingManager.hide();
+        handleNetworkError(error, 'Dashboard Initialization');
+        ConnectionManager.setStatus('disconnected', 'Initialization failed');
+      }
     }
 
     if (document.readyState === 'loading') {
@@ -9207,24 +9536,6 @@
     } else {
       void init();
     }
-  </script>
-  <script>
-    // Debug form submission
-    document.addEventListener('DOMContentLoaded', () => {
-      const form = document.getElementById('messageForm');
-      const input = document.getElementById('newMessage');
-
-      if (form && input) {
-        console.log('Form and input found - adding test handler');
-        form.addEventListener('submit', (e) => {
-          e.preventDefault();
-          console.log('Form submitted with value:', input.value);
-          alert('Form submission captured: ' + input.value);
-        });
-      } else {
-        console.error('Form or input not found', { form: !!form, input: !!input });
-      }
-    });
   </script>
 </body>
 </html>
