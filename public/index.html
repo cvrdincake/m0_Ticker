@@ -2084,6 +2084,77 @@
     const requestManager = typeof requestClientApi.create === 'function'
       ? requestClientApi.create({ defaultTimeoutMs: 8000 })
       : null;
+    const RequestErrorCtor = typeof requestClientApi.RequestError === 'function'
+      ? requestClientApi.RequestError
+      : class RequestError extends Error {
+          constructor(message, code, details = {}) {
+            super(message || 'Request failed');
+            this.name = 'RequestError';
+            this.code = code || 'request_error';
+            if (details && typeof details === 'object') {
+              Object.assign(this, details);
+            }
+          }
+        };
+
+    function createFallbackTimeoutController(timeoutMs, upstreamSignal) {
+      if (typeof AbortController !== 'function') {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+      const numericTimeout = Number(timeoutMs);
+      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+
+      const controller = new AbortController();
+      let timeoutId = null;
+      let upstreamAbortListener = null;
+
+      if (upstreamSignal) {
+        if (upstreamSignal.aborted) {
+          controller.abort(upstreamSignal.reason);
+        } else {
+          upstreamAbortListener = () => controller.abort(upstreamSignal.reason);
+          upstreamSignal.addEventListener('abort', upstreamAbortListener, { once: true });
+        }
+      }
+
+      const timeoutError = new Error('Request timed out');
+      timeoutError.name = 'TimeoutError';
+      timeoutId = setTimeout(() => controller.abort(timeoutError), numericTimeout);
+
+      return {
+        signal: controller.signal,
+        cleanup() {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          if (upstreamAbortListener && upstreamSignal) {
+            upstreamSignal.removeEventListener('abort', upstreamAbortListener);
+            upstreamAbortListener = null;
+          }
+        }
+      };
+    }
+
+    async function performFallbackFetch(url, init = {}, timeoutMs) {
+      const controller = createFallbackTimeoutController(timeoutMs, init.signal);
+      const mergedInit = { ...init };
+      if (controller.signal) {
+        mergedInit.signal = controller.signal;
+      }
+      try {
+        const response = await fetch(url, mergedInit);
+        return { response, cleanup: controller.cleanup };
+      } catch (error) {
+        controller.cleanup();
+        if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+          throw new RequestErrorCtor('Request timed out', 'timeout', { url });
+        }
+        throw new RequestErrorCtor(error?.message || 'Network request failed', 'network', { url, cause: error });
+      }
+    }
 
     function createAsyncQueue(options = {}) {
       if (requestManager && typeof requestManager.createQueue === 'function') {
@@ -2108,17 +2179,48 @@
         return requestManager.requestJson(url, options);
       }
       const init = options.init || {};
-      const response = await fetch(url, init);
+      const timeoutMs = options.timeoutMs;
+      const validate = options.validate;
+      const { response, cleanup } = await performFallbackFetch(url, init, timeoutMs);
+      let payload = null;
+      const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+      const expectsJson = /json/i.test(contentType || '');
+
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        if (expectsJson) {
+          payload = await response.json().catch(() => null);
+        } else {
+          payload = await response.text().catch(() => null);
+        }
+        cleanup();
+        const message = typeof payload === 'object' && payload && typeof payload.error === 'string'
+          ? payload.error
+          : `Request failed with status ${response.status}`;
+        throw new RequestErrorCtor(message, 'http_error', { url, status: response.status, response: payload });
       }
-      const data = await response.json();
-      if (typeof options.validate === 'function') {
-        const result = options.validate(data);
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        cleanup();
+        throw new RequestErrorCtor('Failed to parse response', 'parse_error', { url, cause: error });
+      }
+
+      cleanup();
+
+      if (typeof validate === 'function') {
+        const result = validate(data);
         if (result !== true && result !== undefined) {
-          throw new Error(typeof result === 'string' ? result : 'Invalid response');
+          const message = typeof result === 'string'
+            ? result
+            : (result && typeof result === 'object' && typeof result.message === 'string'
+              ? result.message
+              : 'Response validation failed');
+          throw new RequestErrorCtor(message, 'invalid_response', { url, response: data });
         }
       }
+
       return data;
     }
 
@@ -2127,11 +2229,29 @@
         return requestManager.request(url, { ...options, parser: 'blob' });
       }
       const init = options.init || {};
-      const response = await fetch(url, init);
+      const timeoutMs = options.timeoutMs;
+      const { response, cleanup } = await performFallbackFetch(url, init, timeoutMs);
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        let payload = null;
+        try {
+          payload = await response.text();
+        } catch (err) {
+          payload = null;
+        }
+        cleanup();
+        const message = payload && typeof payload === 'string' && payload.trim()
+          ? payload.trim()
+          : `Request failed with status ${response.status}`;
+        throw new RequestErrorCtor(message, 'http_error', { url, status: response.status, response: payload });
       }
-      return response.blob();
+      try {
+        const blob = await response.blob();
+        cleanup();
+        return blob;
+      } catch (error) {
+        cleanup();
+        throw new RequestErrorCtor('Failed to parse blob response', 'parse_error', { url, cause: error });
+      }
     }
 
     function getLocalStorage() {
@@ -3365,6 +3485,7 @@
     let connectionRetryTimer = null;
     let connectionRetryAttempt = 0;
     let healthCheckTimer = null;
+    let consecutiveHealthFailures = 0;
     let pollingTimer = null;
     let currentServerStatus = 'checking';
     let isPollingActive = false;
@@ -3493,6 +3614,7 @@
 
     const HEALTH_CHECK_INTERVAL_MS = 30000;
     const HEALTH_CHECK_TIMEOUT_MS = 5000;
+    const HEALTH_CHECK_FAILURE_THRESHOLD = 2;
     const STREAM_BACKOFF_BASE_MS = 1000;
     const STREAM_BACKOFF_MAX_MS = 15000;
     const STREAM_MAX_FAILURES_BEFORE_POLLING = 3;
@@ -3689,6 +3811,7 @@
         clearInterval(healthCheckTimer);
         healthCheckTimer = null;
       }
+      consecutiveHealthFailures = 0;
     }
 
     function startHealthChecks() {
@@ -3696,13 +3819,31 @@
       healthCheckTimer = setInterval(async () => {
         const result = await checkServerHealth();
         if (!result.ok) {
+          consecutiveHealthFailures = Math.min(consecutiveHealthFailures + 1, 50);
           if (!isPollingActive) {
             const nextStatus = currentServerStatus === 'online' ? 'degraded' : 'offline';
             const message = resolveHealthMessage(result.reason, nextStatus);
             applyServerStatus(nextStatus, { message, force: true });
           }
-        } else if (!isPollingActive && currentServerStatus !== 'online') {
-          applyServerStatus('online', { force: true });
+          if (consecutiveHealthFailures >= HEALTH_CHECK_FAILURE_THRESHOLD) {
+            console.warn('[Ticker] Health checks failing, degrading stream connection', {
+              failures: consecutiveHealthFailures,
+              reason: result.reason
+            });
+            if (streamConnectionState === STREAM_STATES.OPEN || streamConnectionState === STREAM_STATES.CONNECTING) {
+              disconnectStream({ preservePolling: true });
+            }
+            if (!isPollingActive) {
+              startPolling('health-check');
+            }
+            scheduleReconnect('health-check');
+            void fetchState({ silent: true });
+          }
+        } else {
+          consecutiveHealthFailures = 0;
+          if (!isPollingActive && currentServerStatus !== 'online') {
+            applyServerStatus('online', { force: true });
+          }
         }
       }, HEALTH_CHECK_INTERVAL_MS);
     }
