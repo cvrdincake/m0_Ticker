@@ -107,6 +107,86 @@ test.after(async () => {
   }
 });
 
+test('state mutation endpoints reject stale ticker payloads', async () => {
+  const { data: initialTicker } = await getJson('/ticker/state');
+  const firstPayload = {
+    isActive: true,
+    messages: ['Ticker concurrency test'],
+    displayDuration: Number(initialTicker.displayDuration) || 5,
+    intervalBetween: Number(initialTicker.intervalBetween) || 0,
+    updatedAt: Number.isFinite(Number(initialTicker.updatedAt))
+      ? Number(initialTicker.updatedAt)
+      : null
+  };
+
+  const firstResult = await postJson('/ticker/state', firstPayload);
+  assert.equal(firstResult.response.status, 200, firstResult.data.error || 'Expected ticker update to succeed');
+  assert.equal(firstResult.data.ok, true);
+  const latestTicker = firstResult.data.state;
+  assert.ok(latestTicker);
+  const latestStamp = Number(latestTicker.updatedAt);
+  assert.ok(Number.isFinite(latestStamp));
+
+  const stalePayload = {
+    ...firstPayload,
+    messages: ['Stale ticker payload'],
+    updatedAt: Math.max(0, latestStamp - 50)
+  };
+  const staleResult = await postJson('/ticker/state', stalePayload);
+  assert.equal(staleResult.response.status, 409, 'Expected stale ticker payload to be rejected');
+  assert.equal(staleResult.data.ok, false);
+  assert.ok(staleResult.data.state);
+  assert.notDeepEqual(staleResult.data.state.messages, stalePayload.messages);
+
+  const recoveryPayload = {
+    ...stalePayload,
+    messages: ['Fresh ticker payload'],
+    updatedAt: Number(staleResult.data.state.updatedAt)
+  };
+  const recoveryResult = await postJson('/ticker/state', recoveryPayload);
+  assert.equal(recoveryResult.response.status, 200, recoveryResult.data.error || 'Expected recovery payload to succeed');
+  assert.equal(recoveryResult.data.ok, true);
+  assert.deepEqual(recoveryResult.data.state.messages, ['Fresh ticker payload']);
+});
+
+test('overlay mutations surface 409 conflicts with latest state', async () => {
+  const { data: initialOverlay } = await getJson('/ticker/overlay');
+  const baseOverlay = {
+    ...initialOverlay,
+    label: 'Overlay concurrency baseline',
+    updatedAt: Number(initialOverlay.updatedAt) || null
+  };
+
+  const firstResult = await postJson('/ticker/overlay', baseOverlay);
+  assert.equal(firstResult.response.status, 200, firstResult.data.error || 'Expected overlay update to succeed');
+  assert.equal(firstResult.data.ok, true);
+  const latestOverlay = firstResult.data.overlay;
+  assert.ok(latestOverlay);
+  const latestStamp = Number(latestOverlay.updatedAt);
+  assert.ok(Number.isFinite(latestStamp));
+
+  const staleOverlay = {
+    ...baseOverlay,
+    label: 'Stale overlay label',
+    updatedAt: Math.max(0, latestStamp - 25)
+  };
+  const staleResult = await postJson('/ticker/overlay', staleOverlay);
+  assert.equal(staleResult.response.status, 409, 'Expected stale overlay update to be rejected');
+  assert.equal(staleResult.data.ok, false);
+  assert.ok(staleResult.data.overlay);
+  assert.notEqual(staleResult.data.overlay.label, 'Stale overlay label');
+
+  const recoveryOverlay = {
+    ...staleOverlay,
+    label: 'Recovered overlay label',
+    updatedAt: Number(staleResult.data.overlay.updatedAt)
+  };
+  const recoveryResult = await postJson('/ticker/overlay', recoveryOverlay);
+  assert.equal(recoveryResult.response.status, 200, recoveryResult.data.error || 'Expected overlay recovery to succeed');
+  assert.equal(recoveryResult.data.ok, true);
+  assert.equal(recoveryResult.data.overlay.label, 'Recovered overlay label');
+});
+
 async function postJson(pathname, payload) {
   const response = await fetch(`${BASE_URL}${pathname}`, {
     method: 'POST',

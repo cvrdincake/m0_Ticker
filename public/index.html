@@ -6028,11 +6028,13 @@
 
     async function persistState() {
       const base = serverBase();
+      const timestamp = Number(state.updatedAt ?? state._updatedAt);
       const payload = {
         isActive: state.isActive,
         messages: state.messages,
         displayDuration: state.displayDuration,
-        intervalBetween: minutesToSeconds(state.intervalMinutes)
+        intervalBetween: minutesToSeconds(state.intervalMinutes),
+        updatedAt: Number.isFinite(timestamp) ? timestamp : null
       };
       try {
         await runQueued(mutationQueues.ticker, async () => {
@@ -6051,9 +6053,20 @@
             applyServerStatus('online');
           } catch (err) {
             console.error('Failed to save state', err);
-            toast(err.message || 'Failed to save ticker state');
-            applyServerStatus('error', { force: true });
-            markErrorHandled(err);
+            if (err && err.status === 409) {
+              markErrorHandled(err);
+              const latest = err.response && err.response.state;
+              if (latest) {
+                applyTickerData(latest);
+              } else {
+                void fetchState({ silent: true });
+              }
+              toast('Ticker updated on another device. Latest version loaded.');
+            } else {
+              toast(err && err.message ? err.message : 'Failed to save ticker state');
+              applyServerStatus('error', { force: true });
+              markErrorHandled(err);
+            }
             throw err;
           }
         });
@@ -6365,6 +6378,41 @@
       }
     }
 
+    function handleStreamPayloadError(kind, error) {
+      console.warn(`[Ticker] Failed to process ${kind} stream payload`, error);
+      if (!isPollingActive) {
+        startPolling(`${kind}-parse`);
+      } else {
+        setStreamState(STREAM_STATES.POLLING, { reason: `${kind}-parse` });
+      }
+      applyServerStatus('reconnecting', { force: true });
+      disconnectStream({ preservePolling: true });
+      void fetchState({ silent: true });
+      scheduleReconnect(`${kind}-parse`);
+    }
+
+    function processStreamPayload(kind, event, handler) {
+      if (!event || typeof event.data !== 'string') {
+        handleStreamPayloadError(kind, new Error('Missing event payload'));
+        return;
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(event.data);
+      } catch (error) {
+        handleStreamPayloadError(kind, error);
+        return;
+      }
+      try {
+        const applied = handler(parsed);
+        if (applied !== false) {
+          markStreamPrimed();
+        }
+      } catch (error) {
+        handleStreamPayloadError(kind, error);
+      }
+    }
+
     function detachEventSourceListeners(source = eventSource) {
       if (!source || !Array.isArray(eventSourceListeners)) {
         eventSourceListeners = [];
@@ -6536,77 +6584,53 @@
         });
 
         register('ticker', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('ticker', event, data => {
             applyTickerData(data);
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse ticker stream payload', err);
-          }
+          });
         });
 
         register('overlay', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('overlay', event, data => {
             applyOverlayData(data);
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse overlay stream payload', err);
-          }
+          });
         });
 
         register('presets', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('presets', event, data => {
             if (Array.isArray(data)) {
               applyPresetsData(data);
+              return true;
             }
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse presets stream payload', err);
-          }
+            return false;
+          });
         });
 
         register('scenes', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('scenes', event, data => {
             if (Array.isArray(data)) {
               applyScenesData(data);
+              return true;
             }
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse scenes stream payload', err);
-          }
+            return false;
+          });
         });
 
         register('popup', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('popup', event, data => {
             applyPopupData(data);
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse popup stream payload', err);
-          }
+          });
         });
 
         register('slate', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('slate', event, data => {
             applySlateData(data);
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse slate stream payload', err);
-          }
+          });
         });
 
         register('brb', event => {
-          try {
-            const data = JSON.parse(event.data);
+          processStreamPayload('brb', event, data => {
             applyBrbData(data);
-            markStreamPrimed();
-          } catch (err) {
-            console.warn('Failed to parse BRB stream payload', err);
-          }
+          });
         });
       } catch (err) {
         console.error('Failed to connect to event stream', err);

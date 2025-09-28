@@ -226,6 +226,68 @@ let writePromise = Promise.resolve();
 const sseClients = new Set();
 let heartbeatTimer = null;
 
+function resolveTimestamp(source) {
+  if (!source || typeof source !== 'object') {
+    return null;
+  }
+  const candidate = Number(source.updatedAt ?? source._updatedAt);
+  return Number.isFinite(candidate) ? candidate : null;
+}
+
+function computeUpdateTimestamp(currentState) {
+  const currentStamp = resolveTimestamp(currentState);
+  const now = Date.now();
+  if (!Number.isFinite(currentStamp)) {
+    return now;
+  }
+  return now > currentStamp ? now : currentStamp + 1;
+}
+
+function isStaleUpdate(payload, currentState) {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+  const incomingStamp = resolveTimestamp(payload);
+  if (!Number.isFinite(incomingStamp)) {
+    return false;
+  }
+  const currentStamp = resolveTimestamp(currentState);
+  if (!Number.isFinite(currentStamp)) {
+    return false;
+  }
+  return incomingStamp < currentStamp;
+}
+
+function respondConflict(res, key, latest, message) {
+  res.status(409).json({
+    ok: false,
+    error: message || 'State update rejected; newer data available on server.',
+    [key]: latest
+  });
+}
+
+function cloneTickerState() {
+  return {
+    ...state.ticker,
+    messages: cloneMessages(state.ticker.messages)
+  };
+}
+
+function cloneOverlayState() {
+  return { ...state.overlay };
+}
+
+function clonePopupState() {
+  return { ...state.popup };
+}
+
+function cloneSlateState() {
+  return {
+    ...state.slate,
+    notes: Array.isArray(state.slate.notes) ? state.slate.notes.slice(0, MAX_NOTES) : []
+  };
+}
+
 function scheduleHeartbeat() {
   if (heartbeatTimer) return;
   heartbeatTimer = setInterval(() => {
@@ -720,7 +782,12 @@ app.get('/ticker/state', (req, res) => {
 
 app.post('/ticker/state', async (req, res) => {
   try {
-    applyTickerUpdate(req.body || {}, { preserveTimestamp: false, timestamp: Date.now() });
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    if (isStaleUpdate(payload, state.ticker)) {
+      respondConflict(res, 'state', cloneTickerState(), 'Ticker state is newer on the server.');
+      return;
+    }
+    applyTickerUpdate(payload, { preserveTimestamp: false, timestamp: computeUpdateTimestamp(state.ticker) });
     await persistState();
     broadcastEvent('ticker', state.ticker);
     respondOk(res, { state: state.ticker });
@@ -735,7 +802,12 @@ app.get('/ticker/overlay', (req, res) => {
 
 app.post('/ticker/overlay', async (req, res) => {
   try {
-    applyOverlayUpdate(req.body || {}, { preserveTimestamp: false, timestamp: Date.now() });
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    if (isStaleUpdate(payload, state.overlay)) {
+      respondConflict(res, 'overlay', cloneOverlayState(), 'Overlay preferences were updated elsewhere.');
+      return;
+    }
+    applyOverlayUpdate(payload, { preserveTimestamp: false, timestamp: computeUpdateTimestamp(state.overlay) });
     await persistState();
     broadcastEvent('overlay', state.overlay);
     respondOk(res, { overlay: state.overlay });
@@ -750,7 +822,12 @@ app.get('/popup/state', (req, res) => {
 
 app.post('/popup/state', async (req, res) => {
   try {
-    applyPopupUpdate(req.body || {}, { preserveTimestamp: false, timestamp: Date.now() });
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    if (isStaleUpdate(payload, state.popup)) {
+      respondConflict(res, 'popup', clonePopupState(), 'Popup state is newer on the server.');
+      return;
+    }
+    applyPopupUpdate(payload, { preserveTimestamp: false, timestamp: computeUpdateTimestamp(state.popup) });
     await persistState();
     broadcastEvent('popup', state.popup);
     respondOk(res, { popup: state.popup });
@@ -768,7 +845,12 @@ app.get('/slate/state', (req, res) => {
 
 app.post('/slate/state', async (req, res) => {
   try {
-    applySlateUpdate(req.body || {}, { preserveTimestamp: false, timestamp: Date.now() });
+    const payload = req.body && typeof req.body === 'object' ? req.body : {};
+    if (isStaleUpdate(payload, state.slate)) {
+      respondConflict(res, 'slate', cloneSlateState(), 'Slate state is newer on the server.');
+      return;
+    }
+    applySlateUpdate(payload, { preserveTimestamp: false, timestamp: computeUpdateTimestamp(state.slate) });
     await persistState();
     broadcastEvent('slate', state.slate);
     respondOk(res, { slate: state.slate });
