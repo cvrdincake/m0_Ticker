@@ -809,6 +809,8 @@
       normaliseMode: sharedNormaliseMode,
       normalisePosition: sharedNormalisePosition,
       normaliseTheme: sharedNormaliseTheme,
+      normaliseServerBase: sharedNormaliseServerBase,
+      normaliseServerBaseUrl: sharedNormaliseServerBaseUrl,
       isSafeCssColor,
       clampScaleValue,
       clampPopupScaleValue,
@@ -818,20 +820,23 @@
     } = window.TickerShared || {};
 
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
-    const normaliseServerBase = typeof sharedNormaliseServerBaseUrl === 'function'
-      ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
-      : (value, fallback = DEFAULT_SERVER_URL) => {
-          const fallbackValue = typeof fallback === 'string' && fallback.trim()
-            ? fallback.trim()
-            : DEFAULT_SERVER_URL;
-          const raw = typeof value === 'string' ? value.trim() : '';
-          const target = raw || fallbackValue;
-          const cleaned = target
-            .replace(/(?:\/ticker)+\/?$/i, '')
-            .replace(/\/+$/g, '');
-          const fallbackClean = fallbackValue.replace(/\/+$/g, '');
-          return cleaned || fallbackClean;
-        };
+    const manualNormaliseServerBase = (value, fallback = DEFAULT_SERVER_URL) => {
+      const fallbackValue = typeof fallback === 'string' && fallback.trim()
+        ? fallback.trim()
+        : DEFAULT_SERVER_URL;
+      const raw = typeof value === 'string' ? value.trim() : '';
+      const target = raw || fallbackValue;
+      const cleaned = target
+        .replace(/(?:\/ticker)+\/?$/i, '')
+        .replace(/\/+$/g, '');
+      const fallbackClean = fallbackValue.replace(/\/+$/g, '');
+      return cleaned || fallbackClean;
+    };
+    const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
+      ? (value, fallback) => sharedNormaliseServerBase(value, fallback ?? DEFAULT_SERVER_URL)
+      : typeof sharedNormaliseServerBaseUrl === 'function'
+        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+        : manualNormaliseServerBase;
 
     const SPECIAL_MAP = {
       '~~': 'rainbow',
