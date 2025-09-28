@@ -870,8 +870,10 @@
       --popup-divider-color: rgba(180, 192, 224, 0.22);
       --preview-accent: #38bdf8;
       --preview-accent-secondary: #f472b6;
-      --accent: var(--preview-accent);
-      --accent-secondary: var(--preview-accent-secondary, var(--accent));
+      --overlay-accent: var(--preview-accent);
+      --overlay-accent-secondary: var(--preview-accent-secondary, var(--overlay-accent));
+      --accent: var(--overlay-accent, var(--preview-accent));
+      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
       --accent-bright: #7dd3fc;
       --accent-glow: rgba(56, 189, 248, 0.45);
       --accent-duo: #1c1e27;
@@ -895,6 +897,11 @@
       -webkit-mask-repeat: no-repeat;
       animation: var(--popup-glow-anim, none);
       --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 65%);
+    }
+
+    body[data-preview-theme] {
+      --accent: var(--overlay-accent, var(--preview-accent));
+      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
     }
 
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -2459,6 +2466,275 @@
     const FALLBACK_MAX_MESSAGE_LENGTH = Number.isFinite(EXPORTED_MAX_MESSAGE_LENGTH)
       ? EXPORTED_MAX_MESSAGE_LENGTH
       : 280;
+    const FALLBACK_MAX_POPUP_SECONDS = Number.isFinite(EXPORTED_MAX_POPUP_SECONDS)
+      ? EXPORTED_MAX_POPUP_SECONDS
+      : 600;
+    const FALLBACK_MAX_SLATE_TITLE_LENGTH = Number.isFinite(EXPORTED_MAX_SLATE_TITLE_LENGTH)
+      ? EXPORTED_MAX_SLATE_TITLE_LENGTH
+      : 64;
+    const FALLBACK_MAX_SLATE_TEXT_LENGTH = Number.isFinite(EXPORTED_MAX_SLATE_TEXT_LENGTH)
+      ? EXPORTED_MAX_SLATE_TEXT_LENGTH
+      : 200;
+    const FALLBACK_MAX_SLATE_NOTES = Number.isFinite(EXPORTED_MAX_SLATE_NOTES)
+      ? EXPORTED_MAX_SLATE_NOTES
+      : 6;
+    const FALLBACK_MAX_HIGHLIGHT_LENGTH = 512;
+    const FALLBACK_MAX_OVERLAY_LABEL_LENGTH = 64;
+    const FALLBACK_MAX_SCENE_NAME_LENGTH = Number.isFinite(EXPORTED_MAX_SCENE_NAME_LENGTH)
+      ? EXPORTED_MAX_SCENE_NAME_LENGTH
+      : 80;
+
+    const FALLBACK_THEME_OPTIONS_RAW = Array.isArray(BASE_THEME_OPTIONS) && BASE_THEME_OPTIONS.length
+      ? BASE_THEME_OPTIONS.filter(entry => typeof entry === 'string' && entry.trim())
+      : null;
+    const FALLBACK_THEME_SET = new Set(
+      (FALLBACK_THEME_OPTIONS_RAW || [])
+        .map(entry => entry.trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    const FALLBACK_DEFAULT_HIGHLIGHTS = Array.isArray(BASE_DEFAULT_HIGHLIGHTS) && BASE_DEFAULT_HIGHLIGHTS.length
+      ? BASE_DEFAULT_HIGHLIGHTS.slice()
+      : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
+    const FALLBACK_DEFAULT_HIGHLIGHT_STRING = typeof BASE_DEFAULT_HIGHLIGHT_STRING === 'string'
+      && BASE_DEFAULT_HIGHLIGHT_STRING.trim()
+        ? BASE_DEFAULT_HIGHLIGHT_STRING.trim()
+        : FALLBACK_DEFAULT_HIGHLIGHTS.join(', ');
+
+    const FALLBACK_DEFAULT_OVERLAY_BASE = BASE_DEFAULT_OVERLAY && typeof BASE_DEFAULT_OVERLAY === 'object'
+      ? BASE_DEFAULT_OVERLAY
+      : {};
+    const FALLBACK_DEFAULT_POPUP_BASE = BASE_DEFAULT_POPUP && typeof BASE_DEFAULT_POPUP === 'object'
+      ? BASE_DEFAULT_POPUP
+      : {};
+    const FALLBACK_DEFAULT_SLATE_SOURCE = {
+      isEnabled: true,
+      rotationSeconds: 12,
+      showClock: true,
+      clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
+      nextLabel: 'Next up',
+      nextTitle: '',
+      nextSubtitle: '',
+      sponsorName: '',
+      sponsorTagline: '',
+      sponsorLabel: 'Sponsor',
+      notesLabel: 'Spotlight',
+      notes: [],
+      ...(BASE_DEFAULT_SLATE && typeof BASE_DEFAULT_SLATE === 'object' ? BASE_DEFAULT_SLATE : {})
+    };
+
+    function clampNumberFallback(value, min, max, fallback, precision) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return fallback;
+      const clamped = Math.min(Math.max(numeric, min), max);
+      if (typeof precision === 'number') {
+        const factor = Math.pow(10, precision);
+        return Math.round(clamped * factor) / factor;
+      }
+      return Math.round(clamped);
+    }
+
+    const clampDurationSafe = typeof clampDurationSeconds === 'function'
+      ? (value, fallback) => clampDurationSeconds(value, fallback)
+      : (value, fallback = 5) => clampNumberFallback(value, 2, 90, fallback, 0);
+    const clampIntervalSafe = typeof clampIntervalSeconds === 'function'
+      ? (value, fallback) => clampIntervalSeconds(value, fallback)
+      : (value, fallback = 60) => clampNumberFallback(value, 0, 3600, fallback, 0);
+    const clampScaleSafe = typeof clampScaleValue === 'function'
+      ? (value, fallback) => clampScaleValue(value, fallback)
+      : (value, fallback = 1.75) => clampNumberFallback(value, 0.75, 2.5, fallback, 2);
+    const clampPopupScaleSafe = typeof clampPopupScaleValue === 'function'
+      ? (value, fallback) => clampPopupScaleValue(value, fallback)
+      : (value, fallback = 1) => clampNumberFallback(value, 0.6, 1.5, fallback, 2);
+    const clampSlateRotationSafe = typeof clampSlateRotationSeconds === 'function'
+      ? (value, fallback) => clampSlateRotationSeconds(value, fallback)
+      : (value, fallback = 12) => clampNumberFallback(value, 4, 900, fallback, 0);
+
+    const normaliseModeSafe = typeof sharedNormaliseMode === 'function'
+      ? sharedNormaliseMode
+      : value => {
+          const lower = String(value || '').toLowerCase();
+          return ['auto', 'marquee', 'chunk'].includes(lower) ? lower : 'auto';
+        };
+    const normalisePositionSafe = typeof sharedNormalisePosition === 'function'
+      ? sharedNormalisePosition
+      : value => (String(value || '').toLowerCase() === 'top' ? 'top' : 'bottom');
+    const normaliseThemeSafe = typeof sharedNormaliseTheme === 'function'
+      ? sharedNormaliseTheme
+      : value => {
+          if (typeof value !== 'string') return null;
+          const trimmed = value.trim().toLowerCase();
+          if (!trimmed) return null;
+          return FALLBACK_THEME_SET.has(trimmed) ? trimmed : null;
+        };
+
+    const HEX_COLOR_RE = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+    const RGB_COLOR_RE = /^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
+    const HSL_COLOR_RE = /^hsla?\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d{1,3})%\s*,\s*(\d{1,3})%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/i;
+    const SAFE_COLOR_KEYWORDS = new Set([
+      'white', 'black', 'silver', 'gray', 'grey', 'maroon', 'red', 'purple', 'fuchsia',
+      'green', 'lime', 'olive', 'yellow', 'navy', 'blue', 'teal', 'aqua', 'orange',
+      'gold', 'indigo', 'violet', 'pink', 'plum', 'salmon', 'coral', 'turquoise',
+      'cyan', 'magenta', 'brown', 'chocolate', 'tan', 'beige', 'crimson',
+      'tomato', 'mintcream', 'honeydew', 'lavender', 'rebeccapurple', 'transparent', 'currentcolor'
+    ]);
+
+    const isSafeColour = typeof sharedIsSafeCssColor === 'function'
+      ? sharedIsSafeCssColor
+      : value => {
+          if (typeof value !== 'string') return false;
+          const trimmed = value.trim();
+          if (!trimmed || trimmed.length > 64) return false;
+          if (HEX_COLOR_RE.test(trimmed)) return true;
+          const lower = trimmed.toLowerCase();
+          if (SAFE_COLOR_KEYWORDS.has(lower)) return true;
+
+          const rgbMatch = trimmed.match(RGB_COLOR_RE);
+          if (rgbMatch) {
+            const components = [rgbMatch[1], rgbMatch[2], rgbMatch[3]].map(Number);
+            const alpha = rgbMatch[4];
+            const alphaOk = alpha == null
+              ? true
+              : (Number.isFinite(Number(alpha)) && Number(alpha) >= 0 && Number(alpha) <= 1);
+            if (components.every(component => Number.isFinite(component) && component >= 0 && component <= 255) && alphaOk) {
+              return true;
+            }
+          }
+
+          const hslMatch = trimmed.match(HSL_COLOR_RE);
+          if (hslMatch) {
+            const h = Number(hslMatch[1]);
+            const s = Number(hslMatch[2]);
+            const l = Number(hslMatch[3]);
+            const alpha = hslMatch[4];
+            const alphaOk = alpha == null
+              ? true
+              : (Number.isFinite(Number(alpha)) && Number(alpha) >= 0 && Number(alpha) <= 1);
+            if (
+              Number.isFinite(h) && h >= 0 && h <= 360 &&
+              Number.isFinite(s) && s >= 0 && s <= 100 &&
+              Number.isFinite(l) && l >= 0 && l <= 100 &&
+              alphaOk
+            ) {
+              return true;
+            }
+          }
+
+          return false;
+        };
+
+    const normaliseSlateNotesSafe = typeof normaliseSlateNotes === 'function'
+      ? (value, limit = FALLBACK_MAX_SLATE_NOTES, maxLength = FALLBACK_MAX_SLATE_TEXT_LENGTH) => normaliseSlateNotes(value, limit, maxLength)
+      : (value, limit = FALLBACK_MAX_SLATE_NOTES, maxLength = FALLBACK_MAX_SLATE_TEXT_LENGTH) => {
+          const list = Array.isArray(value)
+            ? value
+            : String(value == null ? '' : value)
+                .split(/\r?\n|[,;]/)
+                .map(entry => entry.trim());
+          const cleaned = [];
+          for (const entry of list) {
+            if (!entry) continue;
+            const trimmed = String(entry).trim().slice(0, maxLength);
+            if (!trimmed) continue;
+            cleaned.push(trimmed);
+            if (cleaned.length >= limit) break;
+          }
+          return cleaned;
+        };
+
+    const FALLBACK_DEFAULT_OVERLAY = (() => {
+      const merged = {
+        label: 'LIVE',
+        accent: '#38bdf8',
+        accentSecondary: '#f472b6',
+        highlight: FALLBACK_DEFAULT_HIGHLIGHT_STRING,
+        scale: 1.75,
+        popupScale: 1,
+        position: 'bottom',
+        mode: 'auto',
+        accentAnim: true,
+        sparkle: true,
+        theme: 'midnight-glass',
+        ...FALLBACK_DEFAULT_OVERLAY_BASE
+      };
+      merged.highlight = typeof merged.highlight === 'string' && merged.highlight.trim()
+        ? merged.highlight.trim()
+        : FALLBACK_DEFAULT_HIGHLIGHT_STRING;
+      merged.scale = clampScaleSafe(merged.scale, 1.75);
+      merged.popupScale = clampPopupScaleSafe(merged.popupScale, 1);
+      merged.position = normalisePositionSafe(merged.position);
+      const normalisedMode = normaliseModeSafe(merged.mode);
+      merged.mode = normalisedMode || 'auto';
+      const normalisedTheme = normaliseThemeSafe(merged.theme);
+      merged.theme = normalisedTheme || 'midnight-glass';
+      return Object.freeze(merged);
+    })();
+
+    const FALLBACK_DEFAULT_POPUP = (() => {
+      const base = {
+        text: '',
+        isActive: false,
+        durationSeconds: null,
+        countdownEnabled: false,
+        countdownTarget: null,
+        updatedAt: null,
+        ...FALLBACK_DEFAULT_POPUP_BASE
+      };
+      const text = typeof base.text === 'string' ? base.text.trim().slice(0, FALLBACK_MAX_MESSAGE_LENGTH) : '';
+      const duration = Number(base.durationSeconds);
+      const countdownTarget = Number(base.countdownTarget);
+      const updatedAtNumeric = Number(base.updatedAt);
+      const countdownNumeric = Number.isFinite(countdownTarget) ? Math.round(countdownTarget) : null;
+      return Object.freeze({
+        text,
+        isActive: !!base.isActive && !!text,
+        durationSeconds: Number.isFinite(duration) && duration > 0
+          ? Math.max(1, Math.min(FALLBACK_MAX_POPUP_SECONDS, Math.round(duration)))
+          : null,
+        countdownEnabled: !!base.countdownEnabled && !!text && Number.isFinite(countdownNumeric),
+        countdownTarget: Number.isFinite(countdownNumeric) ? countdownNumeric : null,
+        updatedAt: Number.isFinite(updatedAtNumeric) ? updatedAtNumeric : null
+      });
+    })();
+
+    const FALLBACK_DEFAULT_SLATE = (() => {
+      const base = { ...FALLBACK_DEFAULT_SLATE_SOURCE };
+      return Object.freeze({
+        isEnabled: base.isEnabled !== false,
+        rotationSeconds: clampSlateRotationSafe(base.rotationSeconds, 12),
+        showClock: base.showClock !== false,
+        clockLabel: typeof base.clockLabel === 'string'
+          ? base.clockLabel.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : 'UK TIME',
+        clockSubtitle: typeof base.clockSubtitle === 'string'
+          ? base.clockSubtitle.trim().slice(0, FALLBACK_MAX_SLATE_TEXT_LENGTH)
+          : 'UK time',
+        nextLabel: typeof base.nextLabel === 'string'
+          ? base.nextLabel.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : 'Next up',
+        nextTitle: typeof base.nextTitle === 'string'
+          ? base.nextTitle.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : '',
+        nextSubtitle: typeof base.nextSubtitle === 'string'
+          ? base.nextSubtitle.trim().slice(0, FALLBACK_MAX_SLATE_TEXT_LENGTH)
+          : '',
+        sponsorName: typeof base.sponsorName === 'string'
+          ? base.sponsorName.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : '',
+        sponsorTagline: typeof base.sponsorTagline === 'string'
+          ? base.sponsorTagline.trim().slice(0, FALLBACK_MAX_SLATE_TEXT_LENGTH)
+          : '',
+        sponsorLabel: typeof base.sponsorLabel === 'string'
+          ? base.sponsorLabel.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : 'Sponsor',
+        notesLabel: typeof base.notesLabel === 'string'
+          ? base.notesLabel.trim().slice(0, FALLBACK_MAX_SLATE_TITLE_LENGTH)
+          : 'Spotlight',
+        notes: normaliseSlateNotesSafe(base.notes, FALLBACK_MAX_SLATE_NOTES, FALLBACK_MAX_SLATE_TEXT_LENGTH),
+        updatedAt: Number.isFinite(Number(base.updatedAt)) ? Number(base.updatedAt) : null
+      });
+    })();
 
     const bootWarningEl = document.getElementById('bootWarning');
     const missingHelperNames = new Set();
@@ -2487,7 +2763,8 @@
           const {
             maxMessages = FALLBACK_MAX_MESSAGES,
             maxLength = FALLBACK_MAX_MESSAGE_LENGTH,
-            includeMeta = false
+            includeMeta = false,
+            strict = false
           } = options;
           const cleaned = [];
           let trimmed = 0;
@@ -2503,10 +2780,19 @@
             }
             if (!text) continue;
             if (cleaned.length >= maxMessages) {
+              if (strict) {
+                throw new Error(`Too many ticker messages (maximum ${maxMessages}).`);
+              }
               truncated += 1;
+              if (!includeMeta) {
+                break;
+              }
               continue;
             }
             if (text.length > maxLength) {
+              if (strict) {
+                throw new Error(`Ticker messages must be ${maxLength} characters or fewer.`);
+              }
               text = text.slice(0, maxLength);
               trimmed += 1;
             }
@@ -2538,86 +2824,239 @@
             seen.add(key);
             normalised.push(trimmed);
           }
-          return normalised.join(', ');
+          return normalised.join(', ').slice(0, FALLBACK_MAX_HIGHLIGHT_LENGTH);
         };
 
     const normaliseSlateNotesListFn = typeof normaliseSlateNotesList === 'function'
-      ? normaliseSlateNotesList
-      : value => {
+      ? (value, limit = FALLBACK_MAX_SLATE_NOTES, maxLength = FALLBACK_MAX_SLATE_TEXT_LENGTH) => normaliseSlateNotesList(value, limit, maxLength)
+      : (value, limit = FALLBACK_MAX_SLATE_NOTES, maxLength = FALLBACK_MAX_SLATE_TEXT_LENGTH) => {
           reportMissingHelper('normaliseSlateNotesList');
-          const entries = Array.isArray(value)
-            ? value
-            : typeof value === 'string'
-              ? value.split(/\r?\n/)
-              : [];
-          return entries
-            .map(entry => (typeof entry === 'string' ? entry.trim() : ''))
-            .filter(Boolean);
+          return normaliseSlateNotesSafe(value, limit, maxLength);
         };
 
     const normaliseOverlayDataFn = typeof normaliseOverlayData === 'function'
       ? normaliseOverlayData
-      : (value = {}) => {
+      : (value = {}, defaults = FALLBACK_DEFAULT_OVERLAY) => {
           reportMissingHelper('normaliseOverlayData');
-          const source = value && typeof value === 'object' ? value : {};
-          const result = { ...source };
-          if (typeof result.highlight === 'string') {
-            const normalisedHighlight = normaliseHighlightInputFn(result.highlight);
-            if (typeof normalisedHighlight === 'string') {
-              result.highlight = normalisedHighlight.slice(0, 512);
-            } else if (Array.isArray(normalisedHighlight)) {
-              result.highlight = normalisedHighlight.join(', ').slice(0, 512);
+          const base = defaults && typeof defaults === 'object' ? defaults : FALLBACK_DEFAULT_OVERLAY;
+          const result = { ...base };
+          if (!value || typeof value !== 'object') {
+            return result;
+          }
+
+          if (typeof value.label === 'string') {
+            const trimmed = value.label.trim().slice(0, FALLBACK_MAX_OVERLAY_LABEL_LENGTH).trim();
+            if (trimmed) {
+              result.label = trimmed;
             }
           }
+
+          if (typeof value.accent === 'string') {
+            const trimmed = value.accent.trim();
+            if (!trimmed) {
+              result.accent = '';
+            } else if (trimmed.length <= 64 && isSafeColour(trimmed)) {
+              result.accent = trimmed;
+            }
+          }
+
+          if (typeof value.accentSecondary === 'string') {
+            const trimmedSecondary = value.accentSecondary.trim();
+            if (!trimmedSecondary) {
+              result.accentSecondary = '';
+            } else if (trimmedSecondary.length <= 64 && isSafeColour(trimmedSecondary)) {
+              result.accentSecondary = trimmedSecondary;
+            }
+          }
+
+          if (typeof value.highlight === 'string') {
+            const normalisedHighlight = normaliseHighlightInputFn(value.highlight);
+            if (typeof normalisedHighlight === 'string') {
+              result.highlight = normalisedHighlight;
+            } else if (Array.isArray(normalisedHighlight)) {
+              result.highlight = normalisedHighlight.join(', ');
+            }
+            result.highlight = String(result.highlight || '').slice(0, FALLBACK_MAX_HIGHLIGHT_LENGTH);
+          }
+
+          if (Number.isFinite(value.scale)) {
+            result.scale = clampScaleSafe(value.scale, result.scale);
+          }
+
+          if (Number.isFinite(value.popupScale)) {
+            result.popupScale = clampPopupScaleSafe(value.popupScale, result.popupScale);
+          }
+
+          if (typeof value.position === 'string') {
+            result.position = normalisePositionSafe(value.position);
+          }
+
+          if (typeof value.mode === 'string') {
+            result.mode = normaliseModeSafe(value.mode);
+          }
+
+          if (typeof value.accentAnim === 'boolean') {
+            result.accentAnim = value.accentAnim;
+          }
+
+          if (typeof value.sparkle === 'boolean') {
+            result.sparkle = value.sparkle;
+          }
+
+          if (typeof value.theme === 'string') {
+            const theme = normaliseThemeSafe(value.theme);
+            if (theme) {
+              result.theme = theme;
+            }
+          }
+
           return result;
         };
 
     const normalisePopupDataFn = typeof normalisePopupData === 'function'
       ? normalisePopupData
-      : (value = {}) => {
+      : (value = {}, defaults = FALLBACK_DEFAULT_POPUP, options = {}) => {
           reportMissingHelper('normalisePopupData');
-          const source = value && typeof value === 'object' ? value : {};
-          const text = typeof source.text === 'string' ? source.text.trim() : '';
-          const duration = Number(source.durationSeconds);
-          const countdownTarget = typeof source.countdownTarget === 'string'
-            ? source.countdownTarget
+          const { maxDurationSeconds = FALLBACK_MAX_POPUP_SECONDS } = options;
+          const base = defaults && typeof defaults === 'object' ? defaults : FALLBACK_DEFAULT_POPUP;
+          const sanitisedBaseText = typeof base.text === 'string'
+            ? base.text.trim().slice(0, FALLBACK_MAX_MESSAGE_LENGTH)
+            : '';
+          const baseDuration = Number(base.durationSeconds);
+          const baseDurationSeconds = Number.isFinite(baseDuration) && baseDuration > 0
+            ? Math.max(1, Math.min(maxDurationSeconds, Math.round(baseDuration)))
             : null;
+          const baseCountdownNumeric = Number(base.countdownTarget);
+          const baseCountdownTarget = Number.isFinite(baseCountdownNumeric)
+            ? Math.round(baseCountdownNumeric)
+            : null;
+          const baseUpdatedAtNumeric = Number(base.updatedAt);
           const result = {
-            text,
-            isActive: !!source.isActive && !!text,
-            durationSeconds: Number.isFinite(duration) ? duration : null,
-            countdownEnabled: !!source.countdownEnabled,
-            countdownTarget
+            text: sanitisedBaseText,
+            isActive: !!base.isActive && !!sanitisedBaseText,
+            durationSeconds: baseDurationSeconds,
+            countdownEnabled: !!base.countdownEnabled && !!sanitisedBaseText && baseCountdownTarget != null,
+            countdownTarget: baseCountdownTarget,
+            updatedAt: Number.isFinite(baseUpdatedAtNumeric) ? baseUpdatedAtNumeric : null
           };
+
+          const source = value && typeof value === 'object' ? value : {};
+
+          if (typeof source.text === 'string') {
+            result.text = source.text.trim().slice(0, FALLBACK_MAX_MESSAGE_LENGTH);
+          }
+
+          if (typeof source.isActive === 'boolean') {
+            result.isActive = source.isActive;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(source, 'durationSeconds')) {
+            const numeric = Number(source.durationSeconds);
+            result.durationSeconds = Number.isFinite(numeric) && numeric > 0
+              ? Math.max(1, Math.min(maxDurationSeconds, Math.round(numeric)))
+              : null;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(source, 'countdownEnabled')) {
+            result.countdownEnabled = !!source.countdownEnabled;
+          }
+
+          if (Object.prototype.hasOwnProperty.call(source, 'countdownTarget')) {
+            const numeric = Number(source.countdownTarget);
+            result.countdownTarget = Number.isFinite(numeric) ? Math.round(numeric) : null;
+          }
+
           if (typeof source.countdownLabel === 'string') {
             result.countdownLabel = source.countdownLabel;
           }
-          if ('updatedAt' in source) {
-            const stamp = Number(source.updatedAt);
-            result.updatedAt = Number.isFinite(stamp) ? stamp : source.updatedAt;
-          } else {
-            result.updatedAt = null;
+
+          const updatedAtSource = source.updatedAt != null ? source.updatedAt : source._updatedAt;
+          if (updatedAtSource != null) {
+            const numeric = Number(updatedAtSource);
+            if (Number.isFinite(numeric)) {
+              result.updatedAt = numeric;
+            }
           }
+
+          if (!result.text) {
+            result.isActive = false;
+            result.countdownEnabled = false;
+            result.countdownTarget = null;
+          }
+
+          if (!Number.isFinite(result.countdownTarget)) {
+            result.countdownTarget = null;
+            result.countdownEnabled = false;
+          } else {
+            result.countdownEnabled = !!result.countdownEnabled && !!result.text;
+            result.countdownTarget = Math.round(result.countdownTarget);
+          }
+
+          if (!Number.isFinite(result.updatedAt)) {
+            result.updatedAt = Date.now();
+          }
+
           return result;
         };
 
     const normaliseSlateDataFn = typeof normaliseSlateData === 'function'
       ? normaliseSlateData
-      : (value = {}) => {
+      : (value = {}, defaults = FALLBACK_DEFAULT_SLATE) => {
           reportMissingHelper('normaliseSlateData');
+          const base = defaults && typeof defaults === 'object'
+            ? defaults
+            : FALLBACK_DEFAULT_SLATE;
+          const result = {
+            ...base,
+            notes: Array.isArray(base.notes)
+              ? base.notes.slice(0, FALLBACK_MAX_SLATE_NOTES)
+              : []
+          };
+
           const source = value && typeof value === 'object' ? value : {};
-          const result = { ...source };
-          result.isEnabled = source.isEnabled !== false;
-          result.showClock = source.showClock !== false;
-          const rotation = Number(source.rotationSeconds);
-          result.rotationSeconds = Number.isFinite(rotation) ? rotation : 12;
-          const notesSource = source.notes != null
-            ? source.notes
-            : (source.notesList != null ? source.notesList : []);
-          result.notes = normaliseSlateNotesListFn(notesSource);
-          if (!Array.isArray(result.notes)) {
-            result.notes = [];
+
+          if (typeof source.isEnabled === 'boolean') {
+            result.isEnabled = source.isEnabled;
           }
+
+          if (typeof source.showClock === 'boolean') {
+            result.showClock = source.showClock;
+          }
+
+          if (Number.isFinite(source.rotationSeconds)) {
+            result.rotationSeconds = clampSlateRotationSafe(source.rotationSeconds, result.rotationSeconds);
+          }
+
+          const stringFields = [
+            ['clockLabel', FALLBACK_MAX_SLATE_TITLE_LENGTH],
+            ['clockSubtitle', FALLBACK_MAX_SLATE_TEXT_LENGTH],
+            ['nextLabel', FALLBACK_MAX_SLATE_TITLE_LENGTH],
+            ['nextTitle', FALLBACK_MAX_SLATE_TITLE_LENGTH],
+            ['nextSubtitle', FALLBACK_MAX_SLATE_TEXT_LENGTH],
+            ['sponsorLabel', FALLBACK_MAX_SLATE_TITLE_LENGTH],
+            ['sponsorName', FALLBACK_MAX_SLATE_TITLE_LENGTH],
+            ['sponsorTagline', FALLBACK_MAX_SLATE_TEXT_LENGTH],
+            ['notesLabel', FALLBACK_MAX_SLATE_TITLE_LENGTH]
+          ];
+
+          for (const [key, limit] of stringFields) {
+            if (typeof source[key] === 'string') {
+              result[key] = source[key].trim().slice(0, limit).trim();
+            }
+          }
+
+          if (Array.isArray(source.notes) || typeof source.notes === 'string') {
+            result.notes = normaliseSlateNotesListFn(source.notes, FALLBACK_MAX_SLATE_NOTES, FALLBACK_MAX_SLATE_TEXT_LENGTH);
+          }
+
+          const updatedAtSource = source.updatedAt != null ? source.updatedAt : source._updatedAt;
+          if (updatedAtSource != null) {
+            const numeric = Number(updatedAtSource);
+            if (Number.isFinite(numeric)) {
+              result.updatedAt = numeric;
+            }
+          }
+
           return result;
         };
 
@@ -2626,24 +3065,116 @@
       : (entry, helpers = {}) => {
           reportMissingHelper('normaliseSceneEntry');
           if (!entry || typeof entry !== 'object') return null;
-          const result = { ...entry };
-          if (entry.overlay) {
-            result.overlay = normaliseOverlayDataFn(entry.overlay);
+
+          const {
+            fallbackDisplayDuration = 5,
+            fallbackIntervalSeconds = 60,
+            maxMessages = FALLBACK_MAX_MESSAGES,
+            maxMessageLength = FALLBACK_MAX_MESSAGE_LENGTH
+          } = helpers || {};
+
+          const name = String(entry.name || '').trim().slice(0, FALLBACK_MAX_SCENE_NAME_LENGTH);
+          if (!name) return null;
+
+          const tickerSource = entry.ticker && typeof entry.ticker === 'object' ? entry.ticker : entry;
+          const messagesSource = tickerSource && tickerSource.messages != null
+            ? tickerSource.messages
+            : (entry && entry.messages != null ? entry.messages : []);
+          const tickerMessages = sanitiseMessagesFn(messagesSource, {
+            maxMessages,
+            maxLength: maxMessageLength
+          });
+          const cleanedMessages = Array.isArray(tickerMessages) ? tickerMessages : [];
+
+          const displayDurationSource = tickerSource && tickerSource.displayDuration != null
+            ? tickerSource.displayDuration
+            : (entry && entry.displayDuration != null ? entry.displayDuration : fallbackDisplayDuration);
+          const displayDuration = clampDurationSafe(displayDurationSource, fallbackDisplayDuration);
+
+          const intervalSource = tickerSource && tickerSource.intervalBetween != null
+            ? tickerSource.intervalBetween
+            : (entry && entry.intervalBetween != null ? entry.intervalBetween : fallbackIntervalSeconds);
+          const intervalBetween = clampIntervalSafe(intervalSource, fallbackIntervalSeconds);
+
+          const tickerActiveSource = tickerSource && tickerSource.isActive != null
+            ? tickerSource.isActive
+            : entry.isActive;
+          const ticker = {
+            messages: cleanedMessages,
+            displayDuration,
+            intervalBetween,
+            isActive: !!tickerActiveSource && cleanedMessages.length > 0
+          };
+
+          const popup = normalisePopupDataFn(entry.popup || {}, FALLBACK_DEFAULT_POPUP, helpers);
+
+          let slate = null;
+          if (entry.slate && typeof entry.slate === 'object') {
+            const normalisedSlate = normaliseSlateDataFn(entry.slate, FALLBACK_DEFAULT_SLATE);
+            slate = {
+              isEnabled: !!normalisedSlate.isEnabled,
+              rotationSeconds: clampSlateRotationSafe(normalisedSlate.rotationSeconds, normalisedSlate.rotationSeconds),
+              showClock: !!normalisedSlate.showClock,
+              clockLabel: normalisedSlate.clockLabel || '',
+              nextLabel: normalisedSlate.nextLabel || '',
+              nextTitle: normalisedSlate.nextTitle || '',
+              nextSubtitle: normalisedSlate.nextSubtitle || '',
+              sponsorLabel: normalisedSlate.sponsorLabel || '',
+              sponsorName: normalisedSlate.sponsorName || '',
+              sponsorTagline: normalisedSlate.sponsorTagline || '',
+              notesLabel: normalisedSlate.notesLabel || '',
+              notes: Array.isArray(normalisedSlate.notes)
+                ? normalisedSlate.notes.slice(0, FALLBACK_MAX_SLATE_NOTES)
+                : []
+            };
           }
-          if (entry.popup) {
-            result.popup = normalisePopupDataFn(entry.popup);
+
+          let overlay = null;
+          if (entry.overlay && typeof entry.overlay === 'object') {
+            const overlayKeys = [
+              'label',
+              'accent',
+              'accentSecondary',
+              'highlight',
+              'scale',
+              'popupScale',
+              'position',
+              'mode',
+              'accentAnim',
+              'sparkle',
+              'theme'
+            ];
+            const normalisedOverlay = normaliseOverlayDataFn(entry.overlay, FALLBACK_DEFAULT_OVERLAY);
+            for (const key of overlayKeys) {
+              if (!Object.prototype.hasOwnProperty.call(entry.overlay, key)) continue;
+              if (!(key in normalisedOverlay)) continue;
+              const value = normalisedOverlay[key];
+              if (value === undefined) continue;
+              if (!overlay) overlay = {};
+              overlay[key] = value;
+            }
+            if (!overlay && Object.prototype.hasOwnProperty.call(entry.overlay, 'theme')) {
+              const themeCandidate = normaliseThemeSafe(entry.overlay.theme);
+              if (themeCandidate) {
+                overlay = { theme: themeCandidate };
+              }
+            }
           }
-          result.messages = sanitiseMessagesFn(entry.messages || [], { includeMeta: true });
-          if (!Array.isArray(result.messages)) {
-            result.messages = [];
+
+          const hasSlateContent = !!(slate && Object.keys(slate).length);
+          const hasPopupText = !!(popup && popup.text);
+          if (!cleanedMessages.length && !hasPopupText && !hasSlateContent) {
+            return null;
           }
-          if (typeof result.displayDuration !== 'number' && typeof helpers.fallbackDisplayDuration === 'number') {
-            result.displayDuration = helpers.fallbackDisplayDuration;
-          }
-          if (typeof result.intervalSeconds !== 'number' && typeof helpers.fallbackIntervalSeconds === 'number') {
-            result.intervalSeconds = helpers.fallbackIntervalSeconds;
-          }
-          return result;
+
+          const id = typeof entry.id === 'string' && entry.id.trim()
+            ? entry.id
+            : String(entry.id || 'scene');
+          const updatedAtSource = entry.updatedAt != null ? entry.updatedAt : entry._updatedAt;
+          const updatedAtNumeric = Number(updatedAtSource);
+          const updatedAt = Number.isFinite(updatedAtNumeric) ? updatedAtNumeric : Date.now();
+
+          return { id, name, ticker, popup, overlay, slate, updatedAt };
         };
 
     [
@@ -2760,31 +3291,55 @@
       ? BASE_DEFAULT_HIGHLIGHTS.slice()
       : (Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
           ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
-          : ['live', 'breaking', 'alert', 'update', 'tonight', 'today']);
+          : FALLBACK_DEFAULT_HIGHLIGHTS.slice());
     const DEFAULT_HIGHLIGHT_STRING = typeof BASE_DEFAULT_HIGHLIGHT_STRING === 'string' && BASE_DEFAULT_HIGHLIGHT_STRING.trim()
-      ? BASE_DEFAULT_HIGHLIGHT_STRING
+      ? BASE_DEFAULT_HIGHLIGHT_STRING.trim()
       : (typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
-          ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
-          : DEFAULT_HIGHLIGHTS.join(', '));
+          ? sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+          : FALLBACK_DEFAULT_HIGHLIGHT_STRING);
 
     const DEFAULT_OVERLAY = {
-      label: 'LIVE',
-      accent: '#38bdf8',
-      accentSecondary: '#f472b6',
-      highlight: DEFAULT_HIGHLIGHT_STRING,
-      scale: 1.75,
-      popupScale: 1,
-      position: 'bottom',
-      mode: 'auto',
-      accentAnim: true,
-      sparkle: true,
-      theme: 'midnight-glass',
+      ...FALLBACK_DEFAULT_OVERLAY,
       ...(BASE_DEFAULT_OVERLAY || {}),
       ...(sharedConfig.DEFAULT_OVERLAY || {})
     };
-    if (!DEFAULT_OVERLAY.highlight) {
+
+    if (typeof DEFAULT_OVERLAY.accent === 'string') {
+      const accentTrimmed = DEFAULT_OVERLAY.accent.trim();
+      DEFAULT_OVERLAY.accent = accentTrimmed && isSafeColour(accentTrimmed)
+        ? accentTrimmed
+        : FALLBACK_DEFAULT_OVERLAY.accent;
+    } else {
+      DEFAULT_OVERLAY.accent = FALLBACK_DEFAULT_OVERLAY.accent;
+    }
+
+    if (typeof DEFAULT_OVERLAY.accentSecondary === 'string') {
+      const accentSecondaryTrimmed = DEFAULT_OVERLAY.accentSecondary.trim();
+      DEFAULT_OVERLAY.accentSecondary = accentSecondaryTrimmed && isSafeColour(accentSecondaryTrimmed)
+        ? accentSecondaryTrimmed
+        : FALLBACK_DEFAULT_OVERLAY.accentSecondary;
+    } else {
+      DEFAULT_OVERLAY.accentSecondary = FALLBACK_DEFAULT_OVERLAY.accentSecondary;
+    }
+
+    if (typeof DEFAULT_OVERLAY.highlight === 'string' && DEFAULT_OVERLAY.highlight.trim()) {
+      const normalisedHighlight = normaliseHighlightInputFn(DEFAULT_OVERLAY.highlight);
+      const highlightString = typeof normalisedHighlight === 'string'
+        ? normalisedHighlight
+        : Array.isArray(normalisedHighlight)
+          ? normalisedHighlight.join(', ')
+          : DEFAULT_HIGHLIGHT_STRING;
+      DEFAULT_OVERLAY.highlight = highlightString.slice(0, FALLBACK_MAX_HIGHLIGHT_LENGTH);
+    } else {
       DEFAULT_OVERLAY.highlight = DEFAULT_HIGHLIGHT_STRING;
     }
+
+    DEFAULT_OVERLAY.scale = clampScaleSafe(DEFAULT_OVERLAY.scale, FALLBACK_DEFAULT_OVERLAY.scale);
+    DEFAULT_OVERLAY.popupScale = clampPopupScaleSafe(DEFAULT_OVERLAY.popupScale, FALLBACK_DEFAULT_OVERLAY.popupScale);
+    DEFAULT_OVERLAY.position = normalisePositionSafe(DEFAULT_OVERLAY.position);
+    DEFAULT_OVERLAY.mode = normaliseModeSafe(DEFAULT_OVERLAY.mode);
+    const defaultThemeCandidate = normaliseThemeSafe(DEFAULT_OVERLAY.theme);
+    DEFAULT_OVERLAY.theme = defaultThemeCandidate || FALLBACK_DEFAULT_OVERLAY.theme;
 
     const DEFAULT_ACCENT = DEFAULT_OVERLAY.accent && DEFAULT_OVERLAY.accent.trim()
       ? DEFAULT_OVERLAY.accent.trim()
@@ -2809,40 +3364,27 @@
       updatedAt: null
     };
 
-    const DEFAULT_POPUP = {
-      text: '',
-      isActive: false,
-      durationSeconds: null,
-      countdownEnabled: false,
-      countdownTarget: null,
-      ...(BASE_DEFAULT_POPUP || {}),
-      ...(sharedConfig.DEFAULT_POPUP || {}),
-      updatedAt: null
-    };
+    const DEFAULT_POPUP = normalisePopupDataFn(
+      {
+        ...FALLBACK_DEFAULT_POPUP,
+        ...(BASE_DEFAULT_POPUP || {}),
+        ...(sharedConfig.DEFAULT_POPUP || {})
+      },
+      FALLBACK_DEFAULT_POPUP,
+      { maxDurationSeconds: MAX_POPUP_SECONDS }
+    );
 
     const DEFAULT_SLATE_TEMPLATE = {
-      isEnabled: true,
-      rotationSeconds: 12,
-      showClock: true,
-      clockLabel: 'UK TIME',
-      clockSubtitle: 'UK time',
-      nextLabel: 'Next up',
-      nextTitle: '',
-      nextSubtitle: '',
-      sponsorName: '',
-      sponsorTagline: '',
-      sponsorLabel: 'Sponsor',
-      notesLabel: 'Spotlight',
-      notes: [],
+      ...FALLBACK_DEFAULT_SLATE,
       ...(BASE_DEFAULT_SLATE || {}),
       ...(sharedConfig.DEFAULT_SLATE || {})
     };
 
-    const DEFAULT_SLATE_NORMALISED = normaliseSlateDataFn(DEFAULT_SLATE_TEMPLATE);
+    const DEFAULT_SLATE_NORMALISED = normaliseSlateDataFn(DEFAULT_SLATE_TEMPLATE, FALLBACK_DEFAULT_SLATE);
     const DEFAULT_SLATE = {
       ...DEFAULT_SLATE_NORMALISED,
       notes: Array.isArray(DEFAULT_SLATE_NORMALISED.notes) ? [...DEFAULT_SLATE_NORMALISED.notes] : [],
-      updatedAt: null
+      updatedAt: DEFAULT_SLATE_NORMALISED.updatedAt != null ? DEFAULT_SLATE_NORMALISED.updatedAt : null
     };
 
     const DEFAULT_BRB = {
@@ -5219,15 +5761,25 @@
       } else if (body && body.dataset && body.dataset.previewTheme) {
         delete body.dataset.previewTheme;
       }
-      if (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)) {
-        el.popupPreview.style.setProperty('--preview-accent', overlayPrefs.accent);
-      } else {
-        el.popupPreview.style.removeProperty('--preview-accent');
-      }
-      if (overlayPrefs.accentSecondary && isSafeColour(overlayPrefs.accentSecondary)) {
-        el.popupPreview.style.setProperty('--preview-accent-secondary', overlayPrefs.accentSecondary);
-      } else {
-        el.popupPreview.style.removeProperty('--preview-accent-secondary');
+      const defaultAccent = isSafeColour(DEFAULT_ACCENT) ? DEFAULT_ACCENT : '#38bdf8';
+      const defaultAccentSecondary = isSafeColour(DEFAULT_ACCENT_SECONDARY)
+        ? DEFAULT_ACCENT_SECONDARY
+        : defaultAccent;
+      const previewAccent = overlayPrefs.accent && isSafeColour(overlayPrefs.accent)
+        ? overlayPrefs.accent.trim()
+        : defaultAccent;
+      const previewAccentSecondary = overlayPrefs.accentSecondary && isSafeColour(overlayPrefs.accentSecondary)
+        ? overlayPrefs.accentSecondary.trim()
+        : (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)
+            ? overlayPrefs.accent.trim()
+            : defaultAccentSecondary);
+      el.popupPreview.style.setProperty('--preview-accent', previewAccent);
+      el.popupPreview.style.setProperty('--preview-accent-secondary', previewAccentSecondary);
+      el.popupPreview.style.setProperty('--overlay-accent', previewAccent);
+      el.popupPreview.style.setProperty('--overlay-accent-secondary', previewAccentSecondary);
+      if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.style.setProperty('--overlay-accent', previewAccent);
+        document.documentElement.style.setProperty('--overlay-accent-secondary', previewAccentSecondary);
       }
     }
 

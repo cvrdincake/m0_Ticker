@@ -21,8 +21,10 @@
       --label-width: calc(100px * var(--ui-scale));
       --padding-x: var(--space-lg);
       --divider-height: calc(var(--space-sm) * 1.75);
-      --accent: #38bdf8;
-      --accent-secondary: #f472b6;
+      --overlay-accent: #38bdf8;
+      --overlay-accent-secondary: #f472b6;
+      --accent: var(--overlay-accent, #38bdf8);
+      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
       --accent-bright: #7dd3fc;
       --accent-secondary-bright: #fbcfe8;
       --accent-soft: rgba(56, 189, 248, 0.16);
@@ -1905,6 +1907,19 @@
       return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
     }
 
+    function accentValueFromDefaults(primary, fallback, ultimateFallback = '#38bdf8') {
+      if (primary && isSafeCssColor(primary)) {
+        return primary.trim();
+      }
+      if (fallback && isSafeCssColor(fallback)) {
+        return fallback.trim();
+      }
+      if (typeof ultimateFallback === 'string' && ultimateFallback.trim()) {
+        return ultimateFallback.trim();
+      }
+      return '#38bdf8';
+    }
+
     function createMidnightPalette(primary, secondary) {
       const base = resolveColorString(primary, '#38bdf8');
       const alt = resolveColorString(secondary, base);
@@ -1929,23 +1944,33 @@
             autoStart: !this.reducedMotion,
             resolution: window.devicePixelRatio || 1
           });
+          if (!this.app.renderer || !this.app.view) {
+            throw new Error('Pixi renderer unavailable');
+          }
+          this.app.renderer.view.style.width = '100%';
+          this.app.renderer.view.style.height = '100%';
+          this.app.renderer.view.style.pointerEvents = 'none';
+          container.appendChild(this.app.view);
+          this.blurFilter = new PIXI.filters.BlurFilter();
+          this.blurFilter.blur = 24;
+          this.blurFilter.quality = 4;
+          this.app.stage.filters = [this.blurFilter];
+          this.createOrbs();
+          this.app.ticker.add(this.tick, this);
+          if (this.reducedMotion) {
+            this.app.ticker.stop();
+          }
         } catch (err) {
           console.warn('[ticker] failed to initialise PixiJS background', err);
+          if (this.app) {
+            try {
+              this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+            } catch (destroyErr) {
+              console.warn('[ticker] Pixi cleanup failed', destroyErr);
+            }
+          }
           this.app = null;
-          return;
-        }
-        this.app.renderer.view.style.width = '100%';
-        this.app.renderer.view.style.height = '100%';
-        this.app.renderer.view.style.pointerEvents = 'none';
-        container.appendChild(this.app.view);
-        this.blurFilter = new PIXI.filters.BlurFilter();
-        this.blurFilter.blur = 24;
-        this.blurFilter.quality = 4;
-        this.app.stage.filters = [this.blurFilter];
-        this.createOrbs();
-        this.app.ticker.add(this.tick, this);
-        if (this.reducedMotion) {
-          this.app.ticker.stop();
+          this.orbs = [];
         }
       }
 
@@ -2050,42 +2075,66 @@
         if (!container || typeof THREE === 'undefined') return;
         try {
           this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+          const context = typeof this.renderer.getContext === 'function'
+            ? this.renderer.getContext()
+            : null;
+          if (!context) {
+            throw new Error('WebGL context unavailable');
+          }
+          this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+          this.renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
+          this.renderer.domElement.style.width = '100%';
+          this.renderer.domElement.style.height = '100%';
+          this.renderer.domElement.style.pointerEvents = 'none';
+          container.appendChild(this.renderer.domElement);
+
+          this.scene = new THREE.Scene();
+          this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+          this.uniforms = {
+            u_time: { value: 0 },
+            u_colorA: { value: new THREE.Color(resolveColorString(options.accent, '#38bdf8')) },
+            u_colorB: { value: new THREE.Color(resolveColorString(options.accentSecondary, options.accent || '#f472b6')) }
+          };
+          const geometry = new THREE.PlaneGeometry(2, 2);
+          const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
+          const fragmentShader = `precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }`;
+          const material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false
+          });
+          this.mesh = new THREE.Mesh(geometry, material);
+          this.scene.add(this.mesh);
+          if (!this.reducedMotion) {
+            this.renderer.setAnimationLoop(this.render);
+          } else {
+            this.render(performance.now());
+          }
         } catch (err) {
           console.warn('[ticker] failed to initialise WebGL renderer', err);
+          if (this.renderer) {
+            try {
+              this.renderer.setAnimationLoop(null);
+            } catch (loopErr) {
+              // ignore
+            }
+            try {
+              this.renderer.dispose();
+            } catch (disposeErr) {
+              console.warn('[ticker] WebGL renderer dispose failed', disposeErr);
+            }
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+              this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
+          }
           this.renderer = null;
-          return;
-        }
-        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
-        this.renderer.setSize(container.clientWidth || 1, container.clientHeight || 1);
-        this.renderer.domElement.style.width = '100%';
-        this.renderer.domElement.style.height = '100%';
-        this.renderer.domElement.style.pointerEvents = 'none';
-        container.appendChild(this.renderer.domElement);
-
-        this.scene = new THREE.Scene();
-        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-        this.uniforms = {
-          u_time: { value: 0 },
-          u_colorA: { value: new THREE.Color(resolveColorString(options.accent, '#38bdf8')) },
-          u_colorB: { value: new THREE.Color(resolveColorString(options.accentSecondary, options.accent || '#f472b6')) }
-        };
-        const geometry = new THREE.PlaneGeometry(2, 2);
-        const vertexShader = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-        const fragmentShader = `precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }`;
-        const material = new THREE.ShaderMaterial({
-          uniforms: this.uniforms,
-          vertexShader,
-          fragmentShader,
-          transparent: true,
-          depthTest: false,
-          depthWrite: false
-        });
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.scene.add(this.mesh);
-        if (!this.reducedMotion) {
-          this.renderer.setAnimationLoop(this.render);
-        } else {
-          this.render(performance.now());
+          this.scene = null;
+          this.camera = null;
+          this.mesh = null;
+          this.uniforms = null;
         }
       }
 
@@ -2166,6 +2215,14 @@
         this.canvas.style.pointerEvents = 'none';
         container.appendChild(this.canvas);
         this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+          console.warn('[ticker] 2D canvas context unavailable');
+          if (this.canvas.parentNode) {
+            this.canvas.parentNode.removeChild(this.canvas);
+          }
+          this.canvas = null;
+          return;
+        }
         this.initNodes();
         if (!this.reducedMotion) {
           this.animate();
@@ -2503,15 +2560,20 @@
           this.animation = null;
         }
         const data = buildZenFlowData(this.accent, this.accentSecondary);
-        this.animation = lottie.loadAnimation({
-          container: this.node,
-          renderer: 'svg',
-          loop: true,
-          autoplay: !this.reducedMotion,
-          animationData: data
-        });
-        if (this.reducedMotion && this.animation) {
-          this.animation.goToAndStop(90, true);
+        try {
+          this.animation = lottie.loadAnimation({
+            container: this.node,
+            renderer: 'svg',
+            loop: true,
+            autoplay: !this.reducedMotion,
+            animationData: data
+          });
+          if (this.reducedMotion && this.animation) {
+            this.animation.goToAndStop(90, true);
+          }
+        } catch (err) {
+          console.warn('[ticker] failed to initialise Lottie animation', err);
+          this.animation = null;
         }
       }
 
@@ -2568,13 +2630,18 @@
         container.appendChild(this.layer);
         this.updateGradient();
         if (!this.reducedMotion && typeof gsap !== 'undefined') {
-          this.timeline = gsap.to(this.layer, {
-            duration: 16,
-            backgroundPosition: '200% 50%',
-            ease: 'none',
-            repeat: -1,
-            yoyo: true
-          });
+          try {
+            this.timeline = gsap.to(this.layer, {
+              duration: 16,
+              backgroundPosition: '200% 50%',
+              ease: 'none',
+              repeat: -1,
+              yoyo: true
+            });
+          } catch (err) {
+            console.warn('[ticker] failed to start gradient animation', err);
+            this.timeline = null;
+          }
         }
       }
 
@@ -2656,58 +2723,96 @@
       setTheme(theme, colors = {}) {
         if (!this.container) return;
         const factories = ThemeVisualController.factories;
-        const fallbackTheme = 'duotone-fusion';
-        const resolvedTheme = theme && factories[theme] ? theme : 'midnight-glass';
-        if (this.current && this.current.name === resolvedTheme) {
-          if (typeof this.current.updateColors === 'function') {
+
             this.current.updateColors(colors);
+          } catch (err) {
+            console.warn('[ticker] theme colour update failed', err);
           }
-          return;
         }
-        if (this.current && typeof this.current.destroy === 'function') {
+        if (typeof this.current.setReducedMotion === 'function') {
+          try {
+            this.current.setReducedMotion(this.reducedMotion);
+          } catch (err) {
+            console.warn('[ticker] theme reduced motion sync failed', err);
+          }
+        }
+        return;
+      }
+      if (this.current && typeof this.current.destroy === 'function') {
+        try {
           this.current.destroy();
+        } catch (err) {
+          console.warn('[ticker] theme destroy failed', err);
         }
-        if (this.container) {
-          this.container.innerHTML = '';
-        }
-        let instance = this.instantiateEngine(resolvedTheme, colors);
-        if (!instance && resolvedTheme !== fallbackTheme) {
-          instance = this.instantiateEngine(fallbackTheme, colors);
-        }
+      }
+      this.current = null;
+      if (this.container) {
+        this.container.innerHTML = '';
+      }
+      const factory = factories[resolvedTheme];
+      if (!factory) {
+        return;
+      }
+      try {
+        const instance = factory(this.container, { ...colors, reducedMotion: this.reducedMotion });
         this.current = instance || null;
-        if (this.current && typeof this.current.updateColors === 'function') {
-          this.current.updateColors(colors);
-        }
-      }
-
-      updateColors(colors = {}) {
-        if (this.current && typeof this.current.updateColors === 'function') {
-          this.current.updateColors(colors);
-        }
-      }
-
-      setReducedMotion(flag) {
-        this.reducedMotion = !!flag;
         if (this.current && typeof this.current.setReducedMotion === 'function') {
           this.current.setReducedMotion(this.reducedMotion);
         }
-      }
-
-      resize() {
-        if (this.current && typeof this.current.resize === 'function') {
-          this.current.resize();
-        }
-      }
-
-      destroy() {
-        if (this.current && typeof this.current.destroy === 'function') {
-          this.current.destroy();
-        }
+      } catch (err) {
+        console.warn(`[ticker] failed to initialise ${resolvedTheme} visuals`, err);
         this.current = null;
         if (this.container) {
           this.container.innerHTML = '';
         }
+
       }
+    }
+
+    updateColors(colors = {}) {
+      if (this.current && typeof this.current.updateColors === 'function') {
+        try {
+          this.current.updateColors(colors);
+        } catch (err) {
+          console.warn('[ticker] theme colour refresh failed', err);
+        }
+      }
+    }
+
+    setReducedMotion(flag) {
+      this.reducedMotion = !!flag;
+      if (this.current && typeof this.current.setReducedMotion === 'function') {
+        try {
+          this.current.setReducedMotion(this.reducedMotion);
+        } catch (err) {
+          console.warn('[ticker] theme reduced motion update failed', err);
+        }
+      }
+    }
+
+    resize() {
+      if (this.current && typeof this.current.resize === 'function') {
+        try {
+          this.current.resize();
+        } catch (err) {
+          console.warn('[ticker] theme resize failed', err);
+        }
+      }
+    }
+
+    destroy() {
+      if (this.current && typeof this.current.destroy === 'function') {
+        try {
+          this.current.destroy();
+        } catch (err) {
+          console.warn('[ticker] theme destroy failed', err);
+        }
+      }
+      this.current = null;
+      if (this.container) {
+        this.container.innerHTML = '';
+      }
+    }
     }
 
     class TickerOverlay {
@@ -3601,16 +3706,16 @@
           document.body.classList.toggle('no-sparkle', !this.overlay.sparkle);
         }
         this.labelNode.textContent = this.overlay.label;
-        if (this.overlay.accent && isSafeCssColor(this.overlay.accent)) {
-          document.documentElement.style.setProperty('--accent', this.overlay.accent);
-        } else {
-          document.documentElement.style.removeProperty('--accent');
-        }
-        if (this.overlay.accentSecondary && isSafeCssColor(this.overlay.accentSecondary)) {
-          document.documentElement.style.setProperty('--accent-secondary', this.overlay.accentSecondary);
-        } else {
-          document.documentElement.style.removeProperty('--accent-secondary');
-        }
+        const accentValue = accentValueFromDefaults(this.overlay.accent, DEFAULT_OVERLAY.accent);
+        const secondaryValue = accentValueFromDefaults(
+          this.overlay.accentSecondary,
+          DEFAULT_OVERLAY.accentSecondary,
+          accentValue
+        );
+        document.documentElement.style.setProperty('--overlay-accent', accentValue);
+        document.documentElement.style.setProperty('--overlay-accent-secondary', secondaryValue);
+        document.documentElement.style.setProperty('--accent', accentValue);
+        document.documentElement.style.setProperty('--accent-secondary', secondaryValue);
         document.documentElement.style.setProperty('--ui-scale', String(this.overlay.scale));
         document.documentElement.style.setProperty('--popup-scale', String(this.overlay.popupScale));
         this.cachedLongestMessageWidth = null;
@@ -3620,12 +3725,12 @@
         if (this.themeVisuals) {
           const computed = getComputedStyle(document.documentElement);
           const accentValue = resolveColorString(
-            computed.getPropertyValue('--accent'),
-            this.overlay.accent || DEFAULT_OVERLAY.accent || '#38bdf8'
+            computed.getPropertyValue('--overlay-accent') || computed.getPropertyValue('--accent'),
+            accentValueFromDefaults(this.overlay.accent, DEFAULT_OVERLAY.accent)
           );
           const secondaryValue = resolveColorString(
-            computed.getPropertyValue('--accent-secondary'),
-            this.overlay.accentSecondary || this.overlay.accent || DEFAULT_OVERLAY.accentSecondary || accentValue
+            computed.getPropertyValue('--overlay-accent-secondary') || computed.getPropertyValue('--accent-secondary'),
+            accentValueFromDefaults(this.overlay.accentSecondary, DEFAULT_OVERLAY.accentSecondary, accentValue)
           );
           this.themeVisuals.setTheme(theme, { accent: accentValue, accentSecondary: secondaryValue });
           const shouldReduce = (prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false) || this.overlay.accentAnim === false;
