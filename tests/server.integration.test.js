@@ -14,7 +14,7 @@ const REPO_ROOT = path.join(__dirname, '..');
 let tmpDir;
 let serverProcess;
 
-async function waitForServerReady(proc) {
+async function waitForServerReady(proc, port = TEST_PORT) {
   return new Promise((resolve, reject) => {
     let settled = false;
     const timeout = setTimeout(() => {
@@ -34,7 +34,7 @@ async function waitForServerReady(proc) {
 
     function onStdout(chunk) {
       const text = chunk.toString();
-      if (text.includes(`listening on http://${HOST}:${TEST_PORT}`)) {
+      if (text.includes(`listening on http://${HOST}:${port}`)) {
         if (settled) return;
         settled = true;
         cleanup();
@@ -124,6 +124,15 @@ async function getJson(pathname) {
   });
   const data = await response.json().catch(() => ({}));
   return { response, data };
+}
+
+async function getText(pathname, baseUrl = BASE_URL) {
+  const response = await fetch(`${baseUrl}${pathname}`, {
+    method: 'GET',
+    headers: { 'Accept': 'text/html,application/xhtml+xml' }
+  });
+  const text = await response.text();
+  return { response, text };
 }
 
 test('POST /ticker/scenes sanitises and persists payloads', async () => {
@@ -261,4 +270,61 @@ test('POST /ticker/overlay sanitises overlay payloads', async () => {
   const { response: getResponse, data: getData } = await getJson('/ticker/overlay');
   assert.equal(getResponse.status, 200);
   assert.deepStrictEqual(getData, overlay);
+});
+
+test('serves default static assets at /ticker when TICKER_DIR is unset', async () => {
+  const { response: indexResponse, text: indexHtml } = await getText('/ticker/index.html');
+  assert.equal(indexResponse.status, 200);
+  assert.match(indexHtml, />OBS Ticker Dashboard</);
+
+  const { response: outputResponse, text: outputHtml } = await getText('/ticker/output.html');
+  assert.equal(outputResponse.status, 200);
+  assert.match(outputHtml, />OBS Ticker Overlay</);
+});
+
+test('serves static assets from custom TICKER_DIR', async () => {
+  const customDir = await fs.mkdtemp(path.join(tmpDir, 'assets-'));
+  const customIndexPath = path.join(customDir, 'index.html');
+  const customOutputPath = path.join(customDir, 'output.html');
+  await fs.writeFile(customIndexPath, '<!DOCTYPE html><title>Custom Index</title>');
+  await fs.writeFile(customOutputPath, '<!DOCTYPE html><title>Custom Output</title>');
+
+  const customPort = 3301;
+  const customStateFile = path.join(customDir, 'state.json');
+  const env = {
+    ...process.env,
+    NODE_ENV: 'test',
+    TICKER_STATE_FILE: customStateFile,
+    HTTP_PORT: String(customPort),
+    HTTP_HOST: HOST,
+    TICKER_DIR: customDir
+  };
+
+  const proc = spawn(process.execPath, ['server.js'], {
+    cwd: REPO_ROOT,
+    env,
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+  proc.stdout?.setEncoding('utf8');
+  proc.stderr?.setEncoding('utf8');
+
+  const customBaseUrl = `http://${HOST}:${customPort}`;
+
+  try {
+    await waitForServerReady(proc, customPort);
+    const { response: indexResponse, text: indexHtml } = await getText('/ticker/index.html', customBaseUrl);
+    assert.equal(indexResponse.status, 200);
+    assert.match(indexHtml, />Custom Index</);
+
+    const { response: outputResponse, text: outputHtml } = await getText('/ticker/output.html', customBaseUrl);
+    assert.equal(outputResponse.status, 200);
+    assert.match(outputHtml, />Custom Output</);
+  } finally {
+    proc.kill();
+    try {
+      await once(proc, 'exit');
+    } catch {
+      // ignore
+    }
+  }
 });

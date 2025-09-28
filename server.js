@@ -12,6 +12,11 @@ const sharedUtils = require('./public/js/shared-utils.js');
 const sharedConfig = require('./public/js/shared-config.js');
 const clientNormalisers = require('./public/js/client-normalisers.js');
 
+const DEFAULT_ASSET_DIR = path.resolve(__dirname, 'public');
+const assetDir = process.env.TICKER_DIR
+  ? path.resolve(process.env.TICKER_DIR)
+  : DEFAULT_ASSET_DIR;
+
 const {
   sanitiseMessages,
   clampDurationSeconds,
@@ -924,7 +929,11 @@ app.get('/ticker/stream', (req, res) => {
   });
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use('/ticker', express.static(assetDir));
+
+if (assetDir === DEFAULT_ASSET_DIR) {
+  app.use(express.static(assetDir));
+}
 
 async function start() {
   await loadStateFromDisk();
