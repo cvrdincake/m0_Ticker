@@ -170,7 +170,8 @@
           if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
             throw new RequestError('Request timed out', 'timeout', { url });
           }
-          throw new RequestError(error?.message || 'Network request failed', 'network', { url, cause: error });
+          const message = error && error.message ? error.message : 'Network request failed';
+          throw new RequestError(message, 'network', { url, cause: error });
         }
 
         let payload = null;

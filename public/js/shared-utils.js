@@ -219,7 +219,7 @@
           .map(part => part.trim());
     const notes = [];
     for (const entry of raw) {
-      const trimmedEntry = String(entry ?? '').trim();
+      const trimmedEntry = String(entry == null ? '' : entry).trim();
       if (!trimmedEntry) continue;
       const trimmed = trimmedEntry.slice(0, maxLength);
       if (!trimmed) continue;
@@ -312,7 +312,7 @@
     let truncatedCount = 0;
 
     for (const entry of list) {
-      let text = String(entry ?? '').trim();
+      let text = String(entry == null ? '' : entry).trim();
       if (!text) continue;
 
       if (cleaned.length >= maxMessages) {

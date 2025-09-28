@@ -2152,7 +2152,8 @@
         if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
           throw new RequestErrorCtor('Request timed out', 'timeout', { url });
         }
-        throw new RequestErrorCtor(error?.message || 'Network request failed', 'network', { url, cause: error });
+        const message = error && error.message ? error.message : 'Network request failed';
+        throw new RequestErrorCtor(message, 'network', { url, cause: error });
       }
     }
 
@@ -2373,6 +2374,13 @@
       return !!(err && typeof err === 'object' && err.__handled);
     }
 
+    function resolveErrorMessage(error, fallback) {
+      if (error && typeof error === 'object' && error.message) {
+        return String(error.message);
+      }
+      return fallback;
+    }
+
     function runQueued(queue, task) {
       if (!queue) {
         return task();
@@ -2491,7 +2499,7 @@
             } else if (entry && typeof entry === 'object' && typeof entry.text === 'string') {
               text = entry.text.trim();
             } else {
-              text = String(entry ?? '').trim();
+              text = String(entry == null ? '' : entry).trim();
             }
             if (!text) continue;
             if (cleaned.length >= maxMessages) {
@@ -2603,7 +2611,10 @@
           result.showClock = source.showClock !== false;
           const rotation = Number(source.rotationSeconds);
           result.rotationSeconds = Number.isFinite(rotation) ? rotation : 12;
-          result.notes = normaliseSlateNotesListFn(source.notes ?? source.notesList ?? []);
+          const notesSource = source.notes != null
+            ? source.notes
+            : (source.notesList != null ? source.notesList : []);
+          result.notes = normaliseSlateNotesListFn(notesSource);
           if (!Array.isArray(result.notes)) {
             result.notes = [];
           }
@@ -2651,9 +2662,9 @@
 
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
     const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
-      ? (value, fallback) => sharedNormaliseServerBase(value, fallback ?? DEFAULT_SERVER_URL)
+      ? (value, fallback) => sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
       : typeof sharedNormaliseServerBaseUrl === 'function'
-        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback ?? DEFAULT_SERVER_URL)
+        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
         : (value, fallback = DEFAULT_SERVER_URL) => {
             const fallbackValue = typeof fallback === 'string' && fallback.trim()
               ? fallback.trim()
@@ -3072,7 +3083,8 @@
 
       target.isActive = !!target.isActive && target.messages.length > 0;
 
-      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      const stampSource = target._updatedAt != null ? target._updatedAt : target.updatedAt;
+      const stamp = Number(stampSource);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
     }
@@ -3085,7 +3097,8 @@
         }
       });
       Object.assign(target, next);
-      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      const overlayStampSource = target._updatedAt != null ? target._updatedAt : target.updatedAt;
+      const stamp = Number(overlayStampSource);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
     }
@@ -3098,7 +3111,8 @@
         }
       });
       Object.assign(target, next);
-      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      const popupStampSource = target._updatedAt != null ? target._updatedAt : target.updatedAt;
+      const stamp = Number(popupStampSource);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
     }
@@ -3114,7 +3128,8 @@
         }
       });
       Object.assign(target, next);
-      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      const slateStampSource = target._updatedAt != null ? target._updatedAt : target.updatedAt;
+      const stamp = Number(slateStampSource);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
     }
@@ -3123,7 +3138,8 @@
       const text = typeof target.text === 'string' ? target.text.trim() : '';
       target.text = text.slice(0, MAX_BRB_LENGTH);
       target.isActive = !!target.isActive && !!target.text;
-      const stamp = Number(target._updatedAt ?? target.updatedAt);
+      const brbStampSource = target._updatedAt != null ? target._updatedAt : target.updatedAt;
+      const stamp = Number(brbStampSource);
       target.updatedAt = Number.isFinite(stamp) ? stamp : Date.now();
       delete target._updatedAt;
     }
@@ -3193,11 +3209,14 @@
           .map(entry => normaliseSceneEntryImpl(entry, { normaliseOverlayData: normaliseOverlayDataFn }))
           .filter(Boolean);
       }
-      return list.map(entry => ({
-        id: String(entry?.id || generateClientId('scene')),
-        name: String(entry?.name || 'Scene').slice(0, MAX_SCENE_NAME_LENGTH),
-        overlay: buildSceneOverlayPayload(entry?.overlay)
-      }));
+      return list.map(entry => {
+        const source = entry && typeof entry === 'object' ? entry : {};
+        return {
+          id: String(source.id || generateClientId('scene')),
+          name: String(source.name || 'Scene').slice(0, MAX_SCENE_NAME_LENGTH),
+          overlay: buildSceneOverlayPayload(source.overlay)
+        };
+      });
     }
 
     const notifyTickerChange = createStateNotifier(() => {
@@ -3488,7 +3507,9 @@
       if (targetId) {
         setActivePanel(targetId);
         const tab = panelTabButtons.get(targetId);
-        tab?.focus();
+        if (tab && typeof tab.focus === 'function') {
+          tab.focus();
+        }
       }
     }
 
@@ -3663,7 +3684,7 @@
           break;
         case STREAM_STATES.ERROR:
           stopHealthChecks();
-          if (meta?.message) {
+          if (meta && meta.message) {
             console.warn('[Ticker] stream error state', meta);
           }
           break;
@@ -3968,7 +3989,8 @@
       if (!error || typeof error !== 'object') {
         return 'network';
       }
-      const code = error.code || error?.cause?.code;
+      const nestedCause = error && error.cause ? error.cause : null;
+      const code = error.code || (nestedCause && nestedCause.code);
       if (code === 'timeout' || error.name === 'AbortError' || error.name === 'TimeoutError') {
         return 'timeout';
       }
@@ -4606,10 +4628,11 @@
     }
 
     function normaliseBrbData(data) {
-      const raw = typeof data?.text === 'string' ? data.text : '';
+      const raw = data && typeof data.text === 'string' ? data.text : '';
       const text = raw.trim().slice(0, MAX_BRB_LENGTH);
-      const isActive = !!data?.isActive && !!text;
-      const updatedAtRaw = Number(data?._updatedAt ?? data?.updatedAt);
+      const isActive = !!(data && data.isActive) && !!text;
+      const updatedAtSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+      const updatedAtRaw = Number(updatedAtSource);
       return {
         text,
         isActive,
@@ -4749,8 +4772,8 @@
         return null;
       }
 
-      const headerChars = Array.isArray(headerSplit?.chars) ? headerSplit.chars : [];
-      const bodyLines = Array.isArray(bodySplit?.lines) ? bodySplit.lines : [];
+      const headerChars = Array.isArray(headerSplit && headerSplit.chars) ? headerSplit.chars : [];
+      const bodyLines = Array.isArray(bodySplit && bodySplit.lines) ? bodySplit.lines : [];
       const timeline = gsap.timeline({ paused: true });
       const scrambleConfig = typeof ScrambleTextPlugin !== 'undefined' ? { text: '#', speed: 0.15 } : null;
 
@@ -4815,8 +4838,12 @@
 
       const revert = () => {
         try {
-          bodySplit?.revert();
-          headerSplit?.revert();
+          if (bodySplit && typeof bodySplit.revert === 'function') {
+            bodySplit.revert();
+          }
+          if (headerSplit && typeof headerSplit.revert === 'function') {
+            headerSplit.revert();
+          }
         } catch (err) {
           console.warn('[dashboard] text animation revert failed', err);
         }
@@ -5297,20 +5324,30 @@
 
     function formatSceneMeta(scene) {
       const parts = [];
-      const messageCount = Array.isArray(scene?.ticker?.messages) ? scene.ticker.messages.length : 0;
+      const tickerMessages = scene && scene.ticker && Array.isArray(scene.ticker.messages)
+        ? scene.ticker.messages
+        : [];
+      const messageCount = tickerMessages.length;
       parts.push(`${messageCount} message${messageCount === 1 ? '' : 's'}`);
-      if (typeof scene?.ticker?.displayDuration === 'number') {
-        parts.push(`${scene.ticker.displayDuration}s on`);
+      const tickerDisplayDuration = scene && scene.ticker && typeof scene.ticker.displayDuration === 'number'
+        ? scene.ticker.displayDuration
+        : null;
+      if (tickerDisplayDuration !== null) {
+        parts.push(`${tickerDisplayDuration}s on`);
       }
-      if (typeof scene?.ticker?.intervalBetween === 'number') {
-        const minutes = secondsToMinutes(scene.ticker.intervalBetween);
+      const tickerInterval = scene && scene.ticker && typeof scene.ticker.intervalBetween === 'number'
+        ? scene.ticker.intervalBetween
+        : null;
+      if (tickerInterval !== null) {
+        const minutes = secondsToMinutes(tickerInterval);
         parts.push(minutes ? `${formatMinutesValue(minutes)}m interval` : 'loop');
       }
-      const popupText = scene?.popup?.text || '';
+      const popupText = scene && scene.popup && scene.popup.text ? scene.popup.text : '';
       if (popupText) {
-        parts.push(scene.popup.isActive ? 'popup active' : 'popup ready');
+        const popupActive = scene && scene.popup && scene.popup.isActive;
+        parts.push(popupActive ? 'popup active' : 'popup ready');
       }
-      if (scene?.overlay) {
+      if (scene && scene.overlay) {
         const overlayLabel = typeof scene.overlay.label === 'string'
           ? scene.overlay.label.trim()
           : '';
@@ -5335,7 +5372,7 @@
           parts.push(`${scene.overlay.position} overlay`);
         }
       }
-      if (scene?.slate) {
+      if (scene && scene.slate) {
         if (scene.slate.isEnabled) {
           parts.push('slate on');
           if (scene.slate.nextTitle) {
@@ -5356,7 +5393,7 @@
           parts.push('slate off');
         }
       }
-      const updatedAt = Number(scene?.updatedAt);
+      const updatedAt = Number(scene && scene.updatedAt);
       if (Number.isFinite(updatedAt)) {
         parts.push(new Date(updatedAt).toLocaleString());
       }
@@ -5613,7 +5650,8 @@
 
     function applyTickerData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      const nextStampRaw = Number(payload._updatedAt ?? payload.updatedAt);
+      const nextStampSource = payload._updatedAt != null ? payload._updatedAt : payload.updatedAt;
+      const nextStampRaw = Number(nextStampSource);
       const hasStamp = Number.isFinite(nextStampRaw);
       if (hasStamp && typeof state.updatedAt === 'number' && state.updatedAt === nextStampRaw) {
         return;
@@ -5621,7 +5659,9 @@
 
       state.messages = Array.isArray(payload.messages) ? payload.messages.slice() : [];
       state.isActive = !!payload.isActive;
-      state.displayDuration = payload.displayDuration ?? state.displayDuration;
+      if (payload.displayDuration != null) {
+        state.displayDuration = payload.displayDuration;
+      }
       if (Number.isFinite(payload.intervalBetween)) {
         state.intervalBetween = payload.intervalBetween;
       } else if (Number.isFinite(payload.intervalMinutes)) {
@@ -5642,7 +5682,8 @@
     function applyOverlayData(payload) {
       if (!payload || typeof payload !== 'object') return;
 
-      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const remoteStampSource = payload._updatedAt != null ? payload._updatedAt : payload.updatedAt;
+      const remoteStamp = Number(remoteStampSource);
       const localStamp = Number(overlayPrefs.updatedAt);
       const hasRemoteStamp = Number.isFinite(remoteStamp);
       const hasLocalStamp = Number.isFinite(localStamp);
@@ -5723,7 +5764,8 @@
 
     function applySlateData(payload) {
       if (!payload || typeof payload !== 'object') return;
-      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const slateRemoteStampSource = payload._updatedAt != null ? payload._updatedAt : payload.updatedAt;
+      const remoteStamp = Number(slateRemoteStampSource);
       const localStamp = Number(slateState.updatedAt);
       const hasRemoteStamp = Number.isFinite(remoteStamp);
       const hasLocalStamp = Number.isFinite(localStamp);
@@ -5782,7 +5824,8 @@
     function applyPopupData(payload) {
       if (!payload || typeof payload !== 'object') return;
 
-      const remoteStamp = Number(payload._updatedAt ?? payload.updatedAt);
+      const popupRemoteStampSource = payload._updatedAt != null ? payload._updatedAt : payload.updatedAt;
+      const remoteStamp = Number(popupRemoteStampSource);
       const localStamp = Number(popupState.updatedAt);
       const hasRemoteStamp = Number.isFinite(remoteStamp);
       const hasLocalStamp = Number.isFinite(localStamp);
@@ -5970,7 +6013,7 @@
       } catch (err) {
         console.error('State refresh failed', err);
         if (!silent && !isErrorHandled(err)) {
-          toast(err?.message || 'Failed to refresh state');
+          toast(resolveErrorMessage(err, 'Failed to refresh state'));
         }
       } finally {
         fetchInFlight = false;
@@ -6017,7 +6060,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Ticker state persistence failed', err);
-          toast(err?.message || 'Failed to save ticker state');
+          toast(resolveErrorMessage(err, 'Failed to save ticker state'));
         }
       }
     }
@@ -6057,7 +6100,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Preset persistence failed', err);
-          if (notify) toast(err?.message || 'Failed to save presets');
+          if (notify) toast(resolveErrorMessage(err, 'Failed to save presets'));
         }
       }
     }
@@ -6233,7 +6276,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Popup persistence failed', err);
-          toast(err?.message || 'Failed to update popup');
+          toast(resolveErrorMessage(err, 'Failed to update popup'));
         }
       } finally {
         popupSaveInFlight = false;
@@ -6304,7 +6347,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('BRB persistence failed', err);
-          toast(err?.message || 'Failed to update BRB state');
+          toast(resolveErrorMessage(err, 'Failed to update BRB state'));
         }
       } finally {
         brbSaveInFlight = false;
@@ -6582,7 +6625,7 @@
       console.error('Unexpected stream connection failure', err);
       applyServerStatus('error', { force: true });
       if (!isErrorHandled(err)) {
-        toast(err?.message || 'Failed to connect to stream');
+        toast(resolveErrorMessage(err, 'Failed to connect to stream'));
       }
     }
 
@@ -6646,7 +6689,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Overlay persistence failed', err);
-          toast(err?.message || 'Failed to save overlay preferences');
+          toast(resolveErrorMessage(err, 'Failed to save overlay preferences'));
         }
       } finally {
         overlaySaveInFlight = false;
@@ -6713,7 +6756,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Slate persistence failed', err);
-          toast(err?.message || 'Failed to save slate');
+          toast(resolveErrorMessage(err, 'Failed to save slate'));
         }
       } finally {
         slateSaveInFlight = false;
@@ -7312,8 +7355,8 @@
 
     function scenesShareTickerMessages(a, b) {
       if (!a || !b) return false;
-      const messagesA = Array.isArray(a?.ticker?.messages) ? a.ticker.messages : [];
-      const messagesB = Array.isArray(b?.ticker?.messages) ? b.ticker.messages : [];
+      const messagesA = Array.isArray(a && a.ticker && a.ticker.messages) ? a.ticker.messages : [];
+      const messagesB = Array.isArray(b && b.ticker && b.ticker.messages) ? b.ticker.messages : [];
       if (!messagesA.length && !messagesB.length) {
         return false;
       }
@@ -7371,7 +7414,7 @@
             toast(successMessage);
           } catch (err) {
             console.error('Failed to save scenes', err);
-            toast(err.message || 'Failed to save scenes');
+            toast(resolveErrorMessage(err, 'Failed to save scenes'));
             markErrorHandled(err);
             throw err;
           }
@@ -7379,7 +7422,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Scenes persistence failed', err);
-          toast(err?.message || 'Failed to save scenes');
+          toast(resolveErrorMessage(err, 'Failed to save scenes'));
         }
       } finally {
         scenesSaveInFlight = false;
@@ -7407,7 +7450,7 @@
             toast(`Activated scene “${scene.name}”`);
           } catch (err) {
             console.error('Failed to activate scene', err);
-            toast(err.message || 'Failed to activate scene');
+            toast(resolveErrorMessage(err, 'Failed to activate scene'));
             markErrorHandled(err);
             throw err;
           }
@@ -7415,7 +7458,7 @@
       } catch (err) {
         if (!isErrorHandled(err)) {
           console.error('Scene activation failed', err);
-          toast(err?.message || 'Failed to activate scene');
+          toast(resolveErrorMessage(err, 'Failed to activate scene'));
         }
       }
     }
@@ -7429,7 +7472,9 @@
       if (el.sceneName && cleanedName !== rawName) {
         el.sceneName.value = cleanedName;
       }
-      const payload = buildScenePayload(cleanedName || rawName, existing?.id || null, existing?.name || '');
+      const existingId = existing && existing.id ? existing.id : null;
+      const existingName = existing && existing.name ? existing.name : '';
+      const payload = buildScenePayload(cleanedName || rawName, existingId || null, existingName || '');
       if (!payload) return;
       const existingScene = existing
         ? scenes.find(scene => scene.id === existing.id)
@@ -7562,7 +7607,10 @@
                   if (!ids.length) break;
                   const firstId = ids[0];
                   setActivePanel(firstId);
-                  panelTabButtons.get(firstId)?.focus();
+                  const firstTab = panelTabButtons.get(firstId);
+                  if (firstTab && typeof firstTab.focus === 'function') {
+                    firstTab.focus();
+                  }
                 }
                 break;
               case 'End':
@@ -7572,7 +7620,10 @@
                   if (!ids.length) break;
                   const lastId = ids[ids.length - 1];
                   setActivePanel(lastId);
-                  panelTabButtons.get(lastId)?.focus();
+                  const lastTab = panelTabButtons.get(lastId);
+                  if (lastTab && typeof lastTab.focus === 'function') {
+                    lastTab.focus();
+                  }
                 }
                 break;
               default:
@@ -7596,7 +7647,7 @@
       if (el.overlayChip) {
         el.overlayChip.addEventListener('click', async () => {
           const url = buildOverlayUrl();
-          if (!navigator?.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+          if (!navigator || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
             toast('Clipboard unavailable');
             return;
           }
@@ -7613,7 +7664,7 @@
       if (el.copyOverlay) {
         el.copyOverlay.addEventListener('click', async () => {
           const url = buildOverlayUrl();
-          if (!navigator?.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+          if (!navigator || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
             toast('Clipboard unavailable');
             return;
           }
