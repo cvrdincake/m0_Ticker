@@ -61,10 +61,25 @@ test('normaliseHighlightList trims whitespace and drops empty entries', () => {
 
 test('sanitiseMessages enforces limits, supports metadata, and strict errors', () => {
   const overlong = 'A'.repeat(MAX_TICKER_MESSAGE_LENGTH + 10);
-  const input = ['  Hello  ', '', overlong, 'Third', 'Fourth'];
+  const input = [
+    '  Hello  ',
+    { text: overlong, meta: '  First meta entry that will be trimmed  ' },
+    { message: 'Third', meta: 'Third meta detail' },
+    { value: 'Fourth', description: 'Fourth meta' },
+    'Fifth'
+  ];
 
-  const metaResult = sanitiseMessages(input, { includeMeta: true, maxMessages: 2 });
-  assert.deepStrictEqual(metaResult.messages, ['Hello', 'A'.repeat(MAX_TICKER_MESSAGE_LENGTH)]);
+  const metaResult = sanitiseMessages(input, {
+    includeMeta: true,
+    maxMessages: 3,
+    maxMetaLength: 10
+  });
+
+  assert.deepStrictEqual(
+    metaResult.messages,
+    ['Hello', 'A'.repeat(MAX_TICKER_MESSAGE_LENGTH), 'Third']
+  );
+  assert.deepStrictEqual(metaResult.meta, [null, 'First meta', 'Third meta']);
   assert.equal(metaResult.trimmed, 1);
   assert.equal(metaResult.truncated, 2);
 

@@ -120,7 +120,12 @@ test('normaliseSceneEntry rejects empty payloads and preserves round-trip data',
   const entry = {
     id: 'scene-custom',
     name: '  Showcase  ',
-    messages: ['  Hello  ', '', 'World', 'A'.repeat(400)],
+    messages: [
+      '  Hello  ',
+      { text: '', meta: 'ignore' },
+      { text: 'World', meta: 'world meta' },
+      { text: 'A'.repeat(400), meta: 'trimmed meta' }
+    ],
     displayDuration: 1,
     intervalBetween: 7200,
     isActive: true,

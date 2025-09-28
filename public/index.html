@@ -2763,25 +2763,61 @@
           const {
             maxMessages = FALLBACK_MAX_MESSAGES,
             maxLength = FALLBACK_MAX_MESSAGE_LENGTH,
+            maxMetaLength = FALLBACK_MAX_MESSAGE_LENGTH,
             includeMeta = false,
             strict = false
           } = options;
+
+          const maxMessageLimit = Number.isFinite(Number(maxMessages))
+            ? Math.max(0, Math.round(Number(maxMessages)))
+            : FALLBACK_MAX_MESSAGES;
+          const maxLengthLimit = Number.isFinite(Number(maxLength))
+            ? Math.max(1, Math.round(Number(maxLength)))
+            : FALLBACK_MAX_MESSAGE_LENGTH;
+          const maxMetaLimit = Number.isFinite(Number(maxMetaLength))
+            ? Math.max(0, Math.round(Number(maxMetaLength)))
+            : FALLBACK_MAX_MESSAGE_LENGTH;
+
           const cleaned = [];
+          const metadata = [];
           let trimmed = 0;
           let truncated = 0;
+
           for (const entry of list) {
             let text = '';
+            let metaValue = null;
+
             if (typeof entry === 'string') {
               text = entry.trim();
-            } else if (entry && typeof entry === 'object' && typeof entry.text === 'string') {
-              text = entry.text.trim();
+            } else if (entry && typeof entry === 'object') {
+              if (typeof entry.text === 'string') {
+                text = entry.text.trim();
+              } else if (typeof entry.message === 'string') {
+                text = entry.message.trim();
+              } else if (typeof entry.value === 'string') {
+                text = entry.value.trim();
+              } else if (typeof entry.toString === 'function' && entry.toString !== Object.prototype.toString) {
+                text = String(entry).trim();
+              }
+
+              if (includeMeta) {
+                const rawMeta = entry.meta != null ? entry.meta : entry.description;
+                if (typeof rawMeta === 'string') {
+                  const trimmedMeta = rawMeta.trim();
+                  if (trimmedMeta) {
+                    metaValue = trimmedMeta.slice(0, maxMetaLimit);
+                  }
+                }
+              }
             } else {
               text = String(entry == null ? '' : entry).trim();
             }
+
             if (!text) continue;
-            if (cleaned.length >= maxMessages) {
+
+            if (cleaned.length >= maxMessageLimit) {
               if (strict) {
-                throw new Error(`Too many ticker messages (maximum ${maxMessages}).`);
+                throw new Error(`Too many ticker messages (maximum ${maxMessageLimit}).`);
               }
               truncated += 1;
               if (!includeMeta) {
@@ -2789,17 +2825,23 @@
               }
               continue;
             }
-            if (text.length > maxLength) {
+
+            if (text.length > maxLengthLimit) {
               if (strict) {
-                throw new Error(`Ticker messages must be ${maxLength} characters or fewer.`);
+                throw new Error(`Ticker messages must be ${maxLengthLimit} characters or fewer.`);
               }
-              text = text.slice(0, maxLength);
+              text = text.slice(0, maxLengthLimit);
               trimmed += 1;
             }
+
             cleaned.push(text);
+            if (includeMeta) {
+              metadata.push(metaValue);
+            }
           }
+
           if (includeMeta) {
-            return { messages: cleaned, trimmed, truncated };
+            return { messages: cleaned, meta: metadata, trimmed, truncated };
           }
           return cleaned;
         };

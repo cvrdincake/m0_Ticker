@@ -32,6 +32,7 @@
   const MAX_SLATE_TITLE_LENGTH = 64;
   const MAX_SLATE_TEXT_LENGTH = 200;
   const MAX_SLATE_NOTES = 6;
+  const MAX_TICKER_MESSAGE_META_LENGTH = 200;
 
   const SAFE_COLOR_KEYWORDS = new Set([
     'white', 'black', 'silver', 'gray', 'grey', 'maroon', 'red', 'purple', 'fuchsia',
@@ -298,26 +299,71 @@
   function sanitiseMessages(list, options = {}) {
     const includeMeta = !!options.includeMeta;
     if (!Array.isArray(list)) {
-      return includeMeta ? { messages: [], trimmed: 0, truncated: 0 } : [];
+      return includeMeta ? { messages: [], meta: [], trimmed: 0, truncated: 0 } : [];
     }
 
     const {
       strict = false,
       maxMessages = MAX_TICKER_MESSAGES,
-      maxLength = MAX_TICKER_MESSAGE_LENGTH
+      maxLength = MAX_TICKER_MESSAGE_LENGTH,
+      maxMetaLength = MAX_TICKER_MESSAGE_META_LENGTH
     } = options;
 
+    const maxMessageLimit = Number.isFinite(Number(maxMessages))
+      ? Math.max(0, Math.round(Number(maxMessages)))
+      : MAX_TICKER_MESSAGES;
+    const maxLengthLimit = Number.isFinite(Number(maxLength))
+      ? Math.max(1, Math.round(Number(maxLength)))
+      : MAX_TICKER_MESSAGE_LENGTH;
+    const maxMetaLimit = Number.isFinite(Number(maxMetaLength))
+      ? Math.max(0, Math.round(Number(maxMetaLength)))
+      : MAX_TICKER_MESSAGE_META_LENGTH;
+
     const cleaned = [];
+    const metadata = [];
     let trimmedCount = 0;
     let truncatedCount = 0;
 
     for (const entry of list) {
-      let text = String(entry == null ? '' : entry).trim();
+      let text = '';
+      let metaValue = null;
+
+      if (typeof entry === 'string') {
+        text = entry.trim();
+      } else if (entry && typeof entry === 'object') {
+        if (typeof entry.text === 'string') {
+          text = entry.text.trim();
+        } else if (typeof entry.message === 'string') {
+          text = entry.message.trim();
+        } else if (typeof entry.value === 'string') {
+          text = entry.value.trim();
+        } else if (
+          typeof entry.toString === 'function' &&
+          entry.toString !== Object.prototype.toString
+        ) {
+          text = String(entry).trim();
+        } else {
+          text = '';
+        }
+
+        if (includeMeta) {
+          const rawMeta = entry.meta != null ? entry.meta : entry.description;
+          if (typeof rawMeta === 'string') {
+            const trimmedMeta = rawMeta.trim();
+            if (trimmedMeta) {
+              metaValue = trimmedMeta.slice(0, maxMetaLimit);
+            }
+          }
+        }
+      } else {
+        text = String(entry == null ? '' : entry).trim();
+      }
+
       if (!text) continue;
 
-      if (cleaned.length >= maxMessages) {
+      if (cleaned.length >= maxMessageLimit) {
         if (strict) {
-          throw new Error(`Too many ticker messages (maximum ${maxMessages}).`);
+          throw new Error(`Too many ticker messages (maximum ${maxMessageLimit}).`);
         }
         if (includeMeta) {
           truncatedCount += 1;
@@ -326,19 +372,22 @@
         break;
       }
 
-      if (text.length > maxLength) {
+      if (text.length > maxLengthLimit) {
         if (strict) {
-          throw new Error(`Ticker messages must be ${maxLength} characters or fewer.`);
+          throw new Error(`Ticker messages must be ${maxLengthLimit} characters or fewer.`);
         }
-        text = text.slice(0, maxLength);
+        text = text.slice(0, maxLengthLimit);
         trimmedCount += 1;
       }
 
       cleaned.push(text);
+      if (includeMeta) {
+        metadata.push(metaValue && metaValue.length > maxMetaLimit ? metaValue.slice(0, maxMetaLimit) : metaValue);
+      }
     }
 
     if (includeMeta) {
-      return { messages: cleaned, trimmed: trimmedCount, truncated: truncatedCount };
+      return { messages: cleaned, meta: metadata, trimmed: trimmedCount, truncated: truncatedCount };
     }
     return cleaned;
   }
@@ -352,6 +401,7 @@
     MAX_SLATE_TITLE_LENGTH,
     MAX_SLATE_TEXT_LENGTH,
     MAX_SLATE_NOTES,
+    MAX_TICKER_MESSAGE_META_LENGTH,
     sanitiseMessages,
     normaliseServerBase,
     clampDurationSeconds,
