@@ -4828,15 +4828,32 @@
     }
 
     function schedulePreviewUpdate(url) {
+      const frame = el.previewFrame;
+      if (!frame) {
+        return;
+      }
+      const nextUrl = typeof url === 'string' ? url : '';
+      if (!nextUrl) {
+        setPreviewLoading(false);
+        return;
+      }
+      setPreviewLoading(true, {
+        timeoutMs: 12000,
+        onTimeout: () => {
+          toast('Preview is taking longer than expected. Check the overlay URL.');
+        }
+      });
 
       if (uiState.previewUpdateTimer) clearTimeout(uiState.previewUpdateTimer);
       uiState.previewUpdateTimer = setTimeout(() => {
         uiState.previewUpdateTimer = null;
         try {
-          if (el.previewFrame.src !== url) {
-            el.previewFrame.src = url;
-          } else if (el.previewFrame.contentWindow) {
-            el.previewFrame.contentWindow.location.replace(url);
+          if (frame.src !== nextUrl) {
+            frame.src = nextUrl;
+          } else if (frame.contentWindow && typeof frame.contentWindow.location.replace === 'function') {
+            frame.contentWindow.location.replace(nextUrl);
+          } else if (frame.contentWindow && frame.contentWindow.location) {
+            frame.contentWindow.location.href = nextUrl;
           }
         } catch (err) {
           // Ignore navigation errors (cross-origin etc.) and fall back silently.
@@ -4932,9 +4949,20 @@
       const theme = overlayPrefs.theme && THEME_OPTIONS.includes(overlayPrefs.theme)
         ? overlayPrefs.theme
         : THEME_OPTIONS[0];
+      const body = typeof document !== 'undefined' ? document.body : null;
       el.popupPreview.classList.remove(...THEME_CLASSNAMES);
+      if (body) {
+        body.classList.remove(...THEME_CLASSNAMES);
+      }
       if (theme) {
-        el.popupPreview.classList.add(`ticker--${theme}`);
+        const className = `ticker--${theme}`;
+        el.popupPreview.classList.add(className);
+        if (body) {
+          body.classList.add(className);
+          body.dataset.previewTheme = theme;
+        }
+      } else if (body && body.dataset && body.dataset.previewTheme) {
+        delete body.dataset.previewTheme;
       }
       if (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)) {
         el.popupPreview.style.setProperty('--preview-accent', overlayPrefs.accent);
