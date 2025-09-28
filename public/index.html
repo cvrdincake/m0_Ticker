@@ -3194,9 +3194,7 @@
     const DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
     const normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
       ? (value, fallback) => sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
-      : typeof sharedNormaliseServerBaseUrl === 'function'
-        ? (value, fallback) => sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback)
-        : (value, fallback = DEFAULT_SERVER_URL) => {
+      : (value, fallback = DEFAULT_SERVER_URL) => {
             const fallbackValue = typeof fallback === 'string' && fallback.trim()
               ? fallback.trim()
               : DEFAULT_SERVER_URL;
