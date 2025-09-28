@@ -10,7 +10,6 @@ const {
   isSafeCssColor,
   normaliseHighlightList,
   sanitiseMessages,
-  MAX_TICKER_MESSAGES,
   MAX_TICKER_MESSAGE_LENGTH
 } = utils;
 
