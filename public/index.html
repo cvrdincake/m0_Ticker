@@ -8347,6 +8347,7 @@
 
       if (el.serverUrl) {
         el.serverUrl.addEventListener('change', () => {
+          console.log('[DEBUG] Server URL changed to:', el.serverUrl.value);
           const cleaned = sanitiseServerUrlInput(el.serverUrl.value);
           if (cleaned && cleaned !== el.serverUrl.value) {
             safeSetValue(el.serverUrl, cleaned);
@@ -8354,6 +8355,7 @@
             safeSetValue(el.serverUrl, '');
           }
           saveLocal();
+          console.log('[DEBUG] Attempting to connect with URL:', serverBase());
           void connectStream({ reason: 'server-url-change' });
           void fetchState({ silent: true });
           updateOverlayChip();
@@ -9205,6 +9207,24 @@
     } else {
       void init();
     }
+  </script>
+  <script>
+    // Debug form submission
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('messageForm');
+      const input = document.getElementById('newMessage');
+
+      if (form && input) {
+        console.log('Form and input found - adding test handler');
+        form.addEventListener('submit', (e) => {
+          e.preventDefault();
+          console.log('Form submitted with value:', input.value);
+          alert('Form submission captured: ' + input.value);
+        });
+      } else {
+        console.error('Form or input not found', { form: !!form, input: !!input });
+      }
+    });
   </script>
 </body>
 </html>
