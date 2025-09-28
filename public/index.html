@@ -870,8 +870,10 @@
       --popup-divider-color: rgba(180, 192, 224, 0.22);
       --preview-accent: #38bdf8;
       --preview-accent-secondary: #f472b6;
-      --accent: var(--preview-accent);
-      --accent-secondary: var(--preview-accent-secondary, var(--accent));
+      --overlay-accent: var(--preview-accent);
+      --overlay-accent-secondary: var(--preview-accent-secondary, var(--overlay-accent));
+      --accent: var(--overlay-accent, var(--preview-accent));
+      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
       --accent-bright: #7dd3fc;
       --accent-glow: rgba(56, 189, 248, 0.45);
       --accent-duo: #1c1e27;
@@ -895,6 +897,11 @@
       -webkit-mask-repeat: no-repeat;
       animation: var(--popup-glow-anim, none);
       --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 65%);
+    }
+
+    body[data-preview-theme] {
+      --accent: var(--overlay-accent, var(--preview-accent));
+      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
     }
 
     @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
@@ -5754,15 +5761,25 @@
       } else if (body && body.dataset && body.dataset.previewTheme) {
         delete body.dataset.previewTheme;
       }
-      if (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)) {
-        el.popupPreview.style.setProperty('--preview-accent', overlayPrefs.accent);
-      } else {
-        el.popupPreview.style.removeProperty('--preview-accent');
-      }
-      if (overlayPrefs.accentSecondary && isSafeColour(overlayPrefs.accentSecondary)) {
-        el.popupPreview.style.setProperty('--preview-accent-secondary', overlayPrefs.accentSecondary);
-      } else {
-        el.popupPreview.style.removeProperty('--preview-accent-secondary');
+      const defaultAccent = isSafeColour(DEFAULT_ACCENT) ? DEFAULT_ACCENT : '#38bdf8';
+      const defaultAccentSecondary = isSafeColour(DEFAULT_ACCENT_SECONDARY)
+        ? DEFAULT_ACCENT_SECONDARY
+        : defaultAccent;
+      const previewAccent = overlayPrefs.accent && isSafeColour(overlayPrefs.accent)
+        ? overlayPrefs.accent.trim()
+        : defaultAccent;
+      const previewAccentSecondary = overlayPrefs.accentSecondary && isSafeColour(overlayPrefs.accentSecondary)
+        ? overlayPrefs.accentSecondary.trim()
+        : (overlayPrefs.accent && isSafeColour(overlayPrefs.accent)
+            ? overlayPrefs.accent.trim()
+            : defaultAccentSecondary);
+      el.popupPreview.style.setProperty('--preview-accent', previewAccent);
+      el.popupPreview.style.setProperty('--preview-accent-secondary', previewAccentSecondary);
+      el.popupPreview.style.setProperty('--overlay-accent', previewAccent);
+      el.popupPreview.style.setProperty('--overlay-accent-secondary', previewAccentSecondary);
+      if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.style.setProperty('--overlay-accent', previewAccent);
+        document.documentElement.style.setProperty('--overlay-accent-secondary', previewAccentSecondary);
       }
     }
 
