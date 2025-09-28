@@ -1,10 +1,12 @@
-const path = require('path');
-const globals = require('globals');
-const htmlPlugin = require('eslint-plugin-html');
+// eslint.config.cjs
+const path = require("path");
+const globals = require("globals");
+const htmlPlugin = require("eslint-plugin-html");
+const js = require("@eslint/js");
+const prettierConfig = require("eslint-config-prettier");
 
-const legacyConfig = require(path.join(__dirname, '.eslintrc.json'));
-const eslintRecommended = require('eslint/conf/eslint-recommended');
-const prettierConfig = require('eslint-config-prettier');
+// Load legacy config for parserOptions, env, overrides, etc.
+const legacyConfig = require(path.join(__dirname, ".eslintrc.json"));
 
 const parserOptions = legacyConfig.parserOptions || {};
 const baseEnv = legacyConfig.env || {};
@@ -12,14 +14,14 @@ const baseEnv = legacyConfig.env || {};
 function resolveGlobals(env = {}) {
   return {
     ...(env.browser ? globals.browser : {}),
-    ...(env.node ? globals.node : {})
+    ...(env.node ? globals.node : {}),
   };
 }
 
 const baseRules = {
-  ...(eslintRecommended && eslintRecommended.rules ? eslintRecommended.rules : {}),
+  ...js.configs.recommended.rules,
   ...(prettierConfig && prettierConfig.rules ? prettierConfig.rules : {}),
-  ...(legacyConfig.rules || {})
+  ...(legacyConfig.rules || {}),
 };
 
 const overrides = legacyConfig.overrides || [];
@@ -28,37 +30,38 @@ const publicConfig = overrides[1] || {};
 
 module.exports = [
   {
-    ignores: ['backup/**', 'node_modules/**']
+    ignores: ["backup/**", "node_modules/**"],
   },
   {
-    files: ['**/*.js'],
+    files: ["**/*.js"],
     languageOptions: {
-      ecmaVersion: parserOptions.ecmaVersion || 'latest',
-      sourceType: parserOptions.sourceType || 'script',
-      globals: resolveGlobals(baseEnv)
+      ecmaVersion: parserOptions.ecmaVersion || "latest",
+      sourceType: parserOptions.sourceType || "script",
+      globals: resolveGlobals(baseEnv),
     },
     plugins: {
-      html: htmlPlugin
+      html: htmlPlugin,
     },
-    rules: baseRules
+    rules: baseRules,
   },
   {
     files: serverConfig.files || [],
     languageOptions: {
-      ecmaVersion: parserOptions.ecmaVersion || 'latest',
-      sourceType: parserOptions.sourceType || 'script',
-      globals: resolveGlobals(serverConfig.env)
-    }
+      ecmaVersion: parserOptions.ecmaVersion || "latest",
+      sourceType: parserOptions.sourceType || "script",
+      globals: resolveGlobals(serverConfig.env),
+    },
   },
   {
     files: publicConfig.files || [],
     languageOptions: {
-      ecmaVersion: parserOptions.ecmaVersion || 'latest',
-      sourceType: parserOptions.sourceType || 'script',
+      ecmaVersion: parserOptions.ecmaVersion || "latest",
+      sourceType: parserOptions.sourceType || "script",
       globals: {
         ...resolveGlobals(publicConfig.env),
-        ...((publicConfig.globals) || {})
-      }
-    }
-  }
+        ...(publicConfig.globals || {}),
+      },
+    },
+  },
 ];
+
