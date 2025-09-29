@@ -835,12 +835,17 @@
   </style>
 </head>
 <body>
-  <div class="popup" id="popup">
-    <div class="popup-inner" id="popupContent"></div>
+  <div class="modular-popup" id="popup">
+    <div class="modular-popup__content" id="popupContent">
+      <div class="popup-text"></div>
+      <div class="countdown-display" style="display: none;"></div>
+    </div>
   </div>
 
-  <div class="brb-banner" id="brbBanner" role="status" aria-live="assertive" aria-hidden="true">
-    <div class="brb-banner__content" id="brbBannerText"></div>
+  <div class="modular-brb" id="brbBanner" role="status" aria-live="assertive" aria-hidden="true">
+    <div class="modular-brb__content" id="brbBannerText">
+      <div class="brb-text"></div>
+    </div>
   </div>
 
   <div class="slate" id="slate" aria-live="polite" aria-atomic="true">
@@ -853,11 +858,11 @@
     <div class="slate-dots" id="slateDots"></div>
   </div>
 
-  <div class="ticker" id="ticker">
-    <div class="ticker-visuals" id="tickerVisuals"></div>
-    <div class="ticker-label" id="tickerLabel">LIVE</div>
-    <div class="ticker-track" id="tickerTrack">
-      <div class="ticker-content" id="tickerContent"></div>
+  <div class="modular-ticker ticker" id="ticker">
+    <div class="modular-ticker__visuals ticker-visuals" id="tickerVisuals"></div>
+    <div class="modular-ticker__label ticker-label" id="tickerLabel">LIVE</div>
+    <div class="modular-ticker__track ticker-track" id="tickerTrack">
+      <div class="modular-ticker__content ticker-content" id="tickerContent"></div>
     </div>
   </div>
 

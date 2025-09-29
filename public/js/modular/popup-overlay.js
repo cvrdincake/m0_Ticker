@@ -151,8 +151,13 @@ class ModularPopupOverlay {
     }
 
     // Handle auto-hide duration
+    // If durationSeconds is 0 or not set, popup stays until manually dismissed
+    // If durationSeconds > 0, popup auto-hides after that duration
     if (state.durationSeconds && state.durationSeconds > 0) {
       this.startDurationTimer(state.durationSeconds);
+    } else {
+      // Clear any existing timer and let popup stay visible until dismissed
+      this.clearDurationTimer();
     }
 
     // Announce to screen readers
