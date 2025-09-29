@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticker Dashboard - Modern</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=Roboto:wght@300;400;500;700;900&family=Poppins:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@300;400;500;700&family=Fira+Code:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/phosphor-icons@1.4.2/src/css/icons.min.css" rel="stylesheet">
+  
+  <!-- Unified Theme System -->
+  <link rel="stylesheet" href="css/unified-theme.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/theme-customizer.css">
+  <link rel="stylesheet" href="css/advanced-animations.css">
+  
+  <style>
+    /* ===== DASHBOARD SPECIFIC STYLES ===== */
+    
+    .dashboard-layout {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      min-height: 100vh;
+    }
+    
+    /* Sidebar */
+    .sidebar {
+      background-color: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: var(--z-docked);
+    }
+    
+    .sidebar-header {
+      padding: var(--space-6);
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-inverse);
+      font-size: var(--text-lg);
+      font-weight: var(--font-bold);
+    }
+    
+    .logo-text {
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+    }
+    
+    /* Status Panel */
+    .status-panel {
+      margin: var(--space-4);
+      padding: var(--space-4);
+      background-color: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    
+    .connection-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex: 1;
+    }
+    
+    .connection-status {
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+    }
+    
+    /* Navigation */
+    .sidebar-nav {
+      flex: 1;
+      padding: var(--space-4);
+    }
+    
+    .nav-section {
+      margin-bottom: var(--space-6);
+    }
+    
+    .nav-section-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-disabled);
+      margin-bottom: var(--space-3);
+      padding-left: var(--space-3);
+    }
+    
+    /* Main Content */
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    .main-header {
+      height: var(--header-height);
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-8);
+      position: sticky;
+      top: 0;
+      z-index: var(--z-sticky);
+    }
+    
+    .page-title {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin: 0;
+    }
+    
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+    
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      padding: var(--space-8);
+      background: linear-gradient(180deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      min-height: calc(100vh - var(--header-height));
+    }
+    
+    .content-grid {
+      display: grid;
+      gap: var(--space-8);
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Dashboard View */
+    .dashboard-view .content-grid {
+      grid-template-columns: 1fr 400px;
+      align-items: start;
+    }
+    
+    /* Message Management */
+    .message-composer {
+      display: flex;
+      gap: var(--space-3);
+      margin-bottom: var(--space-6);
+    }
+    
+    .message-composer .form-input {
+      flex: 1;
+    }
+    
+    .message-list {
+      background-color: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      min-height: 400px;
+      max-height: 600px;
+      overflow-y: auto;
+      position: relative;
+    }
+    
+    .message-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      padding: var(--space-4);
+      border-bottom: 1px solid var(--border-secondary);
+      transition: var(--transition);
+      position: relative;
+      cursor: pointer;
+    }
+    
+    .message-item:last-child {
+      border-bottom: none;
+    }
+    
+    .message-item:hover {
+      background-color: var(--surface-hover);
+    }
+    
+    .message-item.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+    }
+    
+    .drag-handle {
+      color: var(--text-disabled);
+      cursor: grab;
+      font-size: var(--text-lg);
+    }
+    
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .message-text {
+      font-size: var(--text-sm);
+      color: var(--text-primary);
+      word-break: break-word;
+      line-height: var(--leading-normal);
+    }
+    
+    .message-meta {
+      font-size: var(--text-xs);
+      color: var(--text-disabled);
+      margin-top: var(--space-1);
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+    }
+    
+    .message-actions {
+      display: flex;
+      gap: var(--space-2);
+      opacity: 0;
+      transform: translateX(8px);
+      transition: var(--transition);
+    }
+    
+    .message-item:hover .message-actions {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    
+    /* Control Panels */
+    .control-panel {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6);
+      box-shadow: var(--shadow);
+    }
+    
+    .control-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-6);
+      padding-bottom: var(--space-4);
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    
+    .control-icon {
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+    }
+    
+    .control-title {
+      font-size: var(--text-lg);
+      font-weight: var(--font-semibold);
+      color: var(--text-primary);
+      margin: 0;
+    }
+    
+    .control-subtitle {
+      font-size: var(--text-sm);
+      color: var(--text-tertiary);
+      margin-top: var(--space-1);
+    }
+    
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-4);
+      margin-bottom: var(--space-8);
+    }
+    
+    .stat-card {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-6);
+      text-align: center;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--text-primary), var(--text-secondary));
+      opacity: 0;
+      transition: var(--transition-opacity);
+    }
+    
+    .stat-card:hover::before {
+      opacity: 1;
+    }
+    
+    .stat-value {
+      font-size: var(--text-3xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    
+    .stat-label {
+      font-size: var(--text-sm);
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    
+    /* Quick Actions */
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: var(--space-3);
+    }
+    
+    .quick-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-4);
+      background-color: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    
+    .quick-action:hover {
+      background-color: var(--surface-hover);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+    }
+    
+    .quick-action-icon {
+      font-size: var(--text-xl);
+    }
+    
+    .quick-action-label {
+      font-size: var(--text-xs);
+      font-weight: var(--font-medium);
+      text-align: center;
+    }
+    
+    /* View Transitions */
+    .view {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: var(--transition-slow);
+      pointer-events: none;
+    }
+    
+    .view.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .dashboard-view .content-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-6);
+      }
+    }
+    
+    /* Quick Theme Buttons */
+    .preset-theme-quick {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      background-color: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: var(--transition);
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    
+    .preset-theme-quick:hover {
+      background-color: var(--surface-hover);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-lg);
+      color: var(--text-primary);
+    }
+    
+    @media (max-width: 768px) {
+      .dashboard-layout {
+        grid-template-columns: 1fr;
+      }
+      
+      .sidebar {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: var(--sidebar-width);
+        height: 100vh;
+        z-index: var(--z-modal);
+        transition: var(--transition);
+      }
+      
+      .sidebar.mobile-open {
+        left: 0;
+        box-shadow: var(--shadow-2xl);
+      }
+      
+      .main-content {
+        grid-column: 1;
+      }
+      
+      .content-area {
+        padding: var(--space-4);
+      }
+      
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .message-composer {
+        flex-direction: column;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <i class="ph-broadcast ph-bold"></i>
+          </div>
+          <div class="logo-text">Ticker Pro</div>
+        </div>
+      </div>
+      
+      <!-- Connection Status -->
+      <div class="status-panel">
+        <div class="connection-indicator">
+          <div class="status-dot" id="connectionDot"></div>
+          <div class="connection-status" id="connectionStatus">Connecting...</div>
+        </div>
+        <i class="ph-wifi-high ph-bold" id="connectionIcon"></i>
+      </div>
+      
+      <!-- Navigation -->
+      <nav class="sidebar-nav">
+        <div class="nav-section">
+          <div class="nav-section-title">Dashboard</div>
+          <div class="nav">
+            <button class="nav-item active" data-view="dashboard">
+              <i class="nav-icon ph-house ph-bold"></i>
+              <span class="nav-label">Overview</span>
+            </button>
+            <button class="nav-item" data-view="messages">
+              <i class="nav-icon ph-chat-dots ph-bold"></i>
+              <span class="nav-label">Messages</span>
+              <div class="nav-badge" id="messageCountBadge">0</div>
+            </button>
+            <button class="nav-item" data-view="ticker">
+              <i class="nav-icon ph-play-circle ph-bold"></i>
+              <span class="nav-label">Ticker Control</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="nav-section">
+          <div class="nav-section-title">Widgets</div>
+          <div class="nav">
+            <button class="nav-item" data-view="overlay">
+              <i class="nav-icon ph-monitor ph-bold"></i>
+              <span class="nav-label">Overlay</span>
+            </button>
+            <button class="nav-item" data-view="popup">
+              <i class="nav-icon ph-app-window ph-bold"></i>
+              <span class="nav-label">Popups</span>
+            </button>
+            <button class="nav-item" data-view="brb">
+              <i class="nav-icon ph-pause-circle ph-bold"></i>
+              <span class="nav-label">BRB Mode</span>
+            </button>
+            <button class="nav-item" data-view="themes">
+              <i class="nav-icon ph-palette ph-bold"></i>
+              <span class="nav-label">Theme Studio</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="nav-section">
+          <div class="nav-section-title">Tools</div>
+          <div class="nav">
+            <button class="nav-item" data-view="settings">
+              <i class="nav-icon ph-gear ph-bold"></i>
+              <span class="nav-label">Settings</span>
+            </button>
+            <button class="nav-item" id="exportDataBtn">
+              <i class="nav-icon ph-download ph-bold"></i>
+              <span class="nav-label">Export Data</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="flex items-center gap-4">
+          <button class="btn btn-ghost btn-icon-only md:hidden" id="sidebarToggle">
+            <i class="ph-list ph-bold"></i>
+          </button>
+          <h1 class="page-title" id="pageTitle">Dashboard Overview</h1>
+        </div>
+        
+        <div class="header-actions">
+          <button class="btn btn-ghost" id="refreshBtn">
+            <i class="ph-arrows-clockwise ph-bold"></i>
+            <span class="sm:hidden">Refresh</span>
+          </button>
+          <button class="btn btn-primary" id="quickAddBtn">
+            <i class="ph-plus ph-bold"></i>
+            <span class="sm:hidden">Quick Add</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view active dashboard-view">
+          <!-- Stats Overview -->
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="totalMessages">0</div>
+              <div class="stat-label">Total Messages</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="tickerStatus">Stopped</div>
+              <div class="stat-label">Ticker Status</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="uptime">00:00:00</div>
+              <div class="stat-label">Uptime</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="messagesShown">0</div>
+              <div class="stat-label">Messages Shown</div>
+            </div>
+          </div>
+          
+          <div class="content-grid">
+            <!-- Main Content -->
+            <div>
+              <!-- Message Management Card -->
+              <div class="card card-elevated">
+                <div class="card-header">
+                  <div class="flex items-center justify-between">
+                    <div>
+                      <h2 class="card-title flex items-center gap-3">
+                        <i class="ph-chat-dots ph-bold"></i>
+                        Ticker Messages
+                      </h2>
+                      <p class="card-subtitle">Manage your ticker message queue</p>
+                    </div>
+                    <div class="badge badge-primary" id="messageCount">0 messages</div>
+                  </div>
+                </div>
+                
+                <div class="card-body">
+                  <!-- Message Composer -->
+                  <form class="message-composer" id="messageForm">
+                    <input 
+                      type="text" 
+                      class="form-input" 
+                      id="messageInput" 
+                      placeholder="Enter your ticker message..."
+                      maxlength="280"
+                    >
+                    <button type="submit" class="btn btn-primary">
+                      <i class="ph-plus ph-bold"></i>
+                      Add
+                    </button>
+                  </form>
+                  
+                  <!-- Message List -->
+                  <div class="message-list" id="messageList">
+                    <div class="empty-state">
+                      <div class="empty-icon">
+                        <i class="ph-chat-dots ph-light"></i>
+                      </div>
+                      <div class="empty-title">No messages yet</div>
+                      <div class="empty-description">
+                        Add your first ticker message above to get started
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Message Actions -->
+                  <div class="flex gap-3 pt-4" style="border-top: 1px solid var(--border-secondary);">
+                    <button class="btn btn-error" id="clearAllBtn">
+                      <i class="ph-trash ph-bold"></i>
+                      Clear All
+                    </button>
+                    <button class="btn btn-secondary" id="exportMessagesBtn">
+                      <i class="ph-download ph-bold"></i>
+                      Export
+                    </button>
+                    <button class="btn btn-secondary" id="importMessagesBtn">
+                      <i class="ph-upload ph-bold"></i>
+                      Import
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="flex flex-col gap-6">
+              <!-- Ticker Control -->
+              <div class="control-panel">
+                <div class="control-header">
+                  <i class="control-icon ph-play-circle ph-bold"></i>
+                  <div>
+                    <h3 class="control-title">Ticker Control</h3>
+                    <p class="control-subtitle">Start and configure your ticker</p>
+                  </div>
+                </div>
+                
+                <div class="flex flex-col gap-4">
+                  <div class="form-group">
+                    <label class="form-label" for="durationInput">
+                      <i class="ph-timer ph-bold"></i>
+                      Duration (seconds)
+                    </label>
+                    <input 
+                      type="number" 
+                      class="form-input" 
+                      id="durationInput" 
+                      value="5" 
+                      min="1" 
+                      max="60"
+                    >
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label" for="intervalInput">
+                      <i class="ph-clock ph-bold"></i>
+                      Interval (minutes)
+                    </label>
+                    <input 
+                      type="number" 
+                      class="form-input" 
+                      id="intervalInput" 
+                      value="0" 
+                      min="0" 
+                      max="60" 
+                      step="0.1"
+                    >
+                  </div>
+                  
+                  <div class="btn-group">
+                    <button class="btn btn-success" id="startTickerBtn">
+                      <i class="ph-play ph-bold"></i>
+                      Start
+                    </button>
+                    <button class="btn btn-error" id="stopTickerBtn">
+                      <i class="ph-stop ph-bold"></i>
+                      Stop
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div class="control-panel">
+                <div class="control-header">
+                  <i class="control-icon ph-lightning ph-bold"></i>
+                  <div>
+                    <h3 class="control-title">Quick Actions</h3>
+                    <p class="control-subtitle">Common tasks and shortcuts</p>
+                  </div>
+                </div>
+                
+                <div class="quick-actions">
+                  <button class="quick-action" id="testOverlayBtn">
+                    <i class="quick-action-icon ph-eye ph-bold"></i>
+                    <span class="quick-action-label">Test Overlay</span>
+                  </button>
+                  <button class="quick-action" id="openOverlayBtn">
+                    <i class="quick-action-icon ph-arrow-square-out ph-bold"></i>
+                    <span class="quick-action-label">Open Overlay</span>
+                  </button>
+                  <button class="quick-action" id="showPopupBtn">
+                    <i class="quick-action-icon ph-app-window ph-bold"></i>
+                    <span class="quick-action-label">Test Popup</span>
+                  </button>
+                  <button class="quick-action" id="toggleBrbBtn">
+                    <i class="quick-action-icon ph-pause-circle ph-bold"></i>
+                    <span class="quick-action-label">Toggle BRB</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other Views (Placeholders) -->
+        <div id="messages-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Advanced Message Management</h2>
+            </div>
+            <div class="card-body">
+              <p>Advanced message features coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="ticker-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Ticker Configuration</h2>
+            </div>
+            <div class="card-body">
+              <p>Advanced ticker controls coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="overlay-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Overlay Settings</h2>
+            </div>
+            <div class="card-body">
+              <p>Overlay configuration coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="popup-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Popup Management</h2>
+            </div>
+            <div class="card-body">
+              <p>Popup configuration coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="brb-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">BRB Mode</h2>
+            </div>
+            <div class="card-body">
+              <p>BRB configuration coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="themes-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title flex items-center gap-3">
+                <i class="ph-palette ph-bold"></i>
+                Theme Studio
+              </h2>
+              <p class="card-subtitle">Customize your dashboard appearance with live preview</p>
+            </div>
+            <div class="card-body">
+              <div class="flex items-center justify-center py-12">
+                <button class="btn btn-primary btn-lg" onclick="window.themeCustomizer?.open()">
+                  <i class="ph-palette ph-bold"></i>
+                  Open Theme Customizer
+                </button>
+              </div>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                <div class="bg-surface p-6 rounded-lg border border-primary">
+                  <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i class="ph-swatches ph-bold"></i>
+                    Quick Themes
+                  </h3>
+                  <div class="grid grid-cols-2 gap-3">
+                    <button class="preset-theme-quick" onclick="applyQuickTheme('dark')">
+                      <div class="flex h-8 rounded overflow-hidden">
+                        <div style="background: #000000; flex: 1;"></div>
+                        <div style="background: #3b82f6; flex: 1;"></div>
+                      </div>
+                      <span class="text-sm mt-2">Dark Pro</span>
+                    </button>
+                    <button class="preset-theme-quick" onclick="applyQuickTheme('gaming')">
+                      <div class="flex h-8 rounded overflow-hidden">
+                        <div style="background: #0d1117; flex: 1;"></div>
+                        <div style="background: #00ff88; flex: 1;"></div>
+                      </div>
+                      <span class="text-sm mt-2">Gaming RGB</span>
+                    </button>
+                    <button class="preset-theme-quick" onclick="applyQuickTheme('neon')">
+                      <div class="flex h-8 rounded overflow-hidden">
+                        <div style="background: #000011; flex: 1;"></div>
+                        <div style="background: #00ffff; flex: 1;"></div>
+                      </div>
+                      <span class="text-sm mt-2">Neon City</span>
+                    </button>
+                    <button class="preset-theme-quick" onclick="applyQuickTheme('business')">
+                      <div class="flex h-8 rounded overflow-hidden">
+                        <div style="background: #1a1a1a; flex: 1;"></div>
+                        <div style="background: #0066cc; flex: 1;"></div>
+                      </div>
+                      <span class="text-sm mt-2">Business</span>
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="bg-surface p-6 rounded-lg border border-primary">
+                  <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <i class="ph-gear ph-bold"></i>
+                    Customization Features
+                  </h3>
+                  <ul class="space-y-2 text-sm text-secondary">
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      Real-time color picker with live preview
+                    </li>
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      6 preset theme collections
+                    </li>
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      Animation speed & style controls
+                    </li>
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      Custom font selection
+                    </li>
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      Export & import theme configurations
+                    </li>
+                    <li class="flex items-center gap-2">
+                      <i class="ph-check-circle ph-bold text-success"></i>
+                      Particle effects & glassmorphism
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="settings-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Settings</h2>
+            </div>
+            <div class="card-body">
+              <p>Application settings coming soon...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="flex flex-col items-center gap-4">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loadingText">Loading...</div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toastContainer" style="position: fixed; top: var(--space-6); right: var(--space-6); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-3);"></div>
+
+  <!-- Theme Customizer Script -->
+  <script src="js/theme-customizer.js"></script>
+  
+  <script>
+    // Global state
+    const state = {
+      messages: [],
+      isRunning: false,
+      websocket: null,
+      connected: false,
+      currentView: 'dashboard',
+      stats: {
+        uptime: 0,
+        messagesShown: 0
+      }
+    };
+
+    const elements = {
+      // Navigation
+      sidebar: document.getElementById('sidebar'),
+      sidebarToggle: document.getElementById('sidebarToggle'),
+      navItems: document.querySelectorAll('.nav-item[data-view]'),
+      pageTitle: document.getElementById('pageTitle'),
+      
+      // Connection
+      connectionDot: document.getElementById('connectionDot'),
+      connectionStatus: document.getElementById('connectionStatus'),
+      connectionIcon: document.getElementById('connectionIcon'),
+      
+      // Messages
+      messageForm: document.getElementById('messageForm'),
+      messageInput: document.getElementById('messageInput'),
+      messageList: document.getElementById('messageList'),
+      messageCount: document.getElementById('messageCount'),
+      messageCountBadge: document.getElementById('messageCountBadge'),
+      
+      // Ticker Control
+      durationInput: document.getElementById('durationInput'),
+      intervalInput: document.getElementById('intervalInput'),
+      startTickerBtn: document.getElementById('startTickerBtn'),
+      stopTickerBtn: document.getElementById('stopTickerBtn'),
+      
+      // Stats
+      totalMessages: document.getElementById('totalMessages'),
+      tickerStatus: document.getElementById('tickerStatus'),
+      uptime: document.getElementById('uptime'),
+      messagesShown: document.getElementById('messagesShown'),
+      
+      // Actions
+      refreshBtn: document.getElementById('refreshBtn'),
+      quickAddBtn: document.getElementById('quickAddBtn'),
+      clearAllBtn: document.getElementById('clearAllBtn'),
+      testOverlayBtn: document.getElementById('testOverlayBtn'),
+      openOverlayBtn: document.getElementById('openOverlayBtn'),
+      showPopupBtn: document.getElementById('showPopupBtn'),
+      toggleBrbBtn: document.getElementById('toggleBrbBtn'),
+      exportDataBtn: document.getElementById('exportDataBtn'),
+      exportMessagesBtn: document.getElementById('exportMessagesBtn'),
+      importMessagesBtn: document.getElementById('importMessagesBtn'),
+      
+      // UI
+      loadingOverlay: document.getElementById('loadingOverlay'),
+      loadingText: document.getElementById('loadingText'),
+      toastContainer: document.getElementById('toastContainer'),
+      views: document.querySelectorAll('.view')
+    };
+
+    // Navigation system
+    function initNavigation() {
+      elements.navItems.forEach(item => {
+        item.addEventListener('click', () => {
+          const viewName = item.getAttribute('data-view');
+          showView(viewName);
+        });
+      });
+
+      elements.sidebarToggle?.addEventListener('click', () => {
+        elements.sidebar.classList.toggle('mobile-open');
+      });
+    }
+
+    function showView(viewName) {
+      // Update active nav item
+      elements.navItems.forEach(item => {
+        item.classList.remove('active');
+      });
+      
+      const activeNav = document.querySelector(`.nav-item[data-view="${viewName}"]`);
+      if (activeNav) {
+        activeNav.classList.add('active');
+      }
+      
+      // Update page title
+      const titles = {
+        'dashboard': 'Dashboard Overview',
+        'messages': 'Message Management',
+        'ticker': 'Ticker Control',
+        'overlay': 'Overlay Settings',
+        'popup': 'Popup Management',
+        'brb': 'BRB Mode',
+        'themes': 'Theme Customization',
+        'settings': 'Settings'
+      };
+      
+      elements.pageTitle.textContent = titles[viewName] || 'Dashboard';
+      
+      // Show/hide views with animation
+      elements.views.forEach(view => {
+        view.classList.remove('active');
+      });
+      
+      const activeView = document.getElementById(viewName + '-view');
+      if (activeView) {
+        setTimeout(() => {
+          activeView.classList.add('active');
+        }, 50);
+      }
+      
+      state.currentView = viewName;
+      
+      // Close mobile sidebar
+      elements.sidebar.classList.remove('mobile-open');
+    }
+
+    // WebSocket functions
+    function connectWebSocket() {
+      if (state.websocket) {
+        state.websocket.close();
+      }
+
+      try {
+        showLoading('Connecting to server...');
+        updateConnectionStatus('connecting', 'Connecting...', 'ph-wifi-slash');
+        
+        const wsUrl = 'ws://localhost:3000/ws';
+        state.websocket = new WebSocket(wsUrl);
+        
+        state.websocket.onopen = function() {
+          hideLoading();
+          updateConnectionStatus('connected', 'Connected', 'ph-wifi-high');
+          state.connected = true;
+          showToast('Connected to server', 'success');
+          startUptimeCounter();
+        };
+        
+        state.websocket.onmessage = function(event) {
+          try {
+            const data = JSON.parse(event.data);
+            handleWebSocketMessage(data);
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+        
+        state.websocket.onclose = function() {
+          updateConnectionStatus('disconnected', 'Disconnected', 'ph-wifi-x');
+          state.connected = false;
+          hideLoading();
+          
+          setTimeout(connectWebSocket, 3000);
+        };
+        
+        state.websocket.onerror = function(error) {
+          hideLoading();
+          updateConnectionStatus('error', 'Error', 'ph-wifi-x');
+          console.error('WebSocket error:', error);
+          showToast('Connection failed', 'error');
+        };
+        
+      } catch (error) {
+        hideLoading();
+        updateConnectionStatus('error', 'Failed to connect', 'ph-wifi-x');
+        showToast('Failed to connect: ' + error.message, 'error');
+      }
+    }
+
+    function sendWebSocketMessage(type, data) {
+      if (!state.websocket || state.websocket.readyState !== WebSocket.OPEN) {
+        showToast('Not connected to server', 'error');
+        return false;
+      }
+      
+      try {
+        const message = { type: type, data: data || {} };
+        state.websocket.send(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        showToast('Failed to send message: ' + error.message, 'error');
+        return false;
+      }
+    }
+
+    function handleWebSocketMessage(message) {
+      switch (message.type) {
+        case 'state-update':
+          if (message.data && message.data.messages) {
+            state.messages = message.data.messages;
+            renderMessages();
+            updateStats();
+          }
+          break;
+        case 'ticker-status':
+          state.isRunning = message.data.isRunning;
+          updateTickerControls();
+          updateStats();
+          break;
+        default:
+          console.log('Unknown message type:', message.type);
+      }
+    }
+
+    // UI Update functions
+    function updateConnectionStatus(status, text, icon) {
+      elements.connectionStatus.textContent = text;
+      elements.connectionIcon.className = `${icon} ph-bold`;
+      
+      elements.connectionDot.className = 'status-dot';
+      if (status === 'connected') {
+        elements.connectionDot.classList.add('success');
+      } else if (status === 'error') {
+        elements.connectionDot.classList.add('error');
+      }
+    }
+
+    function showLoading(text = 'Loading...') {
+      elements.loadingText.textContent = text;
+      elements.loadingOverlay.classList.add('show');
+    }
+
+    function hideLoading() {
+      elements.loadingOverlay.classList.remove('show');
+    }
+
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast show animate-slide-right`;
+      
+      const icons = {
+        success: 'ph-check-circle ph-bold',
+        error: 'ph-x-circle ph-bold',
+        info: 'ph-info ph-bold',
+        warning: 'ph-warning ph-bold'
+      };
+      
+      toast.innerHTML = `
+        <i class="toast-icon ${icons[type] || icons.info}" style="color: var(--${type === 'success' ? 'success' : type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info'});"></i>
+        <div class="toast-content">${escapeHtml(message)}</div>
+        <button class="toast-close" aria-label="Close">
+          <i class="ph-x ph-bold"></i>
+        </button>
+      `;
+      
+      elements.toastContainer.appendChild(toast);
+      
+      // Auto hide after 4 seconds
+      const hideTimer = setTimeout(() => {
+        hideToast(toast);
+      }, 4000);
+      
+      // Click to dismiss
+      toast.querySelector('.toast-close').addEventListener('click', () => {
+        clearTimeout(hideTimer);
+        hideToast(toast);
+      });
+    }
+
+    // Make showToast available globally
+    window.showToast = showToast;
+
+    function hideToast(toast) {
+      toast.classList.remove('show');
+      toast.classList.add('animate-slide-right');
+      setTimeout(() => {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }
+
+    function renderMessages() {
+      if (state.messages.length === 0) {
+        elements.messageList.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">
+              <i class="ph-chat-dots ph-light"></i>
+            </div>
+            <div class="empty-title">No messages yet</div>
+            <div class="empty-description">
+              Add your first ticker message above to get started
+            </div>
+          </div>
+        `;
+        return;
+      }
+      
+      let html = '';
+      state.messages.forEach((message, index) => {
+        const text = message.text || message;
+        html += `
+          <div class="message-item animate-slide-up" style="animation-delay: ${index * 50}ms" data-index="${index}">
+            <i class="drag-handle ph-dots-six-vertical ph-bold"></i>
+            <div class="message-content">
+              <div class="message-text">${escapeHtml(text)}</div>
+              <div class="message-meta">
+                <span>Message #${index + 1}</span>
+                <span>•</span>
+                <span>${text.length} characters</span>
+              </div>
+            </div>
+            <div class="message-actions">
+              <button class="btn btn-ghost btn-sm" onclick="editMessage(${index})" title="Edit">
+                <i class="ph-pencil ph-bold"></i>
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="removeMessage(${index})" title="Remove">
+                <i class="ph-trash ph-bold"></i>
+              </button>
+            </div>
+          </div>
+        `;
+      });
+      
+      elements.messageList.innerHTML = html;
+    }
+
+    function updateStats() {
+      const count = state.messages.length;
+      elements.totalMessages.textContent = count;
+      elements.messageCount.textContent = `${count} message${count !== 1 ? 's' : ''}`;
+      elements.messageCountBadge.textContent = count.toString();
+      elements.tickerStatus.textContent = state.isRunning ? 'Running' : 'Stopped';
+      elements.messagesShown.textContent = state.stats.messagesShown;
+    }
+
+    function updateTickerControls() {
+      elements.startTickerBtn.disabled = state.isRunning;
+      elements.stopTickerBtn.disabled = !state.isRunning;
+      
+      if (state.isRunning) {
+        elements.startTickerBtn.innerHTML = '<i class="ph-spinner ph-bold animate-spin"></i> Running';
+        elements.stopTickerBtn.innerHTML = '<i class="ph-stop ph-bold"></i> Stop';
+      } else {
+        elements.startTickerBtn.innerHTML = '<i class="ph-play ph-bold"></i> Start';
+        elements.stopTickerBtn.innerHTML = '<i class="ph-stop ph-bold"></i> Stopped';
+      }
+    }
+
+    function startUptimeCounter() {
+      const startTime = Date.now();
+      setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const hours = Math.floor(elapsed / 3600000);
+        const minutes = Math.floor((elapsed % 3600000) / 60000);
+        const seconds = Math.floor((elapsed % 60000) / 1000);
+        elements.uptime.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }, 1000);
+    }
+
+    // Message functions
+    function addMessage() {
+      const messageText = elements.messageInput.value.trim();
+      if (!messageText) {
+        showToast('Please enter a message', 'warning');
+        elements.messageInput.focus();
+        return;
+      }
+      
+      if (messageText.length > 280) {
+        showToast('Message too long (max 280 characters)', 'error');
+        return;
+      }
+      
+      showLoading('Adding message...');
+      if (sendWebSocketMessage('add-message', { text: messageText })) {
+        elements.messageInput.value = '';
+        showToast('Message added successfully', 'success');
+        state.stats.messagesShown++;
+      }
+      hideLoading();
+    }
+
+    function removeMessage(index) {
+      showLoading('Removing message...');
+      if (sendWebSocketMessage('remove-message', { index: index })) {
+        showToast('Message removed', 'success');
+      }
+      hideLoading();
+    }
+
+    function editMessage(index) {
+      const message = state.messages[index];
+      const newText = prompt('Edit message:', message.text || message);
+      if (newText !== null && newText.trim()) {
+        // Simple implementation - remove and add
+        removeMessage(index);
+        setTimeout(() => {
+          elements.messageInput.value = newText.trim();
+          addMessage();
+        }, 100);
+      }
+    }
+
+    function clearAllMessages() {
+      if (state.messages.length === 0) {
+        showToast('No messages to clear', 'warning');
+        return;
+      }
+      
+      if (confirm(`Clear all ${state.messages.length} messages? This action cannot be undone.`)) {
+        showLoading('Clearing messages...');
+        if (sendWebSocketMessage('clear-messages')) {
+          showToast('All messages cleared', 'success');
+        }
+        hideLoading();
+      }
+    }
+
+    // Ticker control functions
+    function startTicker() {
+      if (state.messages.length === 0) {
+        showToast('Add some messages first', 'warning');
+        if (state.currentView !== 'dashboard') {
+          showView('dashboard');
+        }
+        elements.messageInput.focus();
+        return;
+      }
+      
+      const duration = parseInt(elements.durationInput.value) || 5;
+      const interval = parseFloat(elements.intervalInput.value) || 0;
+      
+      showLoading('Starting ticker...');
+      if (sendWebSocketMessage('start-ticker', { 
+        duration: duration,
+        interval: interval * 60 * 1000
+      })) {
+        showToast(`Ticker started with ${state.messages.length} messages`, 'success');
+      }
+      hideLoading();
+    }
+
+    function stopTicker() {
+      showLoading('Stopping ticker...');
+      if (sendWebSocketMessage('stop-ticker')) {
+        showToast('Ticker stopped', 'success');
+      }
+      hideLoading();
+    }
+
+    // Quick actions
+    function testOverlay() {
+      showLoading('Sending test to overlay...');
+      if (sendWebSocketMessage('test-overlay')) {
+        showToast('Test message sent to overlay', 'info');
+      }
+      hideLoading();
+    }
+
+    function openOverlay() {
+      const overlayUrl = `${window.location.origin}/ticker/output-enhanced`;
+      window.open(overlayUrl, '_blank');
+      showToast('Enhanced overlay opened in new window', 'info');
+    }
+
+    function showTestPopup() {
+      const message = `Test popup - ${new Date().toLocaleTimeString()}`;
+      showLoading('Showing test popup...');
+      if (sendWebSocketMessage('show-popup', { 
+        message: message,
+        duration: 3000
+      })) {
+        showToast('Test popup displayed', 'info');
+      }
+      hideLoading();
+    }
+
+    function toggleBrb() {
+      const message = 'Be Right Back - Stream will resume shortly';
+      showLoading('Toggling BRB mode...');
+      if (sendWebSocketMessage('start-brb', { message: message })) {
+        showToast('BRB mode activated', 'info');
+      }
+      hideLoading();
+    }
+
+    // Quick theme application
+    function applyQuickTheme(themeKey) {
+      if (window.themeCustomizer) {
+        window.themeCustomizer.applyPreset(themeKey);
+        showToast(`Applied ${themeKey} theme`, 'success');
+      }
+    }
+
+    // Event handlers
+    function initEventHandlers() {
+      // Form submission
+      elements.messageForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        addMessage();
+      });
+
+      // Button clicks
+      elements.startTickerBtn.addEventListener('click', startTicker);
+      elements.stopTickerBtn.addEventListener('click', stopTicker);
+      elements.clearAllBtn.addEventListener('click', clearAllMessages);
+      elements.refreshBtn.addEventListener('click', () => {
+        showLoading('Refreshing...');
+        connectWebSocket();
+      });
+      
+      elements.quickAddBtn.addEventListener('click', () => {
+        showView('dashboard');
+        setTimeout(() => elements.messageInput.focus(), 100);
+      });
+
+      // Quick actions
+      elements.testOverlayBtn.addEventListener('click', testOverlay);
+      elements.openOverlayBtn.addEventListener('click', openOverlay);
+      elements.showPopupBtn.addEventListener('click', showTestPopup);
+      elements.toggleBrbBtn.addEventListener('click', toggleBrb);
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        // Cmd/Ctrl + K for quick add
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          showView('dashboard');
+          setTimeout(() => elements.messageInput.focus(), 100);
+        }
+        
+        // Escape to clear input or close mobile sidebar
+        if (e.key === 'Escape') {
+          if (document.activeElement === elements.messageInput) {
+            elements.messageInput.value = '';
+            elements.messageInput.blur();
+          } else {
+            elements.sidebar.classList.remove('mobile-open');
+          }
+        }
+      });
+
+      // Click outside sidebar to close on mobile
+      document.addEventListener('click', (e) => {
+        if (window.innerWidth <= 768 && 
+            !elements.sidebar.contains(e.target) && 
+            !elements.sidebarToggle.contains(e.target)) {
+          elements.sidebar.classList.remove('mobile-open');
+        }
+      });
+    }
+
+    // Utility functions
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initialize dashboard
+    function init() {
+      initNavigation();
+      initEventHandlers();
+      connectWebSocket();
+      updateTickerControls();
+      updateStats();
+      
+      // Show welcome message
+      setTimeout(() => {
+        showToast('Dashboard loaded successfully', 'success');
+      }, 500);
+    }
+
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

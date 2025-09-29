@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticker Dashboard - Modern</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    /* Modern Design System */
+    :root {
+      /* Color System */
+      --gray-50: #f9fafb;
+      --gray-100: #f3f4f6;
+      --gray-200: #e5e7eb;
+      --gray-300: #d1d5db;
+      --gray-400: #9ca3af;
+      --gray-500: #6b7280;
+      --gray-600: #4b5563;
+      --gray-700: #374151;
+      --gray-800: #1f2937;
+      --gray-900: #111827;
+      --gray-950: #030712;
+
+      /* Brand Colors */
+      --blue-500: #3b82f6;
+      --blue-600: #2563eb;
+      --blue-700: #1d4ed8;
+      --green-500: #10b981;
+      --green-600: #059669;
+      --red-500: #ef4444;
+      --red-600: #dc2626;
+      --amber-500: #f59e0b;
+      --amber-600: #d97706;
+      --purple-500: #8b5cf6;
+      --purple-600: #7c3aed;
+
+      /* Semantic Colors */
+      --color-primary: var(--blue-600);
+      --color-success: var(--green-500);
+      --color-warning: var(--amber-500);
+      --color-danger: var(--red-500);
+      --color-info: var(--blue-500);
+
+      /* Surface Colors */
+      --bg-primary: var(--gray-950);
+      --bg-secondary: var(--gray-900);
+      --bg-tertiary: var(--gray-800);
+      --surface: rgba(255, 255, 255, 0.05);
+      --surface-hover: rgba(255, 255, 255, 0.08);
+      --surface-active: rgba(255, 255, 255, 0.12);
+      --border: rgba(255, 255, 255, 0.1);
+      --border-focus: var(--color-primary);
+
+      /* Text Colors */
+      --text-primary: var(--gray-50);
+      --text-secondary: var(--gray-300);
+      --text-tertiary: var(--gray-400);
+      --text-disabled: var(--gray-600);
+
+      /* Typography Scale */
+      --text-xs: 0.75rem;
+      --text-sm: 0.875rem;
+      --text-base: 1rem;
+      --text-lg: 1.125rem;
+      --text-xl: 1.25rem;
+      --text-2xl: 1.5rem;
+      --text-3xl: 1.875rem;
+
+      /* Font Weights */
+      --font-normal: 400;
+      --font-medium: 500;
+      --font-semibold: 600;
+      --font-bold: 700;
+
+      /* Spacing Scale */
+      --space-1: 0.25rem;
+      --space-2: 0.5rem;
+      --space-3: 0.75rem;
+      --space-4: 1rem;
+      --space-5: 1.25rem;
+      --space-6: 1.5rem;
+      --space-8: 2rem;
+      --space-10: 2.5rem;
+      --space-12: 3rem;
+
+      /* Radius */
+      --radius-sm: 0.25rem;
+      --radius: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-xl: 1rem;
+
+      /* Shadows */
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+
+      /* Transitions */
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Reset & Base Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: var(--text-base);
+      font-weight: var(--font-normal);
+      line-height: 1.5;
+      color: var(--text-primary);
+      background: var(--bg-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Layout System */
+    .dashboard {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 280px;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .sidebar-header {
+      padding: var(--space-6);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      font-size: var(--text-xl);
+      font-weight: var(--font-bold);
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--color-primary), var(--purple-500));
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: var(--text-sm);
+    }
+
+    /* Status Indicator */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-3);
+      margin: var(--space-4);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: var(--text-sm);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--color-danger);
+      transition: var(--transition);
+    }
+
+    .status-dot.connected {
+      background: var(--color-success);
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    }
+
+    /* Navigation */
+    .nav {
+      flex: 1;
+      padding: var(--space-4);
+    }
+
+    .nav-section {
+      margin-bottom: var(--space-6);
+    }
+
+    .nav-title {
+      font-size: var(--text-xs);
+      font-weight: var(--font-semibold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+      margin-bottom: var(--space-3);
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: var(--transition);
+      cursor: pointer;
+      border: none;
+      background: none;
+      width: 100%;
+      font-size: var(--text-sm);
+    }
+
+    .nav-item:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    .nav-item.active {
+      background: var(--surface-active);
+      color: var(--color-primary);
+    }
+
+    .nav-icon {
+      width: 16px;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    .nav-item.active .nav-icon {
+      opacity: 1;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0; /* Prevent flex overflow */
+    }
+
+    /* Header */
+    .header {
+      height: 72px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--space-8);
+    }
+
+    .header-title {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-semibold);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      padding: var(--space-8);
+      overflow-y: auto;
+    }
+
+    .content-grid {
+      display: grid;
+      gap: var(--space-8);
+      max-width: 1400px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .card-header {
+      padding: var(--space-6);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card-title {
+      font-size: var(--text-lg);
+      font-weight: var(--font-semibold);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .card-body {
+      padding: var(--space-6);
+    }
+
+    /* Form Elements */
+    .form-group {
+      margin-bottom: var(--space-5);
+    }
+
+    .form-label {
+      display: block;
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-2);
+    }
+
+    .form-input {
+      width: 100%;
+      padding: var(--space-3);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      transition: var(--transition);
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-input::placeholder {
+      color: var(--text-disabled);
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      border: 1px solid transparent;
+      border-radius: var(--radius);
+      font-size: var(--text-sm);
+      font-weight: var(--font-medium);
+      text-decoration: none;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Button Variants */
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--blue-700);
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text-primary);
+      border-color: var(--border);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--surface-hover);
+    }
+
+    .btn-success {
+      background: var(--color-success);
+      color: white;
+    }
+
+    .btn-success:hover:not(:disabled) {
+      background: var(--green-600);
+    }
+
+    .btn-danger {
+      background: var(--color-danger);
+      color: white;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background: var(--red-600);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--text-secondary);
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    /* Button Sizes */
+    .btn-sm {
+      padding: var(--space-2) var(--space-3);
+      font-size: var(--text-xs);
+    }
+
+    .btn-lg {
+      padding: var(--space-4) var(--space-6);
+      font-size: var(--text-base);
+    }
+
+    /* Button Groups */
+    .btn-group {
+      display: flex;
+      gap: var(--space-3);
+    }
+
+    .btn-group-attached {
+      display: flex;
+    }
+
+    .btn-group-attached .btn {
+      border-radius: 0;
+      border-right: none;
+    }
+
+    .btn-group-attached .btn:first-child {
+      border-top-left-radius: var(--radius);
+      border-bottom-left-radius: var(--radius);
+    }
+
+    .btn-group-attached .btn:last-child {
+      border-top-right-radius: var(--radius);
+      border-bottom-right-radius: var(--radius);
+      border-right: 1px solid var(--border);
+    }
+
+    /* Message List */
+    .message-list {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      min-height: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .message-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-4);
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
+    }
+
+    .message-item:last-child {
+      border-bottom: none;
+    }
+
+    .message-item:hover {
+      background: var(--surface-hover);
+    }
+
+    .message-drag-handle {
+      color: var(--text-tertiary);
+      cursor: grab;
+    }
+
+    .message-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .message-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .message-text {
+      font-size: var(--text-sm);
+      word-break: break-word;
+    }
+
+    .message-meta {
+      font-size: var(--text-xs);
+      color: var(--text-tertiary);
+      margin-top: var(--space-1);
+    }
+
+    .message-actions {
+      display: flex;
+      gap: var(--space-2);
+      opacity: 0;
+      transition: var(--transition);
+    }
+
+    .message-item:hover .message-actions {
+      opacity: 1;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-12);
+      color: var(--text-tertiary);
+      text-align: center;
+    }
+
+    .empty-icon {
+      font-size: var(--text-3xl);
+      margin-bottom: var(--space-4);
+      opacity: 0.5;
+    }
+
+    .empty-title {
+      font-size: var(--text-lg);
+      font-weight: var(--font-medium);
+      margin-bottom: var(--space-2);
+    }
+
+    .empty-description {
+      font-size: var(--text-sm);
+    }
+
+    /* Loading States */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .loading-overlay.show {
+      display: flex;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top: 3px solid var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: var(--space-6);
+      right: var(--space-6);
+      z-index: 1001;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3);
+    }
+
+    .toast {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: var(--space-4);
+      box-shadow: var(--shadow-lg);
+      min-width: 320px;
+      transform: translateX(400px);
+      transition: transform var(--transition-slow);
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .toast.show {
+      transform: translateX(0);
+    }
+
+    .toast-icon {
+      width: 20px;
+      text-align: center;
+    }
+
+    .toast-success .toast-icon {
+      color: var(--color-success);
+    }
+
+    .toast-error .toast-icon {
+      color: var(--color-danger);
+    }
+
+    .toast-info .toast-icon {
+      color: var(--color-info);
+    }
+
+    .toast-content {
+      flex: 1;
+      font-size: var(--text-sm);
+    }
+
+    .toast-close {
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: var(--space-1);
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+
+    .toast-close:hover {
+      background: var(--surface-hover);
+      color: var(--text-primary);
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .sidebar {
+        width: 240px;
+      }
+      
+      .content {
+        padding: var(--space-6);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        display: none; /* TODO: Add mobile menu */
+      }
+      
+      .header {
+        padding: 0 var(--space-4);
+      }
+      
+      .content {
+        padding: var(--space-4);
+      }
+
+      .content-grid {
+        gap: var(--space-6);
+      }
+    }
+
+    /* Accessibility */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    /* Focus States */
+    *:focus-visible {
+      outline: 2px solid var(--color-primary);
+      outline-offset: 2px;
+    }
+
+    /* Page Specific Styles */
+    .dashboard-view .content-grid {
+      grid-template-columns: 1fr 380px;
+    }
+
+    @media (max-width: 1200px) {
+      .dashboard-view .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <div class="logo-icon">
+            <i class="fas fa-broadcast-tower"></i>
+          </div>
+          <span>Ticker Pro</span>
+        </div>
+      </div>
+      
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+      </div>
+      
+      <nav class="nav">
+        <div class="nav-section">
+          <div class="nav-title">Dashboard</div>
+          <button class="nav-item active" data-view="dashboard">
+            <i class="nav-icon fas fa-tachometer-alt"></i>
+            <span>Overview</span>
+          </button>
+          <button class="nav-item" data-view="messages">
+            <i class="nav-icon fas fa-comments"></i>
+            <span>Messages</span>
+          </button>
+          <button class="nav-item" data-view="ticker">
+            <i class="nav-icon fas fa-play-circle"></i>
+            <span>Ticker Control</span>
+          </button>
+        </div>
+        
+        <div class="nav-section">
+          <div class="nav-title">Widgets</div>
+          <button class="nav-item" data-view="overlay">
+            <i class="nav-icon fas fa-layer-group"></i>
+            <span>Overlay</span>
+          </button>
+          <button class="nav-item" data-view="popup">
+            <i class="nav-icon fas fa-window-maximize"></i>
+            <span>Popup</span>
+          </button>
+          <button class="nav-item" data-view="brb">
+            <i class="nav-icon fas fa-pause-circle"></i>
+            <span>BRB Mode</span>
+          </button>
+          <button class="nav-item" data-view="themes">
+            <i class="nav-icon fas fa-palette"></i>
+            <span>Themes</span>
+          </button>
+        </div>
+        
+        <div class="nav-section">
+          <div class="nav-title">Settings</div>
+          <button class="nav-item" data-view="settings">
+            <i class="nav-icon fas fa-cog"></i>
+            <span>Settings</span>
+          </button>
+        </div>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main">
+      <header class="header">
+        <h1 class="header-title" id="pageTitle">Dashboard Overview</h1>
+        <div class="header-actions">
+          <button class="btn btn-secondary" id="refreshBtn">
+            <i class="fas fa-sync-alt"></i>
+            Refresh
+          </button>
+          <button class="btn btn-primary" id="quickAddBtn">
+            <i class="fas fa-plus"></i>
+            Quick Add
+          </button>
+        </div>
+      </header>
+
+      <div class="content">
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view dashboard-view">
+          <div class="content-grid">
+            <!-- Main Content Area -->
+            <div>
+              <!-- Ticker Messages Card -->
+              <div class="card">
+                <div class="card-header">
+                  <h2 class="card-title">
+                    <i class="fas fa-comments"></i>
+                    Ticker Messages
+                  </h2>
+                  <span class="badge" id="messageCount">0 messages</span>
+                </div>
+                <div class="card-body">
+                  <form class="form-group" id="messageForm">
+                    <div class="form-group">
+                      <label class="form-label" for="messageInput">
+                        Add Message
+                      </label>
+                      <div class="btn-group-attached">
+                        <input 
+                          type="text" 
+                          id="messageInput" 
+                          class="form-input" 
+                          placeholder="Enter your ticker message..."
+                          style="border-radius: var(--radius) 0 0 var(--radius);"
+                        >
+                        <button type="submit" class="btn btn-primary" style="border-radius: 0 var(--radius) var(--radius) 0;">
+                          <i class="fas fa-plus"></i>
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                  
+                  <div class="message-list" id="messageList">
+                    <div class="empty-state">
+                      <div class="empty-icon">
+                        <i class="fas fa-comments"></i>
+                      </div>
+                      <div class="empty-title">No messages yet</div>
+                      <div class="empty-description">
+                        Add your first ticker message above to get started
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="btn-group" style="margin-top: var(--space-4);">
+                    <button class="btn btn-danger" id="clearAllBtn">
+                      <i class="fas fa-trash"></i>
+                      Clear All
+                    </button>
+                    <button class="btn btn-secondary" id="exportBtn">
+                      <i class="fas fa-download"></i>
+                      Export
+                    </button>
+                    <button class="btn btn-secondary" id="importBtn">
+                      <i class="fas fa-upload"></i>
+                      Import
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sidebar Cards -->
+            <div>
+              <!-- Ticker Control Card -->
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <i class="fas fa-play-circle"></i>
+                    Ticker Control
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <div class="form-group">
+                    <label class="form-label" for="durationInput">
+                      Duration (seconds)
+                    </label>
+                    <input 
+                      type="number" 
+                      id="durationInput" 
+                      class="form-input" 
+                      value="5" 
+                      min="1" 
+                      max="60"
+                    >
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label" for="intervalInput">
+                      Interval (minutes)
+                    </label>
+                    <input 
+                      type="number" 
+                      id="intervalInput" 
+                      class="form-input" 
+                      value="0" 
+                      min="0" 
+                      max="60" 
+                      step="0.1"
+                    >
+                  </div>
+                  
+                  <div class="btn-group">
+                    <button class="btn btn-success" id="startTickerBtn">
+                      <i class="fas fa-play"></i>
+                      Start
+                    </button>
+                    <button class="btn btn-danger" id="stopTickerBtn">
+                      <i class="fas fa-stop"></i>
+                      Stop
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions Card -->
+              <div class="card" style="margin-top: var(--space-6);">
+                <div class="card-header">
+                  <h3 class="card-title">
+                    <i class="fas fa-bolt"></i>
+                    Quick Actions
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <button class="btn btn-secondary btn-sm" style="width: 100%; margin-bottom: var(--space-3);" id="testOverlayBtn">
+                    <i class="fas fa-eye"></i>
+                    Test Overlay
+                  </button>
+                  <button class="btn btn-secondary btn-sm" style="width: 100%; margin-bottom: var(--space-3);" id="openOverlayBtn">
+                    <i class="fas fa-external-link-alt"></i>
+                    Open Overlay
+                  </button>
+                  <button class="btn btn-secondary btn-sm" style="width: 100%;" id="showPopupBtn">
+                    <i class="fas fa-window-maximize"></i>
+                    Show Test Popup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Other views will be added here -->
+        <div id="messages-view" class="view" style="display: none;">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">Message Management</h2>
+            </div>
+            <div class="card-body">
+              <p>Advanced message management features coming soon...</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add other view placeholders -->
+        <div id="ticker-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">Ticker Control</h2></div><div class="card-body"><p>Advanced ticker controls coming soon...</p></div></div></div>
+        <div id="overlay-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">Overlay Settings</h2></div><div class="card-body"><p>Overlay configuration coming soon...</p></div></div></div>
+        <div id="popup-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">Popup Settings</h2></div><div class="card-body"><p>Popup configuration coming soon...</p></div></div></div>
+        <div id="brb-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">BRB Mode</h2></div><div class="card-body"><p>BRB configuration coming soon...</p></div></div></div>
+        <div id="themes-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">Theme Settings</h2></div><div class="card-body"><p>Theme configuration coming soon...</p></div></div></div>
+        <div id="settings-view" class="view" style="display: none;"><div class="card"><div class="card-header"><h2 class="card-title">Settings</h2></div><div class="card-body"><p>Application settings coming soon...</p></div></div></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script>
+    // Global state
+    var state = {
+      messages: [],
+      isRunning: false,
+      websocket: null,
+      connected: false,
+      currentView: 'dashboard'
+    };
+
+    var elements = {};
+
+    // Initialize DOM elements
+    function initElements() {
+      elements.statusDot = document.getElementById('statusDot');
+      elements.statusText = document.getElementById('statusText');
+      elements.pageTitle = document.getElementById('pageTitle');
+      elements.messageInput = document.getElementById('messageInput');
+      elements.messageList = document.getElementById('messageList');
+      elements.messageForm = document.getElementById('messageForm');
+      elements.messageCount = document.getElementById('messageCount');
+      elements.durationInput = document.getElementById('durationInput');
+      elements.intervalInput = document.getElementById('intervalInput');
+      elements.startTickerBtn = document.getElementById('startTickerBtn');
+      elements.stopTickerBtn = document.getElementById('stopTickerBtn');
+      elements.clearAllBtn = document.getElementById('clearAllBtn');
+      elements.refreshBtn = document.getElementById('refreshBtn');
+      elements.quickAddBtn = document.getElementById('quickAddBtn');
+      elements.testOverlayBtn = document.getElementById('testOverlayBtn');
+      elements.openOverlayBtn = document.getElementById('openOverlayBtn');
+      elements.showPopupBtn = document.getElementById('showPopupBtn');
+      elements.loadingOverlay = document.getElementById('loadingOverlay');
+      elements.toastContainer = document.getElementById('toastContainer');
+    }
+
+    // Navigation system
+    function initNavigation() {
+      var navItems = document.querySelectorAll('.nav-item[data-view]');
+      var views = document.querySelectorAll('.view');
+      
+      navItems.forEach(function(item) {
+        item.addEventListener('click', function() {
+          var viewName = this.getAttribute('data-view');
+          showView(viewName);
+        });
+      });
+    }
+
+    function showView(viewName) {
+      // Update active nav item
+      var navItems = document.querySelectorAll('.nav-item');
+      navItems.forEach(function(item) {
+        item.classList.remove('active');
+      });
+      
+      var activeNav = document.querySelector('.nav-item[data-view="' + viewName + '"]');
+      if (activeNav) {
+        activeNav.classList.add('active');
+      }
+      
+      // Update page title
+      var titles = {
+        'dashboard': 'Dashboard Overview',
+        'messages': 'Message Management',
+        'ticker': 'Ticker Control',
+        'overlay': 'Overlay Settings',
+        'popup': 'Popup Settings',
+        'brb': 'BRB Mode',
+        'themes': 'Theme Settings',
+        'settings': 'Settings'
+      };
+      
+      elements.pageTitle.textContent = titles[viewName] || 'Dashboard';
+      
+      // Show/hide views
+      var views = document.querySelectorAll('.view');
+      views.forEach(function(view) {
+        view.style.display = 'none';
+      });
+      
+      var activeView = document.getElementById(viewName + '-view');
+      if (activeView) {
+        activeView.style.display = 'block';
+      }
+      
+      state.currentView = viewName;
+    }
+
+    // WebSocket functions (same as before but with improved UI feedback)
+    function connectWebSocket() {
+      if (state.websocket) {
+        state.websocket.close();
+      }
+
+      try {
+        showLoading();
+        updateStatus('connecting', 'Connecting to server...');
+        
+        var wsUrl = 'ws://localhost:3000/ws';
+        state.websocket = new WebSocket(wsUrl);
+        
+        state.websocket.onopen = function() {
+          hideLoading();
+          updateStatus('connected', 'Connected to server');
+          state.connected = true;
+          showToast('Connected to server', 'success');
+        };
+        
+        state.websocket.onmessage = function(event) {
+          try {
+            var data = JSON.parse(event.data);
+            handleWebSocketMessage(data);
+          } catch (error) {
+            console.error('Error parsing WebSocket message:', error);
+          }
+        };
+        
+        state.websocket.onclose = function() {
+          updateStatus('disconnected', 'Disconnected from server');
+          state.connected = false;
+          hideLoading();
+          
+          // Attempt to reconnect after 3 seconds
+          setTimeout(connectWebSocket, 3000);
+        };
+        
+        state.websocket.onerror = function(error) {
+          hideLoading();
+          updateStatus('error', 'Connection error');
+          console.error('WebSocket error:', error);
+          showToast('Connection failed', 'error');
+        };
+        
+      } catch (error) {
+        hideLoading();
+        updateStatus('error', 'Failed to connect');
+        showToast('Failed to connect: ' + error.message, 'error');
+      }
+    }
+
+    function sendWebSocketMessage(type, data) {
+      if (!state.websocket || state.websocket.readyState !== WebSocket.OPEN) {
+        showToast('Not connected to server', 'error');
+        return false;
+      }
+      
+      try {
+        var message = { type: type, data: data || {} };
+        state.websocket.send(JSON.stringify(message));
+        return true;
+      } catch (error) {
+        showToast('Failed to send message: ' + error.message, 'error');
+        return false;
+      }
+    }
+
+    function handleWebSocketMessage(message) {
+      switch (message.type) {
+        case 'state-update':
+          if (message.data && message.data.messages) {
+            state.messages = message.data.messages;
+            renderMessages();
+            updateMessageCount();
+          }
+          break;
+        case 'ticker-status':
+          state.isRunning = message.data.isRunning;
+          updateTickerButtons();
+          break;
+        default:
+          console.log('Unknown message type:', message.type);
+      }
+    }
+
+    // UI Update functions
+    function updateStatus(status, text) {
+      elements.statusText.textContent = text;
+      elements.statusDot.className = 'status-dot' + (status === 'connected' ? ' connected' : '');
+    }
+
+    function showLoading() {
+      elements.loadingOverlay.classList.add('show');
+    }
+
+    function hideLoading() {
+      elements.loadingOverlay.classList.remove('show');
+    }
+
+    function showToast(message, type) {
+      var toast = document.createElement('div');
+      toast.className = 'toast toast-' + (type || 'info');
+      
+      var icons = {
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-circle',
+        info: 'fas fa-info-circle',
+        warning: 'fas fa-exclamation-triangle'
+      };
+      
+      toast.innerHTML = 
+        '<i class="toast-icon ' + (icons[type] || icons.info) + '"></i>' +
+        '<div class="toast-content">' + escapeHtml(message) + '</div>' +
+        '<button class="toast-close" aria-label="Close"><i class="fas fa-times"></i></button>';
+      
+      elements.toastContainer.appendChild(toast);
+      
+      // Show toast
+      setTimeout(function() {
+        toast.classList.add('show');
+      }, 100);
+      
+      // Auto hide after 4 seconds
+      var hideTimer = setTimeout(function() {
+        hideToast(toast);
+      }, 4000);
+      
+      // Click to dismiss
+      toast.querySelector('.toast-close').addEventListener('click', function() {
+        clearTimeout(hideTimer);
+        hideToast(toast);
+      });
+    }
+
+    function hideToast(toast) {
+      toast.classList.remove('show');
+      setTimeout(function() {
+        if (toast.parentNode) {
+          toast.parentNode.removeChild(toast);
+        }
+      }, 300);
+    }
+
+    function renderMessages() {
+      if (state.messages.length === 0) {
+        elements.messageList.innerHTML = 
+          '<div class="empty-state">' +
+          '<div class="empty-icon"><i class="fas fa-comments"></i></div>' +
+          '<div class="empty-title">No messages yet</div>' +
+          '<div class="empty-description">Add your first ticker message above to get started</div>' +
+          '</div>';
+        return;
+      }
+      
+      var html = '';
+      for (var i = 0; i < state.messages.length; i++) {
+        var message = state.messages[i];
+        var text = message.text || message;
+        html += 
+          '<div class="message-item" data-index="' + i + '">' +
+          '<i class="message-drag-handle fas fa-grip-vertical"></i>' +
+          '<div class="message-content">' +
+          '<div class="message-text">' + escapeHtml(text) + '</div>' +
+          '<div class="message-meta">Message #' + (i + 1) + '</div>' +
+          '</div>' +
+          '<div class="message-actions">' +
+          '<button class="btn btn-ghost btn-sm" onclick="editMessage(' + i + ')" title="Edit">' +
+          '<i class="fas fa-edit"></i>' +
+          '</button>' +
+          '<button class="btn btn-ghost btn-sm" onclick="removeMessage(' + i + ')" title="Remove">' +
+          '<i class="fas fa-trash"></i>' +
+          '</button>' +
+          '</div>' +
+          '</div>';
+      }
+      elements.messageList.innerHTML = html;
+    }
+
+    function updateMessageCount() {
+      var count = state.messages.length;
+      elements.messageCount.textContent = count + ' message' + (count !== 1 ? 's' : '');
+    }
+
+    function updateTickerButtons() {
+      elements.startTickerBtn.disabled = state.isRunning;
+      elements.stopTickerBtn.disabled = !state.isRunning;
+      
+      if (state.isRunning) {
+        elements.startTickerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Running';
+        elements.stopTickerBtn.innerHTML = '<i class="fas fa-stop"></i> Stop';
+      } else {
+        elements.startTickerBtn.innerHTML = '<i class="fas fa-play"></i> Start';
+        elements.stopTickerBtn.innerHTML = '<i class="fas fa-stop"></i> Stopped';
+      }
+    }
+
+    // Message functions
+    function addMessage() {
+      var messageText = elements.messageInput.value.trim();
+      if (!messageText) {
+        showToast('Please enter a message', 'error');
+        elements.messageInput.focus();
+        return;
+      }
+      
+      showLoading();
+      if (sendWebSocketMessage('add-message', { text: messageText })) {
+        elements.messageInput.value = '';
+        showToast('Message added successfully', 'success');
+      }
+      hideLoading();
+    }
+
+    function removeMessage(index) {
+      showLoading();
+      if (sendWebSocketMessage('remove-message', { index: index })) {
+        showToast('Message removed', 'success');
+      }
+      hideLoading();
+    }
+
+    function editMessage(index) {
+      // TODO: Implement inline editing
+      var message = state.messages[index];
+      var newText = prompt('Edit message:', message.text || message);
+      if (newText !== null && newText.trim()) {
+        // For now, remove and add - TODO: implement proper edit
+        removeMessage(index);
+        setTimeout(function() {
+          elements.messageInput.value = newText.trim();
+          addMessage();
+        }, 100);
+      }
+    }
+
+    function clearAllMessages() {
+      if (state.messages.length === 0) {
+        showToast('No messages to clear', 'error');
+        return;
+      }
+      
+      if (confirm('Clear all ' + state.messages.length + ' messages? This action cannot be undone.')) {
+        showLoading();
+        if (sendWebSocketMessage('clear-messages')) {
+          showToast('All messages cleared', 'success');
+        }
+        hideLoading();
+      }
+    }
+
+    // Ticker control functions
+    function startTicker() {
+      var duration = parseInt(elements.durationInput.value) || 5;
+      var interval = parseFloat(elements.intervalInput.value) || 0;
+      
+      if (state.messages.length === 0) {
+        showToast('Add some messages first', 'warning');
+        if (state.currentView !== 'dashboard') {
+          showView('dashboard');
+        }
+        elements.messageInput.focus();
+        return;
+      }
+      
+      showLoading();
+      if (sendWebSocketMessage('start-ticker', { 
+        duration: duration,
+        interval: interval * 60 * 1000
+      })) {
+        showToast('Ticker started with ' + state.messages.length + ' messages', 'success');
+      }
+      hideLoading();
+    }
+
+    function stopTicker() {
+      showLoading();
+      if (sendWebSocketMessage('stop-ticker')) {
+        showToast('Ticker stopped', 'success');
+      }
+      hideLoading();
+    }
+
+    // Quick actions
+    function testOverlay() {
+      showLoading();
+      if (sendWebSocketMessage('test-overlay')) {
+        showToast('Test message sent to overlay', 'info');
+      }
+      hideLoading();
+    }
+
+    function openOverlay() {
+      var overlayUrl = window.location.origin + '/ticker/output.html';
+      window.open(overlayUrl, '_blank');
+      showToast('Overlay opened in new window', 'info');
+    }
+
+    function showTestPopup() {
+      var message = 'Test popup message - ' + new Date().toLocaleTimeString();
+      showLoading();
+      if (sendWebSocketMessage('show-popup', { 
+        message: message,
+        duration: 3000
+      })) {
+        showToast('Test popup displayed', 'info');
+      }
+      hideLoading();
+    }
+
+    // Event handlers
+    function initEventHandlers() {
+      // Form submission
+      elements.messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        addMessage();
+      });
+
+      // Button clicks
+      elements.startTickerBtn.addEventListener('click', startTicker);
+      elements.stopTickerBtn.addEventListener('click', stopTicker);
+      elements.clearAllBtn.addEventListener('click', clearAllMessages);
+      elements.refreshBtn.addEventListener('click', function() {
+        connectWebSocket();
+        showToast('Refreshing connection...', 'info');
+      });
+      elements.quickAddBtn.addEventListener('click', function() {
+        showView('dashboard');
+        elements.messageInput.focus();
+      });
+      elements.testOverlayBtn.addEventListener('click', testOverlay);
+      elements.openOverlayBtn.addEventListener('click', openOverlay);
+      elements.showPopupBtn.addEventListener('click', showTestPopup);
+
+      // Keyboard shortcuts
+      document.addEventListener('keydown', function(e) {
+        // Cmd/Ctrl + K for quick add
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+          e.preventDefault();
+          elements.messageInput.focus();
+        }
+        
+        // Escape to clear input
+        if (e.key === 'Escape' && document.activeElement === elements.messageInput) {
+          elements.messageInput.value = '';
+          elements.messageInput.blur();
+        }
+      });
+    }
+
+    // Utility functions
+    function escapeHtml(text) {
+      var div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Initialize dashboard
+    function init() {
+      initElements();
+      initNavigation();
+      initEventHandlers();
+      connectWebSocket();
+      updateTickerButtons();
+      updateMessageCount();
+      
+      showToast('Dashboard loaded successfully', 'success');
+    }
+
+    // Start when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

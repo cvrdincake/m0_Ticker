@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-modern">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="M0_Ticker Optimized Overlay - High-performance streaming ticker">
+  <title>M0_Ticker Overlay</title>
+  
+  <!-- Optimized CSS - Single unified file -->
+  <link rel="stylesheet" href="css/optimized-base.css">
+  
+  <!-- Essential external dependencies only -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+  <!-- Optimized local scripts -->
+  <script src="js/shared-utils-optimized.js"></script>
+  <script src="js/ticker-websocket.js"></script>
+</head>
+
+<body class="overlay-body">
+  <!-- Main overlay container -->
+  <div id="overlayContainer" class="overlay-container">
+    
+    <!-- Ticker display -->
+    <div id="tickerDisplay" class="ticker-display bottom">
+      
+      <!-- Label section -->
+      <div class="ticker-label">
+        <span id="labelText" class="label-text">LIVE</span>
+      </div>
+      
+      <!-- Content section -->
+      <div class="ticker-content">
+        <div id="tickerText" class="ticker-text"></div>
+      </div>
+      
+      <!-- Visual effects container -->
+      <div id="effectsContainer" class="effects-container">
+        <!-- Particle effects will be rendered here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Configuration panel (hidden by default) -->
+  <div id="configPanel" class="config-panel hidden">
+    <div class="config-content">
+      <h3>Overlay Configuration</h3>
+      
+      <div class="config-section">
+        <label>Position:</label>
+        <div class="button-group">
+          <button class="config-btn" data-position="top">Top</button>
+          <button class="config-btn active" data-position="bottom">Bottom</button>
+        </div>
+      </div>
+      
+      <div class="config-section">
+        <label>Mode:</label>
+        <div class="button-group">
+          <button class="config-btn active" data-mode="auto">Auto</button>
+          <button class="config-btn" data-mode="marquee">Marquee</button>
+          <button class="config-btn" data-mode="chunk">Chunk</button>
+        </div>
+      </div>
+      
+      <div class="config-section">
+        <label>Scale:</label>
+        <input type="range" id="scaleSlider" min="0.5" max="3" step="0.1" value="1">
+      </div>
+      
+      <div class="config-section">
+        <label>Theme:</label>
+        <select id="themeSelect">
+          <option value="minimal">Minimal</option>
+          <option value="modern" selected>Modern</option>
+          <option value="bold">Bold</option>
+          <option value="neon">Neon</option>
+          <option value="retro">Retro</option>
+          <option value="elegant">Elegant</option>
+        </select>
+      </div>
+      
+      <div class="config-section">
+        <button id="closeConfig" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Optimized overlay script -->
+  <script>
+    class OptimizedOverlay {
+      constructor() {
+        this.ws = new TickerWebSocket(window.location.origin);
+        this.isActive = false;
+        this.currentMessage = 0;
+        this.messages = [];
+        this.position = 'bottom';
+        this.mode = 'auto';
+        this.scale = 1;
+        this.theme = 'modern';
+        this.labelText = 'LIVE';
+        
+        // Animation properties
+        this.animationSpeed = 50; // pixels per second
+        this.pauseDuration = 3000; // ms between messages
+        this.fadeTransition = 500; // ms for fade in/out
+        
+        this.init();
+      }
+
+      init() {
+        this.setupEventHandlers();
+        this.connectWebSocket();
+        this.loadConfig();
+        this.setupKeyboardShortcuts();
+      }
+
+      setupEventHandlers() {
+        // Position controls
+        document.querySelectorAll('[data-position]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.setPosition(e.target.dataset.position);
+          });
+        });
+
+        // Mode controls
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.setMode(e.target.dataset.mode);
+          });
+        });
+
+        // Scale control
+        document.getElementById('scaleSlider').addEventListener('input', (e) => {
+          this.setScale(e.target.value);
+        });
+
+        // Theme selection
+        document.getElementById('themeSelect').addEventListener('change', (e) => {
+          this.setTheme(e.target.value);
+        });
+
+        // Close config
+        document.getElementById('closeConfig').addEventListener('click', () => {
+          this.hideConfig();
+        });
+      }
+
+      connectWebSocket() {
+        this.ws.onmessage = (data) => {
+          if (data.type === 'ticker') {
+            this.handleTickerUpdate(data.payload);
+          } else if (data.type === 'overlay-config') {
+            this.handleConfigUpdate(data.payload);
+          }
+        };
+
+        this.ws.onopen = () => {
+          console.log('Overlay connected to server');
+        };
+
+        this.ws.onclose = () => {
+          console.log('Overlay disconnected from server');
+          setTimeout(() => this.ws.connect(), 5000); // Auto-reconnect
+        };
+
+        this.ws.connect();
+      }
+
+      handleTickerUpdate(payload) {
+        this.messages = payload.messages || [];
+        this.isActive = payload.isActive || false;
+        
+        if (this.isActive && this.messages.length > 0) {
+          this.startTicker();
+        } else {
+          this.stopTicker();
+        }
+      }
+
+      handleConfigUpdate(config) {
+        if (config.position) this.setPosition(config.position);
+        if (config.mode) this.setMode(config.mode);
+        if (config.scale) this.setScale(config.scale);
+        if (config.theme) this.setTheme(config.theme);
+        if (config.labelText) this.setLabelText(config.labelText);
+      }
+
+      startTicker() {
+        if (this.animationId) {
+          this.stopTicker();
+        }
+        
+        this.currentMessage = 0;
+        this.showTicker();
+        this.animateMessages();
+      }
+
+      stopTicker() {
+        if (this.animationId) {
+          clearTimeout(this.animationId);
+          this.animationId = null;
+        }
+        this.hideTicker();
+      }
+
+      animateMessages() {
+        if (!this.isActive || this.messages.length === 0) return;
+
+        const message = this.messages[this.currentMessage];
+        const textElement = document.getElementById('tickerText');
+        
+        // Fade out current message
+        gsap.to(textElement, {
+          opacity: 0,
+          duration: this.fadeTransition / 1000,
+          onComplete: () => {
+            // Update text
+            textElement.textContent = message;
+            
+            // Determine animation based on mode
+            if (this.mode === 'marquee') {
+              this.animateMarquee(textElement);
+            } else if (this.mode === 'chunk') {
+              this.animateChunk(textElement);
+            } else {
+              this.animateAuto(textElement);
+            }
+          }
+        });
+      }
+
+      animateMarquee(element) {
+        // Reset position and fade in
+        gsap.set(element, { x: '100%' });
+        gsap.to(element, { opacity: 1, duration: this.fadeTransition / 1000 });
+        
+        // Calculate animation duration based on text width
+        const textWidth = element.scrollWidth;
+        const containerWidth = element.parentElement.clientWidth;
+        const totalDistance = textWidth + containerWidth;
+        const duration = totalDistance / this.animationSpeed;
+        
+        // Animate across screen
+        gsap.to(element, {
+          x: `-${textWidth}px`,
+          duration: duration,
+          ease: 'none',
+          onComplete: () => {
+            this.nextMessage();
+          }
+        });
+      }
+
+      animateChunk(element) {
+        // Fade in and hold
+        gsap.set(element, { x: 0 });
+        gsap.to(element, { 
+          opacity: 1, 
+          duration: this.fadeTransition / 1000,
+          onComplete: () => {
+            // Hold for pause duration
+            this.animationId = setTimeout(() => {
+              this.nextMessage();
+            }, this.pauseDuration);
+          }
+        });
+      }
+
+      animateAuto(element) {
+        const containerWidth = element.parentElement.clientWidth;
+        const textWidth = element.scrollWidth;
+        
+        if (textWidth <= containerWidth) {
+          // Text fits, use chunk mode
+          this.animateChunk(element);
+        } else {
+          // Text doesn't fit, use marquee mode
+          this.animateMarquee(element);
+        }
+      }
+
+      nextMessage() {
+        this.currentMessage = (this.currentMessage + 1) % this.messages.length;
+        
+        // Small delay between messages
+        this.animationId = setTimeout(() => {
+          this.animateMessages();
+        }, 500);
+      }
+
+      showTicker() {
+        const display = document.getElementById('tickerDisplay');
+        display.classList.remove('hidden');
+        
+        gsap.fromTo(display, 
+          { y: this.position === 'top' ? -100 : 100, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: 'back.out(1.7)' }
+        );
+      }
+
+      hideTicker() {
+        const display = document.getElementById('tickerDisplay');
+        
+        gsap.to(display, {
+          y: this.position === 'top' ? -100 : 100,
+          opacity: 0,
+          duration: 0.3,
+          ease: 'back.in(1.7)',
+          onComplete: () => {
+            display.classList.add('hidden');
+          }
+        });
+      }
+
+      setPosition(position) {
+        this.position = position;
+        const display = document.getElementById('tickerDisplay');
+        
+        display.classList.remove('top', 'bottom');
+        display.classList.add(position);
+        
+        // Update active button
+        document.querySelectorAll('[data-position]').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.position === position);
+        });
+        
+        this.saveConfig();
+      }
+
+      setMode(mode) {
+        this.mode = mode;
+        
+        // Update active button
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        
+        this.saveConfig();
+      }
+
+      setScale(scale) {
+        this.scale = scale;
+        document.documentElement.style.setProperty('--overlay-scale', scale);
+        this.saveConfig();
+      }
+
+      setTheme(theme) {
+        this.theme = theme;
+        document.documentElement.className = `theme-${theme}`;
+        this.saveConfig();
+      }
+
+      setLabelText(text) {
+        this.labelText = text;
+        document.getElementById('labelText').textContent = text;
+        this.saveConfig();
+      }
+
+      showConfig() {
+        document.getElementById('configPanel').classList.remove('hidden');
+      }
+
+      hideConfig() {
+        document.getElementById('configPanel').classList.add('hidden');
+      }
+
+      setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+          // Alt+C to toggle config panel
+          if (e.altKey && e.key === 'c') {
+            e.preventDefault();
+            const panel = document.getElementById('configPanel');
+            if (panel.classList.contains('hidden')) {
+              this.showConfig();
+            } else {
+              this.hideConfig();
+            }
+          }
+          
+          // Alt+H to hide/show ticker
+          if (e.altKey && e.key === 'h') {
+            e.preventDefault();
+            const display = document.getElementById('tickerDisplay');
+            display.style.visibility = display.style.visibility === 'hidden' ? 'visible' : 'hidden';
+          }
+        });
+      }
+
+      saveConfig() {
+        const config = {
+          position: this.position,
+          mode: this.mode,
+          scale: this.scale,
+          theme: this.theme,
+          labelText: this.labelText
+        };
+        
+        try {
+          localStorage.setItem('m0_ticker_overlay_config', JSON.stringify(config));
+        } catch (e) {
+          console.warn('Failed to save overlay config:', e);
+        }
+      }
+
+      loadConfig() {
+        try {
+          const saved = localStorage.getItem('m0_ticker_overlay_config');
+          if (saved) {
+            const config = JSON.parse(saved);
+            
+            if (config.position) this.setPosition(config.position);
+            if (config.mode) this.setMode(config.mode);
+            if (config.scale) this.setScale(config.scale);
+            if (config.theme) this.setTheme(config.theme);
+            if (config.labelText) this.setLabelText(config.labelText);
+          }
+        } catch (e) {
+          console.warn('Failed to load overlay config:', e);
+        }
+      }
+    }
+
+    // Initialize overlay
+    const overlay = new OptimizedOverlay();
+    
+    // Expose for debugging
+    window.overlay = overlay;
+  </script>
+
+  <style>
+    /* Optimized overlay styles */
+    .overlay-body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: transparent;
+      font-family: var(--font-family);
+    }
+
+    .overlay-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    .ticker-display {
+      position: absolute;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      background: var(--bg-secondary);
+      border: 2px solid var(--accent-bright);
+      backdrop-filter: blur(10px);
+      transform: scale(var(--overlay-scale, 1));
+      transform-origin: center;
+      pointer-events: auto;
+      min-height: 60px;
+      max-height: 120px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .ticker-display.top {
+      top: 20px;
+    }
+
+    .ticker-display.bottom {
+      bottom: 20px;
+    }
+
+    .ticker-label {
+      flex-shrink: 0;
+      background: var(--accent-bright);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      font-weight: bold;
+      font-size: 0.875rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border-radius: 0 8px 8px 0;
+      margin-right: 1rem;
+      position: relative;
+    }
+
+    .ticker-label::after {
+      content: '';
+      position: absolute;
+      right: -10px;
+      top: 0;
+      bottom: 0;
+      width: 20px;
+      background: linear-gradient(45deg, var(--accent-bright) 50%, transparent 50%);
+    }
+
+    .ticker-content {
+      flex: 1;
+      overflow: hidden;
+      padding: 0.75rem 1.5rem 0.75rem 0;
+      position: relative;
+    }
+
+    .ticker-text {
+      font-size: 1.125rem;
+      font-weight: 500;
+      color: var(--text-primary);
+      white-space: nowrap;
+      line-height: 1.4;
+      opacity: 0;
+    }
+
+    .effects-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* Configuration panel */
+    .config-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border-tertiary);
+      border-radius: 8px;
+      padding: 1.5rem;
+      min-width: 300px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+      z-index: 10000;
+      pointer-events: auto;
+    }
+
+    .config-content h3 {
+      margin: 0 0 1rem 0;
+      color: var(--text-primary);
+      font-size: 1.125rem;
+      font-weight: 600;
+    }
+
+    .config-section {
+      margin-bottom: 1rem;
+    }
+
+    .config-section label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-weight: 500;
+      font-size: 0.875rem;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .config-btn {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--border-tertiary);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .config-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+
+    .config-btn.active {
+      background: var(--accent-bright);
+      color: white;
+      border-color: var(--accent-bright);
+    }
+
+    #scaleSlider {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bg-tertiary);
+      outline: none;
+      cursor: pointer;
+    }
+
+    #themeSelect {
+      width: 100%;
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--border-tertiary);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 0.875rem;
+    }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--accent-bright);
+      background: var(--accent-bright);
+      color: white;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn:hover {
+      background: var(--accent-dim);
+      border-color: var(--accent-dim);
+    }
+
+    /* Hide elements */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive scaling */
+    @media (max-width: 768px) {
+      .ticker-display {
+        left: 10px;
+        right: 10px;
+        min-height: 50px;
+      }
+      
+      .ticker-label {
+        padding: 0.5rem 1rem;
+        font-size: 0.75rem;
+      }
+      
+      .ticker-text {
+        font-size: 1rem;
+      }
+      
+      .config-panel {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+      }
+    }
+  </style>
+</body>
+</html>

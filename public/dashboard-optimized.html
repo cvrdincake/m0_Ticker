@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en" class="theme-modern">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="M0_Ticker Optimized Dashboard - Professional streaming ticker system">
+  <title>M0_Ticker Dashboard</title>
+  
+  <!-- Optimized CSS - Single file instead of multiple -->
+  <link rel="stylesheet" href="css/optimized-base.css">
+  
+  <!-- Essential external dependencies only -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  
+  <!-- Optimized local scripts -->
+  <script src="js/shared-utils-optimized.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/ticker-websocket.js"></script>
+</head>
+
+<body>
+  <!-- Main dashboard container -->
+  <div id="app" class="min-h-screen bg-primary">
+    
+    <!-- Header -->
+    <header class="border-b border-tertiary bg-secondary p-4">
+      <div class="flex items-center justify-between max-w-7xl mx-auto">
+        <div class="flex items-center gap-3">
+          <h1 class="text-xl font-semibold text-primary">M0_Ticker Dashboard</h1>
+          <div id="connectionStatus" class="flex items-center gap-2">
+            <div id="connectionDot" class="w-2 h-2 rounded-full bg-success"></div>
+            <span class="text-sm text-secondary">Connected</span>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-3">
+          <button id="themeToggle" class="btn btn-secondary">
+            <span>🎨</span>
+            <span class="ml-2">Theme</span>
+          </button>
+          <button id="refreshBtn" class="btn btn-secondary">
+            <span>🔄</span>
+            <span class="ml-2">Refresh</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main content area -->
+    <main class="max-w-7xl mx-auto p-4">
+      
+      <!-- Dashboard tabs -->
+      <div class="mb-6">
+        <nav class="flex space-x-1 bg-secondary rounded-lg p-1">
+          <button class="dashboard-tab active" data-tab="messages">
+            <span>📝</span>
+            <span>Messages</span>
+          </button>
+          <button class="dashboard-tab" data-tab="overlay">
+            <span>🎯</span>
+            <span>Overlay</span>
+          </button>
+          <button class="dashboard-tab" data-tab="scenes">
+            <span>🎬</span>
+            <span>Scenes</span>
+          </button>
+          <button class="dashboard-tab" data-tab="analytics">
+            <span>📊</span>
+            <span>Analytics</span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Tab panels -->
+      <div class="dashboard-panels">
+        
+        <!-- Messages Panel -->
+        <div id="messagesPanel" class="dashboard-panel active">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Message Management -->
+            <div class="card">
+              <h2 class="text-lg font-semibold mb-4">Ticker Messages</h2>
+              
+              <!-- Add message form -->
+              <form id="messageForm" class="mb-4">
+                <div class="flex gap-2">
+                  <input 
+                    type="text" 
+                    id="newMessage" 
+                    class="input flex-1" 
+                    placeholder="Enter new message..."
+                    maxlength="280"
+                  >
+                  <button type="submit" class="btn">Add</button>
+                </div>
+              </form>
+              
+              <!-- Message list -->
+              <div id="messageList" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- Messages will be rendered here -->
+              </div>
+              
+              <!-- Ticker controls -->
+              <div class="flex gap-2 mt-4 pt-4 border-t border-tertiary">
+                <button id="startBtn" class="btn">Start Ticker</button>
+                <button id="stopBtn" class="btn btn-secondary">Stop Ticker</button>
+                <label class="flex items-center gap-2 ml-auto">
+                  <input type="checkbox" id="autoStart" class="rounded">
+                  <span class="text-sm">Auto-start</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Live Preview -->
+            <div class="card">
+              <h2 class="text-lg font-semibold mb-4">Live Preview</h2>
+              <div class="bg-tertiary rounded-lg p-4 min-h-32">
+                <div id="previewArea" class="text-center text-muted">
+                  Preview will appear here when ticker is active
+                </div>
+              </div>
+              
+              <!-- Preview controls -->
+              <div class="flex gap-2 mt-4">
+                <button id="copyOverlayUrl" class="btn btn-secondary flex-1">
+                  <span>📋</span>
+                  <span class="ml-2">Copy URL</span>
+                </button>
+                <button id="openOverlay" class="btn btn-secondary flex-1">
+                  <span>🔗</span>
+                  <span class="ml-2">Open</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overlay Panel -->
+        <div id="overlayPanel" class="dashboard-panel">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            
+            <!-- Theme Settings -->
+            <div class="card">
+              <h2 class="text-lg font-semibold mb-4">Theme & Appearance</h2>
+              
+              <!-- Theme selection -->
+              <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Theme</label>
+                <div id="themeButtons" class="grid grid-cols-3 gap-2">
+                  <button class="theme-btn" data-theme="minimal">Minimal</button>
+                  <button class="theme-btn active" data-theme="modern">Modern</button>
+                  <button class="theme-btn" data-theme="bold">Bold</button>
+                  <button class="theme-btn" data-theme="neon">Neon</button>
+                  <button class="theme-btn" data-theme="retro">Retro</button>
+                  <button class="theme-btn" data-theme="elegant">Elegant</button>
+                </div>
+              </div>
+              
+              <!-- Overlay settings -->
+              <div class="space-y-4">
+                <div>
+                  <label class="block text-sm font-medium mb-2">Position</label>
+                  <div id="positionButtons" class="flex gap-2">
+                    <button class="btn btn-secondary" data-position="top">Top</button>
+                    <button class="btn active" data-position="bottom">Bottom</button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label class="block text-sm font-medium mb-2">Mode</label>
+                  <div id="modeButtons" class="flex gap-2">
+                    <button class="btn active" data-mode="auto">Auto</button>
+                    <button class="btn btn-secondary" data-mode="marquee">Marquee</button>
+                    <button class="btn btn-secondary" data-mode="chunk">Chunk</button>
+                  </div>
+                </div>
+                
+                <div>
+                  <label for="scaleRange" class="block text-sm font-medium mb-2">Scale</label>
+                  <input type="range" id="scaleRange" class="w-full" min="0.5" max="3" step="0.1" value="1">
+                </div>
+              </div>
+            </div>
+            
+            <!-- Custom Colors -->
+            <div class="card">
+              <h2 class="text-lg font-semibold mb-4">Custom Colors</h2>
+              
+              <div class="space-y-4">
+                <div>
+                  <label for="accentColor" class="block text-sm font-medium mb-2">Accent Color</label>
+                  <div class="flex gap-2">
+                    <input type="color" id="accentPicker" class="w-12 h-10 rounded border">
+                    <input type="text" id="accentColor" class="input flex-1" placeholder="#38bdf8">
+                  </div>
+                </div>
+                
+                <div>
+                  <label for="accentSecondary" class="block text-sm font-medium mb-2">Secondary Color</label>
+                  <div class="flex gap-2">
+                    <input type="color" id="accentSecondaryPicker" class="w-12 h-10 rounded border">
+                    <input type="text" id="accentSecondary" class="input flex-1" placeholder="#f472b6">
+                  </div>
+                </div>
+                
+                <div>
+                  <label for="overlayLabel" class="block text-sm font-medium mb-2">Label Text</label>
+                  <input type="text" id="overlayLabel" class="input" value="LIVE" maxlength="24">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scenes Panel -->
+        <div id="scenesPanel" class="dashboard-panel">
+          <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Scene Management</h2>
+            <p class="text-muted">Scene management coming soon...</p>
+          </div>
+        </div>
+
+        <!-- Analytics Panel -->
+        <div id="analyticsPanel" class="dashboard-panel">
+          <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Analytics</h2>
+            <p class="text-muted">Analytics dashboard coming soon...</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast notifications -->
+  <div id="toast" class="toast hidden">
+    <span id="toastMessage"></span>
+  </div>
+
+  <!-- Optimized dashboard script -->
+  <script>
+    // Optimized dashboard initialization
+    class OptimizedDashboard {
+      constructor() {
+        this.state = new StateManager();
+        this.ws = new TickerWebSocket(window.location.origin);
+        this.currentTab = 'messages';
+        this.init();
+      }
+
+      init() {
+        this.setupEventHandlers();
+        this.connectWebSocket();
+        this.loadState();
+      }
+
+      setupEventHandlers() {
+        // Tab switching
+        document.querySelectorAll('.dashboard-tab').forEach(tab => {
+          tab.addEventListener('click', (e) => {
+            this.switchTab(e.target.dataset.tab);
+          });
+        });
+
+        // Message form
+        document.getElementById('messageForm').addEventListener('submit', (e) => {
+          e.preventDefault();
+          this.addMessage();
+        });
+
+        // Ticker controls
+        document.getElementById('startBtn').addEventListener('click', () => this.startTicker());
+        document.getElementById('stopBtn').addEventListener('click', () => this.stopTicker());
+
+        // Theme controls
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.setTheme(e.target.dataset.theme);
+          });
+        });
+
+        // Position and mode controls
+        document.querySelectorAll('[data-position]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.setPosition(e.target.dataset.position);
+          });
+        });
+
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            this.setMode(e.target.dataset.mode);
+          });
+        });
+
+        // Color inputs
+        document.getElementById('accentColor').addEventListener('change', (e) => {
+          this.setAccentColor(e.target.value);
+        });
+
+        // Scale control
+        document.getElementById('scaleRange').addEventListener('input', (e) => {
+          this.setScale(e.target.value);
+        });
+
+        // Copy and open overlay
+        document.getElementById('copyOverlayUrl').addEventListener('click', () => this.copyOverlayUrl());
+        document.getElementById('openOverlay').addEventListener('click', () => this.openOverlay());
+      }
+
+      connectWebSocket() {
+        this.ws.onmessage = (data) => {
+          if (data.type === 'ticker') {
+            this.state.setState('ticker', data.payload);
+            this.renderMessages();
+            this.updatePreview();
+          }
+        };
+
+        this.ws.connect();
+      }
+
+      switchTab(tabName) {
+        // Update tab buttons
+        document.querySelectorAll('.dashboard-tab').forEach(tab => {
+          tab.classList.toggle('active', tab.dataset.tab === tabName);
+        });
+
+        // Update panels
+        document.querySelectorAll('.dashboard-panel').forEach(panel => {
+          panel.classList.toggle('active', panel.id === `${tabName}Panel`);
+        });
+
+        this.currentTab = tabName;
+      }
+
+      addMessage() {
+        const input = document.getElementById('newMessage');
+        const text = input.value.trim();
+        
+        if (!text) return;
+
+        const messages = this.state.getState('ticker')?.messages || [];
+        messages.push(text);
+        
+        this.state.setState('ticker', { messages, isActive: true });
+        this.ws.send('ticker', { messages, isActive: true });
+        
+        input.value = '';
+        this.renderMessages();
+        this.toast('Message added');
+      }
+
+      renderMessages() {
+        const messages = this.state.getState('ticker')?.messages || [];
+        const container = document.getElementById('messageList');
+        
+        container.innerHTML = messages.map((msg, index) => `
+          <div class="flex items-center gap-2 p-2 bg-tertiary rounded">
+            <span class="flex-1 text-sm">${this.escapeHtml(msg)}</span>
+            <button onclick="dashboard.removeMessage(${index})" class="btn btn-secondary text-xs">Remove</button>
+          </div>
+        `).join('');
+      }
+
+      removeMessage(index) {
+        const messages = this.state.getState('ticker')?.messages || [];
+        messages.splice(index, 1);
+        
+        this.state.setState('ticker', { messages });
+        this.ws.send('ticker', { messages });
+        
+        this.renderMessages();
+        this.toast('Message removed');
+      }
+
+      startTicker() {
+        const messages = this.state.getState('ticker')?.messages || [];
+        if (messages.length === 0) {
+          this.toast('Add at least one message first');
+          return;
+        }
+
+        this.state.setState('ticker', { messages, isActive: true });
+        this.ws.send('ticker', { messages, isActive: true });
+        this.toast('Ticker started');
+      }
+
+      stopTicker() {
+        const ticker = this.state.getState('ticker') || {};
+        ticker.isActive = false;
+        
+        this.state.setState('ticker', ticker);
+        this.ws.send('ticker', ticker);
+        this.toast('Ticker stopped');
+      }
+
+      setTheme(theme) {
+        document.documentElement.className = `theme-${theme}`;
+        
+        // Update active button
+        document.querySelectorAll('.theme-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.theme === theme);
+        });
+
+        this.toast(`Theme changed to ${theme}`);
+      }
+
+      setPosition(position) {
+        document.querySelectorAll('[data-position]').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.position === position);
+        });
+        // TODO: Send to overlay
+      }
+
+      setMode(mode) {
+        document.querySelectorAll('[data-mode]').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+        // TODO: Send to overlay
+      }
+
+      setAccentColor(color) {
+        if (color.match(/^#[0-9a-f]{6}$/i)) {
+          document.documentElement.style.setProperty('--accent-bright', color);
+        }
+      }
+
+      setScale(scale) {
+        document.documentElement.style.setProperty('--ui-scale', scale);
+      }
+
+      copyOverlayUrl() {
+        const url = `${window.location.origin}/ticker/output.html`;
+        navigator.clipboard.writeText(url).then(() => {
+          this.toast('Overlay URL copied to clipboard');
+        });
+      }
+
+      openOverlay() {
+        const url = `${window.location.origin}/ticker/output.html`;
+        window.open(url, '_blank');
+      }
+
+      updatePreview() {
+        const ticker = this.state.getState('ticker');
+        const preview = document.getElementById('previewArea');
+        
+        if (ticker?.isActive && ticker?.messages?.length) {
+          preview.innerHTML = `
+            <div class="ticker-preview">
+              ${ticker.messages.join(' • ')}
+            </div>
+          `;
+        } else {
+          preview.innerHTML = 'Preview will appear here when ticker is active';
+        }
+      }
+
+      loadState() {
+        // Load saved state from localStorage
+        try {
+          const saved = localStorage.getItem('m0_ticker_state');
+          if (saved) {
+            const state = JSON.parse(saved);
+            this.state.setState('ticker', state.ticker || {});
+            this.renderMessages();
+            this.updatePreview();
+          }
+        } catch (e) {
+          console.warn('Failed to load saved state:', e);
+        }
+      }
+
+      saveState() {
+        // Save state to localStorage
+        try {
+          localStorage.setItem('m0_ticker_state', JSON.stringify({
+            ticker: this.state.getState('ticker')
+          }));
+        } catch (e) {
+          console.warn('Failed to save state:', e);
+        }
+      }
+
+      toast(message) {
+        const toast = document.getElementById('toast');
+        const messageEl = document.getElementById('toastMessage');
+        
+        messageEl.textContent = message;
+        toast.classList.remove('hidden');
+        
+        setTimeout(() => {
+          toast.classList.add('hidden');
+        }, 3000);
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    }
+
+    // Initialize dashboard
+    const dashboard = new OptimizedDashboard();
+    
+    // Auto-save state periodically
+    setInterval(() => dashboard.saveState(), 5000);
+  </script>
+
+  <style>
+    /* Dashboard-specific styles */
+    .dashboard-tab {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      border-radius: 0.375rem;
+      transition: all 0.2s ease;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .dashboard-tab:hover {
+      color: var(--text-primary);
+      background: var(--bg-tertiary);
+    }
+    
+    .dashboard-tab.active {
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .dashboard-panel {
+      display: none;
+    }
+    
+    .dashboard-panel.active {
+      display: block;
+    }
+    
+    .theme-btn {
+      padding: 0.375rem 0.75rem;
+      font-size: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--border-tertiary);
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .theme-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    .theme-btn.active {
+      background: var(--accent-bright);
+      color: white;
+      border-color: var(--accent-bright);
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-tertiary);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+      font-size: 0.875rem;
+      font-weight: 500;
+      z-index: 50;
+      transition: opacity 0.3s ease;
+      color: var(--text-primary);
+    }
+    
+    .ticker-preview {
+      color: var(--accent-bright);
+      font-weight: 500;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    /* Responsive grid adjustments */
+    @media (max-width: 1024px) {
+      .grid-cols-1.lg\:grid-cols-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</body>
+</html>

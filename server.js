@@ -6,13 +6,13 @@ const { randomUUID } = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const expressWs = require('express-ws');
-const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
 const fsp = fs.promises;
 
 const sharedUtils = require('./public/js/shared-utils.js');
 const sharedConfig = require('./public/js/shared-config.js');
+const setupWebSocketServer = require('./websocket-handlers.js');
 const clientNormalisers = require('./public/js/client-normalisers.js');
 
 const DEFAULT_ASSET_DIR = path.resolve(__dirname, 'public');
@@ -1014,9 +1014,32 @@ app.get('/ticker/stream', (req, res) => {
   });
 });
 
-// Specific route for new dashboard
+// Specific routes for dashboards
 app.get('/ticker/dashboard', (req, res) => {
   res.sendFile(path.join(assetDir, 'dashboard-new.html'));
+});
+
+app.get('/ticker/dashboard-pro', (req, res) => {
+  res.sendFile(path.join(assetDir, 'dashboard-pro.html'));
+});
+
+// Serve the ultimate modern dashboard
+app.get('/ticker/dashboard', (req, res) => {
+  res.sendFile(path.join(assetDir, 'dashboard-ultimate.html'));
+});
+
+app.get('/ticker/dashboard-ultimate', (req, res) => {
+  res.sendFile(path.join(assetDir, 'dashboard-ultimate.html'));
+});
+
+// Serve the enhanced overlay
+app.get('/ticker/output-enhanced', (req, res) => {
+  res.sendFile(path.join(assetDir, 'output-enhanced.html'));
+});
+
+// Serve the analytics dashboard
+app.get('/ticker/analytics', (req, res) => {
+  res.sendFile(path.join(assetDir, 'analytics.html'));
 });
 
 app.use('/ticker', express.static(assetDir));
@@ -1035,9 +1058,12 @@ async function start() {
   
   const server = app.listen(port, host);
   const wsInstance = expressWs(app, server);
+  
+  // Set up WebSocket handlers
+  const wsHandlers = setupWebSocketServer(wsInstance.getWss(), state);
 
   // WebSocket endpoint for real-time communication
-  app.ws('/ws', (ws, req) => {
+  app.ws('/ws', (ws) => {
     const clientId = uuidv4();
     ws.clientId = clientId;
     console.log(`[ticker] Client ${clientId} connected`);
@@ -1045,27 +1071,43 @@ async function start() {
     ws.on('message', async (msg) => {
       try {
         const data = JSON.parse(msg);
-        const { type, payload } = data;
+        console.log(`[ticker] Received WebSocket message:`, data);
         
+        const { type, data: payload } = data;
+        
+        // Handle different message types
         switch (type) {
-          case 'ticker':
-            await handleTickerUpdate(payload);
+          case 'add-message':
+            if (payload?.text) {
+              state.messages.push({ text: payload.text, id: uuidv4() });
+              wsHandlers.broadcastToAllClients({ type: 'state-update', data: state });
+            }
             break;
-          case 'overlay':
-            await handleOverlayUpdate(payload);
+          case 'remove-message':
+            if (typeof payload?.index === 'number') {
+              state.messages.splice(payload.index, 1);
+              wsHandlers.broadcastToAllClients({ type: 'state-update', data: state });
+            }
             break;
-          case 'popup':
-            await handlePopupUpdate(payload);
+          case 'clear-messages':
+            state.messages = [];
+            wsHandlers.broadcastToAllClients({ type: 'state-update', data: state });
             break;
-          case 'slate':
-            await handleSlateUpdate(payload);
+          case 'start-ticker':
+            state.isRunning = true;
+            wsHandlers.broadcastToAllClients({ type: 'ticker-status', data: { isRunning: true } });
             break;
-          case 'brb':
-            await handleBrbUpdate(payload);
+          case 'stop-ticker':
+            state.isRunning = false;
+            wsHandlers.broadcastToAllClients({ type: 'ticker-status', data: { isRunning: false } });
+            break;
+          case 'test-overlay':
+            wsHandlers.broadcastToAllClients({ type: 'show-message', message: 'Test message from dashboard', duration: 4000 });
             break;
         }
-
-        broadcastToAllClients({ type, payload: state[type] });
+        
+        // Send initial state to new clients
+        ws.send(JSON.stringify({ type: 'state-update', data: state }));
       } catch (error) {
         console.error('[ticker] WebSocket message error:', error);
         ws.send(JSON.stringify({ 
@@ -1087,7 +1129,11 @@ async function start() {
   console.log(`[ticker] listening on ${baseUrl}`);
   console.log(`[ticker] dashboard available at ${baseUrl}/ticker/index.html`);
   console.log(`[ticker] NEW dashboard available at ${baseUrl}/ticker/dashboard`);
+  console.log(`[ticker] PRO dashboard available at ${baseUrl}/ticker/dashboard-pro`);
+  console.log(`[ticker] ULTIMATE dashboard available at ${baseUrl}/ticker/dashboard-ultimate`);
   console.log(`[ticker] overlay available at ${baseUrl}/ticker/output.html`);
+  console.log(`[ticker] ENHANCED overlay available at ${baseUrl}/ticker/output-enhanced`);
+  console.log(`[ticker] ANALYTICS dashboard available at ${baseUrl}/ticker/analytics`);
   console.log(`[ticker] WebSocket available at ws://${host}:${port}/ws`);
   const shutdown = () => {
     server.close(() => {

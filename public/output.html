@@ -4895,7 +4895,7 @@
           this.contentNode.style.opacity = '0';
           this.contentNode.style.transform = 'translate3d(12px,0,0)';
           setTimeout(() => {
-            this.contentNode.innerHTML = `${items[index]}<span class="message-separator"></span>`;
+        var separator = '<span class="message-separator"></span>';
             this.contentNode.style.opacity = '1';
             this.contentNode.style.transform = 'translate3d(0,0,0)';
           }, 120);
@@ -4938,19 +4938,19 @@
         if (!this.messages.length) return '';
         var separator = '<span class="message-separator"></span>';
         var formatted = this.messages.map(function(msg) { return formatMessage(msg, this.highlightRegex); }.bind(this)).join(separator);
-        return formatted + separator + formatted;
       }
 
-      updateLabel() {
+    updateLabel() {
         this.labelNode.textContent = this.overlay.label;
         var combined = this.messages.join(' ').toLowerCase();
         var isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
         this.labelNode.classList.toggle('is-breaking', isBreaking);
       }
     }
-
-    new TickerOverlay();
-    new SlateManager();
+  
+      new TickerOverlay();
+      new SlateManager();
   </script>
 </body>
 </html>
+    }

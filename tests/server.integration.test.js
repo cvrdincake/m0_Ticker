@@ -34,7 +34,8 @@ async function waitForServerReady(proc, port = TEST_PORT) {
 
     function onStdout(chunk) {
       const text = chunk.toString();
-      if (text.includes(`listening on http://${HOST}:${port}`)) {
+      // Match both 0.0.0.0 and 127.0.0.1 for HOST and the specified port
+      if (text.includes(`listening on http://`) && text.includes(`:${port}`)) {
         if (settled) return;
         settled = true;
         cleanup();
@@ -392,6 +393,10 @@ test('serves static assets from custom TICKER_DIR', async () => {
 
   try {
     await waitForServerReady(proc, customPort);
+    
+    // Give server a moment to fully initialize
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
     const { response: indexResponse, text: indexHtml } = await getText('/ticker/index.html', customBaseUrl);
     assert.equal(indexResponse.status, 200);
     assert.match(indexHtml, />Custom Index</);

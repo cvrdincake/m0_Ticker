@@ -8565,10 +8565,9 @@
                 break;
             }
           });
-        }
+        });
         setActivePanel(activePanelId, { skipSave: true, force: true });
       }
-
       if (el.previewFrame) {
         on(el.previewFrame, 'load', () => {
           setPreviewLoading(false);
@@ -8785,6 +8784,7 @@
 
       const ACCENT_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer.`;
       const ACCENT_SECONDARY_LENGTH_ERROR = `Colour values must be ${ACCENT_MAX_LENGTH} characters or fewer. Clear the field to remove this colour.`;
+    }
 
     function commitAccentInput(nextValue) {
       if (!el.overlayAccent) return;

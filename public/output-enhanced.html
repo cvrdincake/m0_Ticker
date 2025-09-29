@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticker Overlay - Enhanced</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/phosphor-icons@1.4.2/src/css/icons.min.css" rel="stylesheet">
+    
+    <!-- Unified Theme System -->
+    <link rel="stylesheet" href="css/unified-theme.css">
+    <link rel="stylesheet" href="css/components.css">
+    
+    <style>
+        /* ===== OVERLAY SPECIFIC STYLES ===== */
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+        }
+        
+        /* Ticker Display */
+        .ticker-container {
+            position: absolute;
+            bottom: var(--space-8);
+            left: var(--space-8);
+            right: var(--space-8);
+            pointer-events: auto;
+        }
+        
+        .ticker-message {
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(18, 18, 18, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            padding: var(--space-6) var(--space-8);
+            box-shadow: var(--shadow-2xl);
+            position: relative;
+            overflow: hidden;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: var(--transition-slow);
+        }
+        
+        .ticker-message.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .ticker-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                var(--accent-primary), 
+                var(--accent-secondary), 
+                var(--accent-primary));
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite;
+        }
+        
+        .ticker-content {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+        
+        .ticker-icon {
+            width: 24px;
+            height: 24px;
+            color: var(--text-primary);
+            flex-shrink: 0;
+        }
+        
+        .ticker-text {
+            font-size: var(--text-lg);
+            font-weight: var(--font-medium);
+            line-height: var(--leading-normal);
+            color: var(--text-primary);
+            flex: 1;
+        }
+        
+        .ticker-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--text-sm);
+            color: var(--text-tertiary);
+            flex-shrink: 0;
+        }
+        
+        /* Popup Display */
+        .popup-container {
+            position: absolute;
+            top: var(--space-8);
+            right: var(--space-8);
+            max-width: 400px;
+            pointer-events: auto;
+        }
+        
+        .popup-message {
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(18, 18, 18, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-6);
+            box-shadow: var(--shadow-2xl);
+            transform: translateX(100px);
+            opacity: 0;
+            transition: var(--transition-slow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .popup-message.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .popup-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                var(--success), 
+                var(--info), 
+                var(--success));
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite;
+        }
+        
+        .popup-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-3);
+        }
+        
+        .popup-icon {
+            width: 20px;
+            height: 20px;
+            color: var(--text-secondary);
+        }
+        
+        .popup-title {
+            font-size: var(--text-base);
+            font-weight: var(--font-semibold);
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .popup-text {
+            font-size: var(--text-sm);
+            line-height: var(--leading-relaxed);
+            color: var(--text-secondary);
+        }
+        
+        /* BRB Display */
+        .brb-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            pointer-events: auto;
+        }
+        
+        .brb-message {
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.98) 0%, 
+                rgba(18, 18, 18, 0.98) 100%);
+            backdrop-filter: blur(30px);
+            border: 2px solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-12) var(--space-16);
+            box-shadow: var(--shadow-2xl);
+            transform: scale(0.8);
+            opacity: 0;
+            transition: var(--transition-slow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .brb-message.show {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        .brb-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--warning), 
+                var(--accent-primary), 
+                var(--warning));
+            background-size: 200% 100%;
+            animation: shimmer 3s linear infinite;
+        }
+        
+        .brb-icon {
+            font-size: 64px;
+            color: var(--text-primary);
+            margin-bottom: var(--space-6);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .brb-title {
+            font-size: var(--text-4xl);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            margin-bottom: var(--space-4);
+            letter-spacing: -0.02em;
+        }
+        
+        .brb-text {
+            font-size: var(--text-lg);
+            color: var(--text-secondary);
+            line-height: var(--leading-relaxed);
+            max-width: 600px;
+        }
+        
+        .brb-dots {
+            margin-top: var(--space-6);
+            display: flex;
+            justify-content: center;
+            gap: var(--space-2);
+        }
+        
+        .brb-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--text-tertiary);
+            animation: breathe 2s ease-in-out infinite;
+        }
+        
+        .brb-dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .brb-dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        /* Slate Display */
+        .slate-container {
+            position: absolute;
+            top: var(--space-8);
+            left: var(--space-8);
+            pointer-events: auto;
+        }
+        
+        .slate-message {
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(18, 18, 18, 0.95) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4) var(--space-6);
+            box-shadow: var(--shadow-xl);
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: var(--transition-slow);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .slate-message.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        
+        .slate-message::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                var(--info), 
+                var(--accent-secondary), 
+                var(--info));
+            background-size: 200% 100%;
+            animation: shimmer 2s linear infinite;
+        }
+        
+        .slate-content {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .slate-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--error);
+            animation: pulse 1.5s ease-in-out infinite;
+            flex-shrink: 0;
+        }
+        
+        .slate-text {
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        /* Animations */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { 
+                opacity: 1; 
+                transform: scale(1); 
+            }
+            50% { 
+                opacity: 0.7; 
+                transform: scale(1.1); 
+            }
+        }
+        
+        @keyframes breathe {
+            0%, 100% { 
+                opacity: 0.4; 
+                transform: scale(0.8); 
+            }
+            50% { 
+                opacity: 1; 
+                transform: scale(1); 
+            }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .ticker-container {
+                bottom: var(--space-4);
+                left: var(--space-4);
+                right: var(--space-4);
+            }
+            
+            .popup-container {
+                top: var(--space-4);
+                right: var(--space-4);
+                max-width: 300px;
+            }
+            
+            .brb-message {
+                padding: var(--space-8) var(--space-10);
+                margin: 0 var(--space-4);
+            }
+            
+            .brb-title {
+                font-size: var(--text-3xl);
+            }
+            
+            .brb-icon {
+                font-size: 48px;
+            }
+            
+            .slate-container {
+                top: var(--space-4);
+                left: var(--space-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Ticker Display -->
+    <div class="ticker-container">
+        <div class="ticker-message" id="tickerMessage">
+            <div class="ticker-content">
+                <i class="ticker-icon ph-broadcast ph-bold"></i>
+                <div class="ticker-text" id="tickerText">Welcome to the enhanced ticker overlay</div>
+                <div class="ticker-meta">
+                    <i class="ph-clock ph-bold"></i>
+                    <span id="tickerTime">00:00</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popup Display -->
+    <div class="popup-container">
+        <div class="popup-message" id="popupMessage">
+            <div class="popup-header">
+                <i class="popup-icon ph-info-circle ph-bold"></i>
+                <h3 class="popup-title">Notification</h3>
+            </div>
+            <div class="popup-text" id="popupText">This is a popup message</div>
+        </div>
+    </div>
+
+    <!-- BRB Display -->
+    <div class="brb-container">
+        <div class="brb-message" id="brbMessage">
+            <div class="brb-icon">
+                <i class="ph-pause-circle ph-fill"></i>
+            </div>
+            <h2 class="brb-title">Be Right Back</h2>
+            <div class="brb-text" id="brbText">Stream will resume shortly</div>
+            <div class="brb-dots">
+                <div class="brb-dot"></div>
+                <div class="brb-dot"></div>
+                <div class="brb-dot"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slate Display -->
+    <div class="slate-container">
+        <div class="slate-message" id="slateMessage">
+            <div class="slate-content">
+                <div class="slate-indicator"></div>
+                <div class="slate-text" id="slateText">Recording</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced overlay with unified theme system
+        class EnhancedOverlay {
+            constructor() {
+                this.elements = {
+                    ticker: document.getElementById('tickerMessage'),
+                    tickerText: document.getElementById('tickerText'),
+                    tickerTime: document.getElementById('tickerTime'),
+                    popup: document.getElementById('popupMessage'),
+                    popupText: document.getElementById('popupText'),
+                    brb: document.getElementById('brbMessage'),
+                    brbText: document.getElementById('brbText'),
+                    slate: document.getElementById('slateMessage'),
+                    slateText: document.getElementById('slateText')
+                };
+                
+                this.websocket = null;
+                this.tickerTimeout = null;
+                this.popupTimeout = null;
+                this.brbTimeout = null;
+                this.slateTimeout = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.connectWebSocket();
+                this.updateTime();
+                this.hideAllElements();
+                
+                // Update time every second
+                setInterval(() => this.updateTime(), 1000);
+                
+                console.log('Enhanced overlay initialized');
+            }
+
+            connectWebSocket() {
+                try {
+                    const wsUrl = 'ws://localhost:3000/ws';
+                    this.websocket = new WebSocket(wsUrl);
+                    
+                    this.websocket.onopen = () => {
+                        console.log('Connected to ticker server');
+                    };
+                    
+                    this.websocket.onmessage = (event) => {
+                        try {
+                            const data = JSON.parse(event.data);
+                            this.handleMessage(data);
+                        } catch (error) {
+                            console.error('Error parsing message:', error);
+                        }
+                    };
+                    
+                    this.websocket.onclose = () => {
+                        console.log('Disconnected from ticker server. Reconnecting...');
+                        setTimeout(() => this.connectWebSocket(), 3000);
+                    };
+                    
+                    this.websocket.onerror = (error) => {
+                        console.error('WebSocket error:', error);
+                    };
+                    
+                } catch (error) {
+                    console.error('Failed to connect to WebSocket:', error);
+                }
+            }
+
+            handleMessage(data) {
+                switch (data.type) {
+                    case 'show-message':
+                        this.showTickerMessage(data.message, data.duration || 5000);
+                        break;
+                    case 'show-popup':
+                        this.showPopup(data.message, data.duration || 3000);
+                        break;
+                    case 'start-brb':
+                        this.showBrb(data.message);
+                        break;
+                    case 'stop-brb':
+                        this.hideBrb();
+                        break;
+                    case 'show-slate':
+                        this.showSlate(data.message);
+                        break;
+                    case 'hide-slate':
+                        this.hideSlate();
+                        break;
+                    case 'test-overlay':
+                        this.showTestMessage();
+                        break;
+                    default:
+                        console.log('Unknown message type:', data.type);
+                }
+            }
+
+            showTickerMessage(message, duration) {
+                if (this.tickerTimeout) {
+                    clearTimeout(this.tickerTimeout);
+                }
+                
+                this.elements.tickerText.textContent = message;
+                this.elements.ticker.classList.add('show');
+                
+                this.tickerTimeout = setTimeout(() => {
+                    this.elements.ticker.classList.remove('show');
+                }, duration);
+            }
+
+            showPopup(message, duration) {
+                if (this.popupTimeout) {
+                    clearTimeout(this.popupTimeout);
+                }
+                
+                this.elements.popupText.textContent = message;
+                this.elements.popup.classList.add('show');
+                
+                this.popupTimeout = setTimeout(() => {
+                    this.elements.popup.classList.remove('show');
+                }, duration);
+            }
+
+            showBrb(message) {
+                if (this.brbTimeout) {
+                    clearTimeout(this.brbTimeout);
+                }
+                
+                this.elements.brbText.textContent = message || 'Stream will resume shortly';
+                this.elements.brb.classList.add('show');
+            }
+
+            hideBrb() {
+                this.elements.brb.classList.remove('show');
+                if (this.brbTimeout) {
+                    clearTimeout(this.brbTimeout);
+                }
+            }
+
+            showSlate(message) {
+                if (this.slateTimeout) {
+                    clearTimeout(this.slateTimeout);
+                }
+                
+                this.elements.slateText.textContent = message || 'Recording';
+                this.elements.slate.classList.add('show');
+            }
+
+            hideSlate() {
+                this.elements.slate.classList.remove('show');
+                if (this.slateTimeout) {
+                    clearTimeout(this.slateTimeout);
+                }
+            }
+
+            showTestMessage() {
+                const messages = [
+                    'This is a test ticker message',
+                    'Enhanced overlay system is working!',
+                    'Beautiful modern design in action',
+                    'WebSocket connection established',
+                    'Unified theme system active'
+                ];
+                
+                const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+                this.showTickerMessage(randomMessage, 4000);
+                
+                // Also show a test popup
+                setTimeout(() => {
+                    this.showPopup('Test popup notification', 3000);
+                }, 2000);
+            }
+
+            updateTime() {
+                const now = new Date();
+                const timeString = now.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                this.elements.tickerTime.textContent = timeString;
+            }
+
+            hideAllElements() {
+                this.elements.ticker.classList.remove('show');
+                this.elements.popup.classList.remove('show');
+                this.elements.brb.classList.remove('show');
+                this.elements.slate.classList.remove('show');
+            }
+        }
+
+        // Initialize the enhanced overlay when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new EnhancedOverlay();
+            });
+        } else {
+            new EnhancedOverlay();
+        }
+    </script>
+</body>
+</html>
