@@ -1,6 +1,6 @@
 /**
  * GSAP Animation Controller for Widget Text Materialization
- * Handles sophisticated text and panel animations using GSAP
+ * Handles sophisticated text and panel animations using GSAP with fallbacks
  */
 
 class GSAPAnimationController {
@@ -8,35 +8,45 @@ class GSAPAnimationController {
     this.timelines = new Map();
     this.isGSAPReady = false;
     this.animationQueue = [];
+    this.retryCount = 0;
+    this.maxRetries = 50; // 5 seconds max wait
     
     this.init();
   }
 
   init() {
-    // Wait for GSAP to be ready
-    if (typeof gsap !== 'undefined' && typeof SplitText !== 'undefined') {
+    // Check if GSAP is available
+    if (typeof window !== 'undefined' && 
+        typeof window.gsap !== 'undefined') {
       this.isGSAPReady = true;
       this.setupGSAPDefaults();
       this.processQueue();
-    } else {
+    } else if (this.retryCount < this.maxRetries) {
       // Retry after a short delay
+      this.retryCount++;
       setTimeout(() => this.init(), 100);
+    } else {
+      console.warn('[GSAP] Animation controller failed to initialize - GSAP libraries not found');
+      // Use fallback animations
+      this.useFallbackAnimations();
     }
   }
 
   setupGSAPDefaults() {
     // Set GSAP defaults for smooth animations
-    gsap.defaults({
+    window.gsap.defaults({
       duration: 0.8,
       ease: "power2.out"
     });
 
-    // Register custom eases
-    gsap.registerEase("materialEase", "power2.inOut");
-    gsap.registerEase("elasticOut", "elastic.out(1, 0.75)");
-    gsap.registerEase("backOut", "back.out(1.7)");
-
     console.log('[GSAP] Animation controller initialized');
+  }
+
+  useFallbackAnimations() {
+    console.log('[GSAP] Using CSS fallback animations');
+    this.isGSAPReady = false;
+    // Process queue with fallback methods
+    this.processQueue();
   }
 
   processQueue() {
@@ -81,8 +91,31 @@ class GSAPAnimationController {
   _executeTextMaterialization(container, text, config) {
     if (!container) return;
 
+    if (!this.isGSAPReady) {
+      // CSS fallback
+      let textElement = container.querySelector('.animated-text') || 
+                       container.querySelector('.popup-text') ||
+                       container.querySelector('.brb-text') ||
+                       container.querySelector('.slate-content');
+
+      if (!textElement) {
+        textElement = document.createElement('div');
+        textElement.className = 'animated-text';
+        container.appendChild(textElement);
+      }
+
+      textElement.innerHTML = text;
+      container.style.opacity = '1';
+      container.style.transform = 'scale(1)';
+      
+      if (config.onComplete) {
+        setTimeout(config.onComplete, 100);
+      }
+      return;
+    }
+
     // Create timeline for coordinated animations
-    const tl = gsap.timeline({
+    const tl = window.gsap.timeline({
       onComplete: () => {
         console.log('[GSAP] Text materialization complete');
         if (config.onComplete) config.onComplete();
@@ -105,7 +138,7 @@ class GSAPAnimationController {
     textElement.innerHTML = text;
     
     // Initial state: container scaled down, text invisible
-    gsap.set(container, {
+    window.gsap.set(container, {
       scaleX: 0.3,
       scaleY: 0.8,
       opacity: 0,
@@ -175,34 +208,46 @@ class GSAPAnimationController {
   }
 
   _addCharacterReveal(timeline, textElement, config) {
-    // Split text into characters
-    const splitText = new SplitText(textElement, {
-      type: "chars",
-      charsClass: "char-reveal"
-    });
+    if (!this.isGSAPReady || !window.SplitText) {
+      // CSS fallback for text reveal
+      textElement.style.opacity = '1';
+      return;
+    }
 
-    // Set initial state for characters
-    gsap.set(splitText.chars, {
-      opacity: 0,
-      y: 30,
-      rotationX: -90,
-      transformOrigin: "50% 50% -50px"
-    });
+    try {
+      // Split text into characters
+      const splitText = new window.SplitText(textElement, {
+        type: "chars",
+        charsClass: "char-reveal"
+      });
 
-    // Animate characters in sequence
-    timeline.to(splitText.chars, {
-      duration: 0.8,
-      opacity: 1,
-      y: 0,
-      rotationX: 0,
-      ease: "back.out(1.7)",
-      stagger: {
-        amount: config.stagger * splitText.chars.length,
-        from: "start"
-      }
-    }, "-=0.3");
+      // Set initial state for characters
+      window.gsap.set(splitText.chars, {
+        opacity: 0,
+        y: 30,
+        rotationX: -90,
+        transformOrigin: "50% 50% -50px"
+      });
 
-    return splitText;
+      // Animate characters in sequence
+      timeline.to(splitText.chars, {
+        duration: 0.8,
+        opacity: 1,
+        y: 0,
+        rotationX: 0,
+        ease: "back.out(1.7)",
+        stagger: {
+          amount: config.stagger * splitText.chars.length,
+          from: "start"
+        }
+      }, "-=0.3");
+
+      return splitText;
+    } catch (error) {
+      console.warn('[GSAP] SplitText error:', error);
+      textElement.style.opacity = '1';
+      return null;
+    }
   }
 
   _addTypewriterEffect(timeline, textElement, text, config) {
@@ -231,11 +276,15 @@ class GSAPAnimationController {
         // Remove cursor after typing
         const cursor = textElement.querySelector('.typewriter-cursor');
         if (cursor) {
-          gsap.to(cursor, {
-            duration: 0.3,
-            opacity: 0,
-            onComplete: () => cursor.remove()
-          });
+          if (this.isGSAPReady) {
+            window.gsap.to(cursor, {
+              duration: 0.3,
+              opacity: 0,
+              onComplete: () => cursor.remove()
+            });
+          } else {
+            cursor.remove();
+          }
         }
       }
     });
@@ -293,10 +342,19 @@ class GSAPAnimationController {
 
     // Full-screen dramatic entrance
     this.queueAnimation(() => {
-      const tl = gsap.timeline();
+      if (!this.isGSAPReady) {
+        // CSS fallback
+        if (brbContainer) {
+          brbContainer.style.opacity = '1';
+          brbContainer.style.transform = 'scale(1)';
+        }
+        return;
+      }
+
+      const tl = window.gsap.timeline();
 
       // Initial state
-      gsap.set(brbContainer, {
+      window.gsap.set(brbContainer, {
         scale: 0,
         rotation: -10,
         opacity: 0
@@ -341,10 +399,19 @@ class GSAPAnimationController {
     };
 
     this.queueAnimation(() => {
-      const tl = gsap.timeline();
+      if (!this.isGSAPReady) {
+        // CSS fallback
+        if (slateContainer) {
+          slateContainer.style.opacity = '1';
+          slateContainer.style.transform = 'scale(1)';
+        }
+        return;
+      }
+
+      const tl = window.gsap.timeline();
 
       // Slide in from right
-      gsap.set(slateContainer, {
+      window.gsap.set(slateContainer, {
         x: 100,
         opacity: 0,
         scale: 0.8
@@ -365,13 +432,15 @@ class GSAPAnimationController {
 
   _addFloatingAnimation(element) {
     // Subtle floating effect
-    gsap.to(element, {
-      duration: 3,
-      y: "+=10",
-      ease: "sine.inOut",
-      yoyo: true,
-      repeat: -1
-    });
+    if (this.isGSAPReady) {
+      window.gsap.to(element, {
+        duration: 3,
+        y: "+=10",
+        ease: "sine.inOut",
+        yoyo: true,
+        repeat: -1
+      });
+    }
   }
 
   /**
@@ -386,7 +455,17 @@ class GSAPAnimationController {
     };
 
     this.queueAnimation(() => {
-      const tl = gsap.timeline();
+      if (!this.isGSAPReady) {
+        // CSS fallback
+        const messageElements = tickerContainer.querySelectorAll('.ticker-message');
+        messageElements.forEach(el => {
+          el.style.opacity = '1';
+          el.style.transform = 'scale(1)';
+        });
+        return;
+      }
+
+      const tl = window.gsap.timeline();
 
       // Find message elements
       const messageElements = tickerContainer.querySelectorAll('.ticker-message');
@@ -394,7 +473,7 @@ class GSAPAnimationController {
       if (messageElements.length === 0) return;
 
       // Initial state
-      gsap.set(messageElements, {
+      window.gsap.set(messageElements, {
         opacity: 0,
         y: 20,
         scale: 0.8
@@ -487,7 +566,7 @@ class GSAPAnimationController {
       isGSAPReady: this.isGSAPReady,
       activeTimelines: this.timelines.size,
       queuedAnimations: this.animationQueue.length,
-      gsapVersion: typeof gsap !== 'undefined' ? gsap.version : 'Not loaded'
+      gsapVersion: (typeof window !== 'undefined' && window.gsap) ? window.gsap.version : 'Not loaded'
     };
   }
 

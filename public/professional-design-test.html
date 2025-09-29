@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Professional Design System Test</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&family=JetBrains+Mono:wght@300;400;500;700&family=Space+Grotesk:wght@300;400;500;600;700&family=Orbitron:wght@400;500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Professional Design System -->
+  <link rel="stylesheet" href="css/unified-design-system.css">
+  <link rel="stylesheet" href="css/professional-forms.css">
+  <link rel="stylesheet" href="css/professional-components.css">
+  <link rel="stylesheet" href="css/professional-widgets.css">
+  <link rel="stylesheet" href="css/professional-ui-effects.css">
+  
+  <style>
+    .test-section {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      margin-bottom: var(--space-xl);
+      backdrop-filter: blur(var(--blur-sm));
+    }
+    
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
+      margin-top: var(--space-lg);
+    }
+    
+    .component-demo {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--space-lg);
+    }
+    
+    .demo-label {
+      font-size: var(--font-sm);
+      font-weight: var(--font-medium);
+      color: var(--text-secondary);
+      margin-bottom: var(--space-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="text-center mb-xl">
+      <h1 class="text-4xl font-black mb-md">Professional Design System</h1>
+      <p class="text-lg text-secondary">Comprehensive testing of unified aesthetics and dark mode functionality</p>
+    </header>
+
+    <!-- Dropdown Testing Section -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Dark Mode Dropdowns</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Standard Dropdown</div>
+          <div class="form-group">
+            <label class="form-label">Select Theme</label>
+            <select class="form-input">
+              <option value="">Choose a theme...</option>
+              <option value="dark">Dark Mode</option>
+              <option value="light">Light Mode</option>
+              <option value="auto">Auto Mode</option>
+              <option value="midnight">Midnight Blue</option>
+              <option value="neon">Neon Green</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Multi-Select Dropdown</div>
+          <div class="form-group">
+            <label class="form-label">Select Features</label>
+            <select class="form-input" multiple>
+              <option value="animations">Animations</option>
+              <option value="particles">Particle Effects</option>
+              <option value="gradients">Gradient Backgrounds</option>
+              <option value="blur">Backdrop Blur</option>
+              <option value="glassmorphism">Glass Morphism</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Required Dropdown</div>
+          <div class="form-group">
+            <label class="form-label">Select Priority <span class="text-error">*</span></label>
+            <select class="form-input" required>
+              <option value="">Select priority...</option>
+              <option value="low">Low Priority</option>
+              <option value="medium">Medium Priority</option>
+              <option value="high">High Priority</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Form Components Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Professional Form Components</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Input Fields</div>
+          <div class="form-group">
+            <label class="form-label">Email Address</label>
+            <input type="email" class="form-input" placeholder="Enter your email">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Website URL</label>
+            <input type="url" class="form-input" placeholder="https://example.com">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Number Input</label>
+            <input type="number" class="form-input" min="1" max="100" placeholder="1-100">
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Textarea & Validation</div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="form-textarea" rows="4" placeholder="Enter description..."></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Required Field</label>
+            <input type="text" class="form-input" required placeholder="This field is required">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Button Components Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Professional Buttons & Interactions</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Primary Buttons</div>
+          <div class="flex flex-wrap gap-md">
+            <button class="btn btn-primary">Primary Action</button>
+            <button class="btn btn-secondary">Secondary</button>
+            <button class="btn btn-success">Success</button>
+            <button class="btn btn-warning">Warning</button>
+            <button class="btn btn-error">Danger</button>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Button Variants</div>
+          <div class="flex flex-wrap gap-md">
+            <button class="btn btn-outline">Outline</button>
+            <button class="btn btn-ghost">Ghost</button>
+            <button class="btn btn-link">Link</button>
+            <button class="btn btn-primary btn-sm">Small</button>
+            <button class="btn btn-primary btn-lg">Large</button>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Interactive States</div>
+          <div class="flex flex-wrap gap-md">
+            <button class="btn btn-primary">Normal</button>
+            <button class="btn btn-primary" disabled>Disabled</button>
+            <button type="submit" class="btn btn-primary">Submit (Loading)</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Widget Components Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Professional Widgets</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Ticker Widget</div>
+          <div class="modular-ticker" style="min-height: 100px; display: flex; align-items: center; justify-content: center;">
+            <div class="ticker-content">
+              <h3 class="text-lg font-bold">Sample Ticker</h3>
+              <p class="text-secondary">Professional glass morphism styling</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Popup Widget</div>
+          <div class="modular-popup" style="position: relative; min-height: 100px; display: flex; align-items: center; justify-content: center;">
+            <div class="popup-content">
+              <h3 class="text-lg font-bold">Notification</h3>
+              <p class="text-secondary">Enhanced backdrop blur effects</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">BRB Widget</div>
+          <div class="modular-brb" style="min-height: 100px; display: flex; align-items: center; justify-content: center; background: var(--bg-glass); border-radius: var(--radius-lg);">
+            <div class="brb-content">
+              <h3 class="text-lg font-bold">Be Right Back</h3>
+              <p class="text-secondary">Premium visual effects</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card Components Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Professional Cards & Layouts</h2>
+      <div class="test-grid">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Standard Card</h3>
+          </div>
+          <div class="card-body">
+            <p>This card demonstrates the professional glass morphism effects with hover animations.</p>
+          </div>
+          <div class="card-footer">
+            <button class="btn btn-primary btn-sm">Action</button>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Interactive Card</h3>
+          </div>
+          <div class="card-body">
+            <p>Hover over this card to see the enhanced 3D transformation effects.</p>
+            <div class="mt-md">
+              <span class="badge badge-primary">Premium</span>
+              <span class="badge badge-success">Active</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">Animated Card</h3>
+          </div>
+          <div class="card-body">
+            <p>Professional styling with unified design system variables.</p>
+            <div class="progress-bar mt-md">
+              <div class="progress-fill" style="width: 75%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Animation Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Animation & Effects</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Utility Animations</div>
+          <div class="flex flex-wrap gap-md">
+            <div class="btn btn-primary animate-bounce">Bounce</div>
+            <div class="btn btn-secondary animate-pulse">Pulse</div>
+            <div class="btn btn-success animate-glow">Glow</div>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Loading States</div>
+          <div class="flex flex-wrap gap-md items-center">
+            <div class="loading-spinner"></div>
+            <button class="btn btn-primary btn-loading">Processing...</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Theme Testing -->
+    <section class="test-section">
+      <h2 class="text-2xl font-bold mb-lg">Theme & Accessibility</h2>
+      <div class="test-grid">
+        <div class="component-demo">
+          <div class="demo-label">Color Palette</div>
+          <div class="grid grid-cols-3 gap-sm">
+            <div style="background: var(--accent-primary); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; color: var(--bg-primary);">Primary</div>
+            <div style="background: var(--success-primary); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; color: var(--bg-primary);">Success</div>
+            <div style="background: var(--error-primary); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; color: var(--bg-primary);">Error</div>
+            <div style="background: var(--warning-primary); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; color: var(--bg-primary);">Warning</div>
+            <div style="background: var(--info-primary); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; color: var(--bg-primary);">Info</div>
+            <div style="background: var(--bg-glass); padding: var(--space-md); border-radius: var(--radius-md); text-align: center; border: 1px solid var(--border-primary);">Glass</div>
+          </div>
+        </div>
+        
+        <div class="component-demo">
+          <div class="demo-label">Typography Scale</div>
+          <div class="space-y-sm">
+            <div class="text-xs">Extra Small Text</div>
+            <div class="text-sm">Small Text</div>
+            <div class="text-base">Base Text</div>
+            <div class="text-lg">Large Text</div>
+            <div class="text-xl">Extra Large Text</div>
+            <div class="text-2xl font-bold">Heading Text</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/professional-ui.js"></script>
+  
+  <script>
+    // Demo script for testing interactions
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('Professional Design System Test Page Loaded');
+      
+      // Test form validation
+      const forms = document.querySelectorAll('form, input, textarea, select');
+      console.log(`Found ${forms.length} form elements for validation testing`);
+      
+      // Test button interactions
+      const buttons = document.querySelectorAll('.btn');
+      console.log(`Found ${buttons.length} buttons for interaction testing`);
+      
+      // Test dropdown functionality
+      const selects = document.querySelectorAll('select');
+      console.log(`Found ${selects.length} select elements for dropdown testing`);
+      
+      // Add some demo interactions
+      setTimeout(() => {
+        const firstButton = document.querySelector('button[type="submit"]');
+        if (firstButton) {
+          firstButton.click();
+          console.log('Triggered loading state demo');
+        }
+      }, 2000);
+    });
+  </script>
+</body>
+</html>
