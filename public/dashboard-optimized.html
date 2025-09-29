@@ -60,6 +60,10 @@
             <span>🎯</span>
             <span>Overlay</span>
           </button>
+          <button class="dashboard-tab" data-tab="preview">
+            <span>📺</span>
+            <span>Preview</span>
+          </button>
           <button class="dashboard-tab" data-tab="scenes">
             <span>🎬</span>
             <span>Scenes</span>
@@ -213,6 +217,43 @@
           </div>
         </div>
 
+        <!-- Preview Panel -->
+        <div id="previewPanel" class="dashboard-panel">
+          <div class="card">
+            <h2 class="text-lg font-semibold mb-4">Output Preview</h2>
+            
+            <div class="space-y-4">
+              <!-- Preview controls -->
+              <div class="flex justify-between items-center">
+                <div class="flex gap-2">
+                  <button id="previewModeStandard" class="btn btn-sm active">Standard</button>
+                  <button id="previewModeOptimized" class="btn btn-sm">Optimized</button>
+                </div>
+                <div class="flex gap-2">
+                  <button id="previewRefresh" class="btn btn-sm">🔄 Refresh</button>
+                  <button id="previewOpen" class="btn btn-sm">🔗 Open</button>
+                </div>
+              </div>
+              
+              <!-- Preview iframe -->
+              <div class="preview-container bg-black rounded-lg overflow-hidden" style="aspect-ratio: 16/9;">
+                <iframe 
+                  id="previewIframe" 
+                  src="output.html" 
+                  class="w-full h-full border-0"
+                  style="transform: scale(0.75); transform-origin: top left; width: 133%; height: 133%;"
+                ></iframe>
+              </div>
+              
+              <!-- Preview info -->
+              <div class="text-sm text-muted">
+                <div>Direct link: <span id="previewLink" class="text-primary">output.html</span></div>
+                <div>Status: <span id="previewStatus" class="text-success">Live</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Scenes Panel -->
         <div id="scenesPanel" class="dashboard-panel">
           <div class="card">
@@ -305,6 +346,12 @@
         // Copy and open overlay
         document.getElementById('copyOverlayUrl').addEventListener('click', () => this.copyOverlayUrl());
         document.getElementById('openOverlay').addEventListener('click', () => this.openOverlay());
+        
+        // Preview controls
+        document.getElementById('previewModeStandard')?.addEventListener('click', () => this.setPreviewMode('standard'));
+        document.getElementById('previewModeOptimized')?.addEventListener('click', () => this.setPreviewMode('optimized'));
+        document.getElementById('previewRefresh')?.addEventListener('click', () => this.refreshPreview());
+        document.getElementById('previewOpen')?.addEventListener('click', () => this.openPreview());
       }
 
       connectWebSocket() {
@@ -498,6 +545,42 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+      }
+
+      // Preview methods
+      setPreviewMode(mode) {
+        const buttons = ['previewModeStandard', 'previewModeOptimized'];
+        buttons.forEach(id => {
+          const btn = document.getElementById(id);
+          if (btn) btn.classList.remove('active');
+        });
+
+        const activeBtn = document.getElementById(mode === 'optimized' ? 'previewModeOptimized' : 'previewModeStandard');
+        if (activeBtn) activeBtn.classList.add('active');
+
+        const iframe = document.getElementById('previewIframe');
+        const link = document.getElementById('previewLink');
+        
+        if (iframe && link) {
+          const url = mode === 'optimized' ? 'output-optimized.html' : 'output.html';
+          iframe.src = url;
+          link.textContent = url;
+        }
+      }
+
+      refreshPreview() {
+        const iframe = document.getElementById('previewIframe');
+        if (iframe) {
+          iframe.src = iframe.src; // Force reload
+        }
+        this.toast('Preview refreshed');
+      }
+
+      openPreview() {
+        const iframe = document.getElementById('previewIframe');
+        if (iframe) {
+          window.open(iframe.src, '_blank', 'width=1920,height=1080');
+        }
       }
     }
 

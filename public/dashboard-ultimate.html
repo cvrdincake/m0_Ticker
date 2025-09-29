@@ -18,6 +18,8 @@
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/theme-customizer.css">
   <link rel="stylesheet" href="css/advanced-animations.css">
+  <link rel="stylesheet" href="css/enhanced-themes.css">
+  <link rel="stylesheet" href="css/enhanced-ux.css">
   
   <style>
     /* ===== DASHBOARD SPECIFIC STYLES ===== */
@@ -476,6 +478,131 @@
         grid-template-columns: repeat(2, 1fr);
       }
     }
+    
+    /* ===== OUTPUT PREVIEW STYLES ===== */
+    
+    .preview-mode-selector {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .btn-group {
+      display: flex;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-primary);
+    }
+    
+    .btn-group .btn {
+      border-radius: 0;
+      border: none;
+      border-right: 1px solid var(--border-primary);
+    }
+    
+    .btn-group .btn:last-child {
+      border-right: none;
+    }
+    
+    .btn-group .btn.active {
+      background-color: var(--accent);
+      color: var(--accent-contrast);
+    }
+    
+    .preview-container {
+      background: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .preview-frame {
+      position: relative;
+      background: #000;
+      aspect-ratio: 16/9;
+      width: 100%;
+    }
+    
+    .preview-status-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 var(--space-3);
+      z-index: 10;
+      color: white;
+      font-size: 12px;
+    }
+    
+    #previewIframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      transform-origin: top left;
+      transition: transform 0.3s ease;
+    }
+    
+    .preview-controls {
+      display: flex;
+      gap: var(--space-2);
+    }
+    
+    .info-card {
+      background: var(--surface);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--space-4);
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-warning);
+      animation: pulse 2s infinite;
+    }
+    
+    .status-dot.connected {
+      background: var(--status-success);
+    }
+    
+    .status-dot.error {
+      background: var(--status-error);
+    }
+    
+    .nav-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-success);
+      margin-left: auto;
+      opacity: 0.7;
+    }
+    
+    /* Preview responsive scaling */
+    .preview-frame[data-scale="0.5"] #previewIframe {
+      transform: scale(0.5);
+      width: 200%;
+      height: 200%;
+    }
+    
+    .preview-frame[data-scale="0.75"] #previewIframe {
+      transform: scale(0.75);
+      width: 133.33%;
+      height: 133.33%;
+    }
+    
+    .preview-frame[data-scale="1"] #previewIframe {
+      transform: scale(1);
+    }
   </style>
 </head>
 <body>
@@ -501,21 +628,21 @@
       </div>
       
       <!-- Navigation -->
-      <nav class="sidebar-nav">
+      <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
         <div class="nav-section">
           <div class="nav-section-title">Dashboard</div>
           <div class="nav">
-            <button class="nav-item active" data-view="dashboard">
-              <i class="nav-icon ph-house ph-bold"></i>
+            <button class="nav-item active" data-view="dashboard" aria-label="Dashboard Overview">
+              <i class="nav-icon ph-house ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Overview</span>
             </button>
-            <button class="nav-item" data-view="messages">
-              <i class="nav-icon ph-chat-dots ph-bold"></i>
+            <button class="nav-item" data-view="messages" aria-label="Message Management">
+              <i class="nav-icon ph-chat-dots ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Messages</span>
               <div class="nav-badge" id="messageCountBadge">0</div>
             </button>
-            <button class="nav-item" data-view="ticker">
-              <i class="nav-icon ph-play-circle ph-bold"></i>
+            <button class="nav-item" data-view="ticker" aria-label="Ticker Control">
+              <i class="nav-icon ph-play-circle ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Ticker Control</span>
             </button>
           </div>
@@ -524,21 +651,26 @@
         <div class="nav-section">
           <div class="nav-section-title">Widgets</div>
           <div class="nav">
-            <button class="nav-item" data-view="overlay">
-              <i class="nav-icon ph-monitor ph-bold"></i>
+            <button class="nav-item" data-view="overlay" aria-label="Overlay Settings">
+              <i class="nav-icon ph-monitor ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Overlay</span>
             </button>
-            <button class="nav-item" data-view="popup">
-              <i class="nav-icon ph-app-window ph-bold"></i>
+            <button class="nav-item" data-view="popup" aria-label="Popup Management">
+              <i class="nav-icon ph-app-window ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Popups</span>
             </button>
-            <button class="nav-item" data-view="brb">
-              <i class="nav-icon ph-pause-circle ph-bold"></i>
+            <button class="nav-item" data-view="brb" aria-label="BRB Mode">
+              <i class="nav-icon ph-pause-circle ph-bold" aria-hidden="true"></i>
               <span class="nav-label">BRB Mode</span>
             </button>
-            <button class="nav-item" data-view="themes">
-              <i class="nav-icon ph-palette ph-bold"></i>
+            <button class="nav-item" data-view="themes" aria-label="Theme Customization">
+              <i class="nav-icon ph-palette ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Theme Studio</span>
+            </button>
+            <button class="nav-item" data-view="preview" aria-label="Output Preview">
+              <i class="nav-icon ph-television ph-bold" aria-hidden="true"></i>
+              <span class="nav-label">Output Preview</span>
+              <div class="nav-indicator" id="previewStatusIndicator" aria-hidden="true"></div>
             </button>
           </div>
         </div>
@@ -546,8 +678,8 @@
         <div class="nav-section">
           <div class="nav-section-title">Tools</div>
           <div class="nav">
-            <button class="nav-item" data-view="settings">
-              <i class="nav-icon ph-gear ph-bold"></i>
+            <button class="nav-item" data-view="settings" aria-label="Settings">
+              <i class="nav-icon ph-gear ph-bold" aria-hidden="true"></i>
               <span class="nav-label">Settings</span>
             </button>
             <button class="nav-item" id="exportDataBtn">
@@ -571,6 +703,15 @@
         </div>
         
         <div class="header-actions">
+          <div class="flex items-center gap-2 mr-4">
+            <label class="text-sm text-secondary">Theme:</label>
+            <select class="form-input w-32" id="themeSelector">
+              <option value="dark">Dark</option>
+              <option value="glass">Glass</option>
+              <option value="cyberpunk">Cyberpunk</option>
+              <option value="professional">Professional</option>
+            </select>
+          </div>
           <button class="btn btn-ghost" id="refreshBtn">
             <i class="ph-arrows-clockwise ph-bold"></i>
             <span class="sm:hidden">Refresh</span>
@@ -617,10 +758,29 @@
                       <h2 class="card-title flex items-center gap-3">
                         <i class="ph-chat-dots ph-bold"></i>
                         Ticker Messages
+                        <span class="help-icon tooltip" data-tooltip="Manage your ticker message queue. Messages rotate automatically when ticker is active." onclick="toggleHelp('messages-help')">?</span>
                       </h2>
                       <p class="card-subtitle">Manage your ticker message queue</p>
+                      <div id="messages-help" class="help-panel">
+                        <strong>Message Management Tips:</strong><br>
+                        • Messages display for the duration you set in Ticker Control<br>
+                        • Use Ctrl+K from anywhere to quickly add messages<br>
+                        • Drag messages to reorder them<br>
+                        • Click the eye icon to preview messages
+                      </div>
                     </div>
-                    <div class="badge badge-primary" id="messageCount">0 messages</div>
+                    <div class="flex items-center gap-3">
+                      <div class="history-controls">
+                        <button class="history-btn tooltip" id="undoBtn" data-tooltip="Undo last action (Ctrl+Z)" disabled>
+                          <i class="ph-arrow-counter-clockwise ph-bold"></i>
+                        </button>
+                        <button class="history-btn tooltip" id="redoBtn" data-tooltip="Redo last action (Ctrl+Y)" disabled>
+                          <i class="ph-arrow-clockwise ph-bold"></i>
+                        </button>
+                        <span class="history-indicator" id="historyIndicator">No changes</span>
+                      </div>
+                      <div class="badge badge-primary" id="messageCount">0 messages</div>
+                    </div>
                   </div>
                 </div>
                 
@@ -629,12 +789,13 @@
                   <form class="message-composer" id="messageForm">
                     <input 
                       type="text" 
-                      class="form-input" 
+                      class="form-input tooltip" 
                       id="messageInput" 
                       placeholder="Enter your ticker message..."
                       maxlength="280"
+                      data-tooltip="Add messages to your ticker queue. Max 280 characters. Press Ctrl+K from anywhere to focus this field."
                     >
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary tooltip" data-tooltip="Add message to queue">
                       <i class="ph-plus ph-bold"></i>
                       Add
                     </button>
@@ -788,10 +949,162 @@
         <div id="overlay-view" class="view">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Overlay Settings</h2>
+              <div>
+                <h2 class="card-title flex items-center gap-3">
+                  <i class="ph-monitor ph-bold"></i>
+                  Overlay Settings
+                  <span class="help-icon tooltip" data-tooltip="Configure your overlay appearance and branding" onclick="toggleHelp('overlay-help')">?</span>
+                </h2>
+                <p class="card-subtitle">Customize overlay appearance and branding</p>
+                <div id="overlay-help" class="help-panel">
+                  <strong>Overlay Configuration:</strong><br>
+                  • Upload a logo to brand your ticker and popups<br>
+                  • Adjust opacity, scale, and positioning<br>
+                  • Changes apply instantly to live overlay<br>
+                  • Logo should be PNG/SVG for best quality
+                </div>
+              </div>
             </div>
             <div class="card-body">
-              <p>Overlay configuration coming soon...</p>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Logo Upload Section -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title flex items-center gap-2">
+                      <i class="ph-image ph-bold"></i>
+                      Brand Logo
+                    </h3>
+                    <p class="card-subtitle">Upload your logo for subtle branding</p>
+                  </div>
+                  <div class="card-body">
+                    <div class="logo-upload-area" id="logoUploadArea">
+                      <input type="file" id="logoFileInput" accept="image/*" style="display: none;">
+                      <div id="logoUploadContent">
+                        <i class="ph-upload ph-bold text-4xl text-secondary mb-3"></i>
+                        <p class="text-lg font-medium mb-2">Drop logo here or click to upload</p>
+                        <p class="text-sm text-secondary">PNG, JPG, SVG up to 2MB</p>
+                        <p class="text-xs text-muted mt-2">Recommended: 200x60px transparent PNG</p>
+                      </div>
+                      <img id="logoPreview" class="logo-preview" style="display: none;" alt="Logo preview">
+                    </div>
+                    
+                    <div class="logo-controls" id="logoControls" style="display: none;">
+                      <button class="btn btn-sm btn-ghost tooltip" id="logoRemoveBtn" data-tooltip="Remove logo">
+                        <i class="ph-trash ph-bold"></i>
+                        Remove
+                      </button>
+                      <button class="btn btn-sm btn-ghost tooltip" id="logoRepositionBtn" data-tooltip="Adjust logo position">
+                        <i class="ph-arrows-out ph-bold"></i>
+                        Position
+                      </button>
+                    </div>
+                    
+                    <!-- Logo Position Settings -->
+                    <div id="logoPositionSettings" style="display: none;" class="mt-4 p-4 bg-surface rounded-lg border border-primary">
+                      <h4 class="font-medium mb-3">Logo Position</h4>
+                      <div class="grid grid-cols-2 gap-3">
+                        <div>
+                          <label class="form-label">Horizontal Position</label>
+                          <select class="form-input" id="logoHorizontalPos">
+                            <option value="left">Left</option>
+                            <option value="center">Center</option>
+                            <option value="right" selected>Right</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="form-label">Vertical Position</label>
+                          <select class="form-input" id="logoVerticalPos">
+                            <option value="top">Top</option>
+                            <option value="middle">Middle</option>
+                            <option value="bottom" selected>Bottom</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label class="form-label">Opacity (%)</label>
+                          <input type="range" class="form-input" id="logoOpacity" min="10" max="100" value="70">
+                        </div>
+                        <div>
+                          <label class="form-label">Scale (%)</label>
+                          <input type="range" class="form-input" id="logoScale" min="50" max="150" value="100">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Overlay Appearance -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title flex items-center gap-2">
+                      <i class="ph-palette ph-bold"></i>
+                      Appearance
+                    </h3>
+                    <p class="card-subtitle">Visual settings and animations</p>
+                  </div>
+                  <div class="card-body space-y-4">
+                    <div class="form-group">
+                      <label class="form-label tooltip" data-tooltip="Main overlay label text">
+                        Label Text
+                      </label>
+                      <input type="text" class="form-input" id="overlayLabelInput" value="LIVE" maxlength="24">
+                    </div>
+                    
+                    <div class="form-group">
+                      <label class="form-label tooltip" data-tooltip="Primary accent color for highlights">
+                        Primary Color
+                      </label>
+                      <input type="color" class="color-picker-input" id="overlayPrimaryColor" value="#ef4444">
+                    </div>
+                    
+                    <div class="form-group">
+                      <label class="form-label tooltip" data-tooltip="Secondary accent color for gradients">
+                        Secondary Color
+                      </label>
+                      <input type="color" class="color-picker-input" id="overlaySecondaryColor" value="#f472b6">
+                    </div>
+                    
+                    <div class="form-group">
+                      <label class="form-label tooltip" data-tooltip="Overlay size multiplier">
+                        Scale (1.0 = 100%)
+                      </label>
+                      <input type="range" class="form-input" id="overlayScaleInput" min="0.5" max="3.0" step="0.1" value="1.75">
+                      <span class="text-sm text-secondary" id="overlayScaleDisplay">175%</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-4">
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="overlayAnimationsEnabled" checked>
+                        <span class="tooltip" data-tooltip="Enable smooth animations and transitions">Enable Animations</span>
+                      </label>
+                      <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="overlaySparkleEnabled" checked>
+                        <span class="tooltip" data-tooltip="Add sparkle effects to accents">Sparkle Effects</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Preview and Actions -->
+              <div class="mt-6 p-4 bg-surface rounded-lg border border-primary">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <h4 class="font-medium text-primary">Live Preview</h4>
+                    <p class="text-sm text-secondary">Changes apply instantly to your overlay</p>
+                  </div>
+                  <div class="flex gap-2">
+                    <button class="btn btn-ghost tooltip" id="overlayResetBtn" data-tooltip="Reset to default settings">
+                      <i class="ph-arrow-counter-clockwise ph-bold"></i>
+                      Reset
+                    </button>
+                    <button class="btn btn-primary tooltip" id="overlayTestBtn" data-tooltip="Test overlay with sample data">
+                      <i class="ph-play ph-bold"></i>
+                      Test Overlay
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -821,89 +1134,312 @@
         <div id="themes-view" class="view">
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title flex items-center gap-3">
-                <i class="ph-palette ph-bold"></i>
-                Theme Studio
-              </h2>
-              <p class="card-subtitle">Customize your dashboard appearance with live preview</p>
+              <div>
+                <h2 class="card-title flex items-center gap-3">
+                  <i class="ph-palette ph-bold"></i>
+                  Theme Studio
+                  <span class="help-icon tooltip" data-tooltip="Create and manage custom themes for your dashboard" onclick="toggleHelp('themes-help')">?</span>
+                </h2>
+                <p class="card-subtitle">Customize your dashboard appearance with live preview</p>
+                <div id="themes-help" class="help-panel">
+                  <strong>Theme System:</strong><br>
+                  • Choose from preset themes or create custom ones<br>
+                  • All changes apply instantly with live preview<br>
+                  • Save custom themes for later use<br>
+                  • Export/import theme configurations
+                </div>
+              </div>
             </div>
             <div class="card-body">
-              <div class="flex items-center justify-center py-12">
-                <button class="btn btn-primary btn-lg" onclick="window.themeCustomizer?.open()">
-                  <i class="ph-palette ph-bold"></i>
-                  Open Theme Customizer
-                </button>
+              
+              <!-- Theme Preset Gallery -->
+              <div class="mb-8">
+                <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                  <i class="ph-swatches ph-bold"></i>
+                  Theme Presets
+                </h3>
+                <div class="theme-preset-grid">
+                  <div class="theme-preset-card" data-theme="dark">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: #000000;"></div>
+                        <div class="theme-preview-color" style="background: #1a1a1a;"></div>
+                        <div class="theme-preview-color" style="background: #3b82f6;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Dark Professional</div>
+                    <div class="theme-preset-description">Clean dark theme for professional streaming</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('dark')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="theme-preset-card" data-theme="glass">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: linear-gradient(135deg, #0a0a0a, #1a1a1a);"></div>
+                        <div class="theme-preview-color" style="background: rgba(255,255,255,0.1);"></div>
+                        <div class="theme-preview-color" style="background: #60a5fa;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Glass Morphism</div>
+                    <div class="theme-preset-description">Modern glass effect with blur and transparency</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('glass')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="theme-preset-card" data-theme="cyberpunk">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: #0a0a0f;"></div>
+                        <div class="theme-preview-color" style="background: #00ff88;"></div>
+                        <div class="theme-preview-color" style="background: #ff0088;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Cyberpunk RGB</div>
+                    <div class="theme-preset-description">Futuristic neon theme with glow effects</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('cyberpunk')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="theme-preset-card" data-theme="professional">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: #ffffff;"></div>
+                        <div class="theme-preview-color" style="background: #f8fafc;"></div>
+                        <div class="theme-preview-color" style="background: #2563eb;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Light Professional</div>
+                    <div class="theme-preset-description">Clean light theme for daytime streaming</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('professional')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="theme-preset-card" data-theme="gaming">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: #0d1117;"></div>
+                        <div class="theme-preview-color" style="background: #00ff88;"></div>
+                        <div class="theme-preview-color" style="background: #8b5cf6;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Gaming RGB</div>
+                    <div class="theme-preset-description">High contrast gaming theme with RGB accents</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('gaming')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div class="theme-preset-card" data-theme="minimal">
+                    <div class="theme-preview">
+                      <div class="theme-preview-colors">
+                        <div class="theme-preview-color" style="background: #fafafa;"></div>
+                        <div class="theme-preview-color" style="background: #e5e5e5;"></div>
+                        <div class="theme-preview-color" style="background: #404040;"></div>
+                      </div>
+                    </div>
+                    <div class="theme-preset-name">Minimal Mono</div>
+                    <div class="theme-preset-description">Ultra-clean monochrome minimalist theme</div>
+                    <div class="theme-preset-actions">
+                      <button class="btn btn-xs btn-ghost tooltip" data-tooltip="Apply theme" onclick="applyPresetTheme('minimal')">
+                        <i class="ph-check ph-bold"></i>
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
               
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                <div class="bg-surface p-6 rounded-lg border border-primary">
-                  <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i class="ph-swatches ph-bold"></i>
-                    Quick Themes
+              <!-- Custom Theme Builder -->
+              <div class="theme-builder">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-lg font-semibold flex items-center gap-2">
+                    <i class="ph-wrench ph-bold"></i>
+                    Custom Theme Builder
                   </h3>
-                  <div class="grid grid-cols-2 gap-3">
-                    <button class="preset-theme-quick" onclick="applyQuickTheme('dark')">
-                      <div class="flex h-8 rounded overflow-hidden">
-                        <div style="background: #000000; flex: 1;"></div>
-                        <div style="background: #3b82f6; flex: 1;"></div>
-                      </div>
-                      <span class="text-sm mt-2">Dark Pro</span>
+                  <div class="flex gap-2">
+                    <button class="btn btn-sm btn-ghost tooltip" id="saveThemeBtn" data-tooltip="Save current theme">
+                      <i class="ph-floppy-disk ph-bold"></i>
+                      Save Theme
                     </button>
-                    <button class="preset-theme-quick" onclick="applyQuickTheme('gaming')">
-                      <div class="flex h-8 rounded overflow-hidden">
-                        <div style="background: #0d1117; flex: 1;"></div>
-                        <div style="background: #00ff88; flex: 1;"></div>
-                      </div>
-                      <span class="text-sm mt-2">Gaming RGB</span>
+                    <button class="btn btn-sm btn-ghost tooltip" id="exportThemeBtn" data-tooltip="Export theme file">
+                      <i class="ph-download ph-bold"></i>
+                      Export
                     </button>
-                    <button class="preset-theme-quick" onclick="applyQuickTheme('neon')">
-                      <div class="flex h-8 rounded overflow-hidden">
-                        <div style="background: #000011; flex: 1;"></div>
-                        <div style="background: #00ffff; flex: 1;"></div>
-                      </div>
-                      <span class="text-sm mt-2">Neon City</span>
-                    </button>
-                    <button class="preset-theme-quick" onclick="applyQuickTheme('business')">
-                      <div class="flex h-8 rounded overflow-hidden">
-                        <div style="background: #1a1a1a; flex: 1;"></div>
-                        <div style="background: #0066cc; flex: 1;"></div>
-                      </div>
-                      <span class="text-sm mt-2">Business</span>
+                    <button class="btn btn-sm btn-ghost tooltip" id="importThemeBtn" data-tooltip="Import theme file">
+                      <i class="ph-upload ph-bold"></i>
+                      Import
                     </button>
                   </div>
                 </div>
                 
-                <div class="bg-surface p-6 rounded-lg border border-primary">
-                  <h3 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <i class="ph-gear ph-bold"></i>
-                    Customization Features
-                  </h3>
-                  <ul class="space-y-2 text-sm text-secondary">
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      Real-time color picker with live preview
-                    </li>
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      6 preset theme collections
-                    </li>
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      Animation speed & style controls
-                    </li>
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      Custom font selection
-                    </li>
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      Export & import theme configurations
-                    </li>
-                    <li class="flex items-center gap-2">
-                      <i class="ph-check-circle ph-bold text-success"></i>
-                      Particle effects & glassmorphism
-                    </li>
-                  </ul>
+                <div class="color-picker-group">
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Primary Background</div>
+                    <input type="color" class="color-picker-input" id="customBgPrimary" value="#000000">
+                  </div>
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Secondary Background</div>
+                    <input type="color" class="color-picker-input" id="customBgSecondary" value="#1a1a1a">
+                  </div>
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Accent Color</div>
+                    <input type="color" class="color-picker-input" id="customAccent" value="#3b82f6">
+                  </div>
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Text Primary</div>
+                    <input type="color" class="color-picker-input" id="customTextPrimary" value="#ffffff">
+                  </div>
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Text Secondary</div>
+                    <input type="color" class="color-picker-input" id="customTextSecondary" value="#a1a1aa">
+                  </div>
+                  <div class="color-picker-item">
+                    <div class="color-picker-label">Border Color</div>
+                    <input type="color" class="color-picker-input" id="customBorder" value="#27272a">
+                  </div>
+                </div>
+                
+                <div class="mt-4 flex justify-between items-center">
+                  <div class="text-sm text-secondary">
+                    Changes apply instantly • <span id="themePreviewStatus">Ready</span>
+                  </div>
+                  <button class="btn btn-primary" id="applyCustomThemeBtn">
+                    <i class="ph-check ph-bold"></i>
+                    Apply Custom Theme
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Advanced Theme Customizer -->
+              <div class="mt-6 p-4 bg-surface rounded-lg border border-primary">
+                <div class="flex items-center justify-center">
+                  <button class="btn btn-primary btn-lg" onclick="window.themeCustomizer?.open()">
+                    <i class="ph-palette ph-bold"></i>
+                    Open Advanced Theme Customizer
+                  </button>
+                </div>
+                <p class="text-center text-sm text-secondary mt-2">
+                  Access the full theme customizer with fonts, animations, and advanced options
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Output Preview View -->
+        <div id="preview-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 class="card-title flex items-center gap-3">
+                    <i class="ph-television ph-bold"></i>
+                    Output Preview
+                  </h2>
+                  <p class="card-subtitle">Live preview of your ticker and overlay output</p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div class="preview-controls">
+                    <button class="btn btn-ghost btn-sm" id="previewRefreshBtn" title="Refresh Preview">
+                      <i class="ph-arrow-clockwise ph-bold"></i>
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="previewFullscreenBtn" title="Open in New Window">
+                      <i class="ph-arrow-square-out ph-bold"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="card-body">
+              <!-- Preview Mode Selector -->
+              <div class="preview-mode-selector mb-6">
+                <div class="btn-group">
+                  <button class="btn btn-sm active" data-preview-mode="overlay" id="previewModeOverlay">
+                    <i class="ph-monitor ph-bold"></i>
+                    Overlay
+                  </button>
+                  <button class="btn btn-sm" data-preview-mode="optimized" id="previewModeOptimized">
+                    <i class="ph-lightning ph-bold"></i>
+                    Optimized
+                  </button>
+                </div>
+                <div class="ml-auto flex items-center gap-2">
+                  <span class="text-sm text-secondary">Scale:</span>
+                  <select class="form-input w-20" id="previewScale">
+                    <option value="0.5">50%</option>
+                    <option value="0.75" selected>75%</option>
+                    <option value="1">100%</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Preview Container -->
+              <div class="preview-container">
+                <div class="preview-container preview-container-enhanced">
+                  <div class="preview-frame">
+                  <div class="preview-status-bar">
+                    <div class="flex items-center gap-2">
+                      <div class="status-dot" id="previewStatusDot"></div>
+                      <span class="text-xs" id="previewStatusText">Loading preview...</span>
+                    </div>
+                    <div class="text-xs text-secondary" id="previewDimensions">1920 × 1080</div>
+                  </div>
+                  <iframe 
+                    id="previewIframe" 
+                    src="output.html"
+                    frameborder="0"
+                    allow="autoplay"
+                    sandbox="allow-scripts allow-same-origin"
+                    loading="lazy"
+                  ></iframe>
+                </div>
+              </div>
+
+              <!-- Preview Information -->
+              <div class="preview-info mt-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="info-card">
+                    <div class="flex items-center gap-2 mb-2">
+                      <i class="ph-link ph-bold text-primary"></i>
+                      <span class="font-medium">Direct Link</span>
+                    </div>
+                    <div class="text-xs text-secondary break-all" id="previewDirectLink">
+                      http://localhost:3000/ticker/output.html
+                    </div>
+                  </div>
+                  <div class="info-card">
+                    <div class="flex items-center gap-2 mb-2">
+                      <i class="ph-eye ph-bold text-success"></i>
+                      <span class="font-medium">OBS Ready</span>
+                    </div>
+                    <div class="text-xs text-secondary">
+                      Browser Source compatible
+                    </div>
+                  </div>
+                  <div class="info-card">
+                    <div class="flex items-center gap-2 mb-2">
+                      <i class="ph-lightning ph-bold text-warning"></i>
+                      <span class="font-medium">Real-time</span>
+                    </div>
+                    <div class="text-xs text-secondary">
+                      Auto-updates with changes
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -949,6 +1485,19 @@
       stats: {
         uptime: 0,
         messagesShown: 0
+      },
+      // Undo/Redo system
+      history: {
+        stack: [],
+        currentIndex: -1,
+        maxSize: 50
+      },
+      // Logo settings
+      logo: {
+        url: null,
+        position: { horizontal: 'right', vertical: 'bottom' },
+        opacity: 70,
+        scale: 100
       }
     };
 
@@ -995,6 +1544,42 @@
       exportMessagesBtn: document.getElementById('exportMessagesBtn'),
       importMessagesBtn: document.getElementById('importMessagesBtn'),
       
+      // Preview
+      previewIframe: document.getElementById('previewIframe'),
+      previewModeOverlay: document.getElementById('previewModeOverlay'),
+      previewModeOptimized: document.getElementById('previewModeOptimized'),
+      previewScale: document.getElementById('previewScale'),
+      previewRefreshBtn: document.getElementById('previewRefreshBtn'),
+      previewFullscreenBtn: document.getElementById('previewFullscreenBtn'),
+      previewStatusDot: document.getElementById('previewStatusDot'),
+      previewStatusText: document.getElementById('previewStatusText'),
+      previewStatusIndicator: document.getElementById('previewStatusIndicator'),
+      previewDirectLink: document.getElementById('previewDirectLink'),
+      previewDimensions: document.getElementById('previewDimensions'),
+      
+      // Theme controls
+      themeSelector: document.getElementById('themeSelector'),
+      
+      // Undo/Redo controls
+      undoBtn: document.getElementById('undoBtn'),
+      redoBtn: document.getElementById('redoBtn'),
+      historyIndicator: document.getElementById('historyIndicator'),
+      
+      // Logo upload
+      logoFileInput: document.getElementById('logoFileInput'),
+      logoUploadArea: document.getElementById('logoUploadArea'),
+      logoPreview: document.getElementById('logoPreview'),
+      logoControls: document.getElementById('logoControls'),
+      logoRemoveBtn: document.getElementById('logoRemoveBtn'),
+      logoRepositionBtn: document.getElementById('logoRepositionBtn'),
+      logoPositionSettings: document.getElementById('logoPositionSettings'),
+      
+      // Custom theme builder
+      saveThemeBtn: document.getElementById('saveThemeBtn'),
+      exportThemeBtn: document.getElementById('exportThemeBtn'),
+      importThemeBtn: document.getElementById('importThemeBtn'),
+      applyCustomThemeBtn: document.getElementById('applyCustomThemeBtn'),
+      
       // UI
       loadingOverlay: document.getElementById('loadingOverlay'),
       loadingText: document.getElementById('loadingText'),
@@ -1036,6 +1621,7 @@
         'popup': 'Popup Management',
         'brb': 'BRB Mode',
         'themes': 'Theme Customization',
+        'preview': 'Output Preview',
         'settings': 'Settings'
       };
       
@@ -1308,6 +1894,9 @@
       
       showLoading('Adding message...');
       if (sendWebSocketMessage('add-message', { text: messageText })) {
+        // Add to history for undo functionality
+        addToHistory('add_message', { message: messageText });
+        
         elements.messageInput.value = '';
         showToast('Message added successfully', 'success');
         state.stats.messagesShown++;
@@ -1455,6 +2044,10 @@
       elements.showPopupBtn.addEventListener('click', showTestPopup);
       elements.toggleBrbBtn.addEventListener('click', toggleBrb);
 
+      // History controls
+      elements.undoBtn?.addEventListener('click', undo);
+      elements.redoBtn?.addEventListener('click', redo);
+
       // Keyboard shortcuts
       document.addEventListener('keydown', (e) => {
         // Cmd/Ctrl + K for quick add
@@ -1462,6 +2055,39 @@
           e.preventDefault();
           showView('dashboard');
           setTimeout(() => elements.messageInput.focus(), 100);
+        }
+        
+        // Cmd/Ctrl + P for preview
+        if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+          e.preventDefault();
+          showView('preview');
+        }
+        
+        // Cmd/Ctrl + T for themes
+        if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+          e.preventDefault();
+          showView('themes');
+        }
+        
+        // Number keys for quick navigation (1-8)
+        if (e.key >= '1' && e.key <= '8' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          const views = ['dashboard', 'messages', 'ticker', 'overlay', 'popup', 'brb', 'themes', 'preview'];
+          const index = parseInt(e.key) - 1;
+          if (views[index]) {
+            showView(views[index]);
+          }
+        }
+        
+        // Undo/Redo shortcuts
+        if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          undo();
+        }
+        
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+          e.preventDefault();
+          redo();
         }
         
         // Escape to clear input or close mobile sidebar
@@ -1492,10 +2118,358 @@
       return div.innerHTML;
     }
 
+    // Preview system initialization
+    function initPreview() {
+      if (!elements.previewIframe) return;
+
+      // Set initial preview URL
+      updatePreviewUrl();
+
+      // Preview mode switching
+      elements.previewModeOverlay?.addEventListener('click', () => {
+        setPreviewMode('overlay');
+      });
+      
+      elements.previewModeOptimized?.addEventListener('click', () => {
+        setPreviewMode('optimized');
+      });
+
+      // Scale control
+      elements.previewScale?.addEventListener('change', (e) => {
+        setPreviewScale(e.target.value);
+      });
+
+      // Control buttons
+      elements.previewRefreshBtn?.addEventListener('click', () => {
+        refreshPreview();
+      });
+
+      elements.previewFullscreenBtn?.addEventListener('click', () => {
+        openPreviewFullscreen();
+      });
+
+      // Theme selector
+      elements.themeSelector?.addEventListener('change', (e) => {
+        applyTheme(e.target.value);
+      });
+
+      // Monitor iframe load status
+      elements.previewIframe.addEventListener('load', () => {
+        updatePreviewStatus('connected', 'Live preview active');
+        elements.previewStatusIndicator?.classList.add('connected');
+      });
+
+      elements.previewIframe.addEventListener('error', () => {
+        updatePreviewStatus('error', 'Preview failed to load');
+        elements.previewStatusIndicator?.classList.add('error');
+      });
+
+      // Set initial scale
+      setPreviewScale('0.75');
+    }
+
+    function setPreviewMode(mode) {
+      // Update button states
+      const buttons = [elements.previewModeOverlay, elements.previewModeOptimized];
+      buttons.forEach(btn => btn?.classList.remove('active'));
+      
+      if (mode === 'overlay') {
+        elements.previewModeOverlay?.classList.add('active');
+      } else {
+        elements.previewModeOptimized?.classList.add('active');
+      }
+
+      updatePreviewUrl(mode);
+    }
+
+    function updatePreviewUrl(mode = 'overlay') {
+      if (!elements.previewIframe) return;
+      
+      const urls = {
+        'overlay': 'output.html',
+        'optimized': 'output-optimized.html'
+      };
+      
+      const url = urls[mode] || urls.overlay;
+      elements.previewIframe.src = url;
+      
+      // Update direct link
+      if (elements.previewDirectLink) {
+        elements.previewDirectLink.textContent = `${window.location.origin}/ticker/${url}`;
+      }
+      
+      updatePreviewStatus('connecting', 'Loading preview...');
+    }
+
+    function setPreviewScale(scale) {
+      if (!elements.previewIframe) return;
+      
+      const frame = elements.previewIframe.closest('.preview-frame');
+      if (frame) {
+        frame.setAttribute('data-scale', scale);
+      }
+    }
+
+    function refreshPreview() {
+      if (!elements.previewIframe) return;
+      
+      updatePreviewStatus('connecting', 'Refreshing preview...');
+      elements.previewIframe.src = elements.previewIframe.src;
+    }
+
+    function openPreviewFullscreen() {
+      if (!elements.previewIframe) return;
+      
+      const url = elements.previewIframe.src;
+      window.open(url, '_blank', 'width=1920,height=1080,scrollbars=no,resizable=yes');
+    }
+
+    function updatePreviewStatus(status, text) {
+      if (elements.previewStatusDot) {
+        elements.previewStatusDot.className = `status-dot ${status}`;
+      }
+      
+      if (elements.previewStatusText) {
+        elements.previewStatusText.textContent = text;
+      }
+    }
+
+    // Theme system
+    function applyTheme(themeName) {
+      const body = document.body;
+      const html = document.documentElement;
+      // Remove existing theme classes
+      const themeClasses = ['theme-dark', 'theme-glass', 'theme-cyberpunk', 'theme-professional'];
+      themeClasses.forEach(cls => {
+        body.classList.remove(cls);
+        html.classList.remove(cls);
+      });
+      // Apply new theme
+      const themeClass = `theme-${themeName}`;
+      html.classList.add(themeClass);
+      body.classList.add(themeClass);
+      // Save theme preference
+      localStorage.setItem('ticker-theme', themeName);
+      showToast(`Theme changed to ${themeName}`, 'success');
+    }
+
+    function loadSavedTheme() {
+      const savedTheme = localStorage.getItem('ticker-theme') || 'dark';
+      if (elements.themeSelector) {
+        elements.themeSelector.value = savedTheme;
+      }
+      applyTheme(savedTheme);
+    }
+
+    // History/Undo system
+    function addToHistory(action, data) {
+      // Remove any future history if we're not at the end
+      state.history.stack = state.history.stack.slice(0, state.history.currentIndex + 1);
+      
+      // Add new action
+      state.history.stack.push({ action, data, timestamp: Date.now() });
+      state.history.currentIndex++;
+      
+      // Trim history if too large
+      if (state.history.stack.length > state.history.maxSize) {
+        state.history.stack.shift();
+        state.history.currentIndex--;
+      }
+      
+      updateHistoryControls();
+    }
+    
+    function undo() {
+      if (state.history.currentIndex >= 0) {
+        const item = state.history.stack[state.history.currentIndex];
+        executeHistoryAction(item, true);
+        state.history.currentIndex--;
+        updateHistoryControls();
+      }
+    }
+    
+    function redo() {
+      if (state.history.currentIndex < state.history.stack.length - 1) {
+        state.history.currentIndex++;
+        const item = state.history.stack[state.history.currentIndex];
+        executeHistoryAction(item, false);
+        updateHistoryControls();
+      }
+    }
+    
+    function executeHistoryAction(item, isUndo) {
+      switch (item.action) {
+        case 'add_message':
+          if (isUndo) {
+            state.messages = state.messages.filter(msg => msg !== item.data.message);
+          } else {
+            state.messages.push(item.data.message);
+          }
+          break;
+        case 'remove_message':
+          if (isUndo) {
+            state.messages.splice(item.data.index, 0, item.data.message);
+          } else {
+            state.messages = state.messages.filter(msg => msg !== item.data.message);
+          }
+          break;
+        case 'theme_change':
+          applyTheme(isUndo ? item.data.oldTheme : item.data.newTheme);
+          break;
+      }
+      updateMessageDisplay();
+    }
+    
+    function updateHistoryControls() {
+      if (elements.undoBtn) {
+        elements.undoBtn.disabled = state.history.currentIndex < 0;
+      }
+      if (elements.redoBtn) {
+        elements.redoBtn.disabled = state.history.currentIndex >= state.history.stack.length - 1;
+      }
+      if (elements.historyIndicator) {
+        const total = state.history.stack.length;
+        const current = state.history.currentIndex + 1;
+        elements.historyIndicator.textContent = total > 0 ? `${current}/${total}` : 'No changes';
+      }
+    }
+
+    // Logo management
+    function initLogoUpload() {
+      if (!elements.logoUploadArea) return;
+      
+      // File input handling
+      elements.logoFileInput?.addEventListener('change', handleLogoFile);
+      
+      // Drag and drop
+      elements.logoUploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        elements.logoUploadArea.classList.add('dragover');
+      });
+      
+      elements.logoUploadArea.addEventListener('dragleave', () => {
+        elements.logoUploadArea.classList.remove('dragover');
+      });
+      
+      elements.logoUploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        elements.logoUploadArea.classList.remove('dragover');
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleLogoFile({ target: { files } });
+        }
+      });
+      
+      // Click to upload
+      elements.logoUploadArea.addEventListener('click', () => {
+        elements.logoFileInput?.click();
+      });
+      
+      // Logo controls
+      elements.logoRemoveBtn?.addEventListener('click', removeLogo);
+      elements.logoRepositionBtn?.addEventListener('click', toggleLogoPositioning);
+    }
+    
+    function handleLogoFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      // Validate file
+      if (!file.type.startsWith('image/')) {
+        showToast('Please select an image file', 'error');
+        return;
+      }
+      
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Logo file must be under 2MB', 'error');
+        return;
+      }
+      
+      // Read and display
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.logo.url = e.target.result;
+        displayLogo();
+        showToast('Logo uploaded successfully', 'success');
+      };
+      reader.readAsDataURL(file);
+    }
+    
+    function displayLogo() {
+      if (elements.logoPreview && state.logo.url) {
+        elements.logoPreview.src = state.logo.url;
+        elements.logoPreview.style.display = 'block';
+        elements.logoControls.style.display = 'flex';
+        
+        // Hide upload content
+        const uploadContent = document.getElementById('logoUploadContent');
+        if (uploadContent) uploadContent.style.display = 'none';
+      }
+    }
+    
+    function removeLogo() {
+      state.logo.url = null;
+      if (elements.logoPreview) {
+        elements.logoPreview.style.display = 'none';
+        elements.logoControls.style.display = 'none';
+        
+        // Show upload content
+        const uploadContent = document.getElementById('logoUploadContent');
+        if (uploadContent) uploadContent.style.display = 'block';
+      }
+      showToast('Logo removed', 'success');
+    }
+    
+    function toggleLogoPositioning() {
+      const settings = elements.logoPositionSettings;
+      if (settings) {
+        settings.style.display = settings.style.display === 'none' ? 'block' : 'none';
+      }
+    }
+
+    // Theme management functions
+    function applyPresetTheme(themeName) {
+      const oldTheme = getCurrentTheme();
+      applyTheme(themeName);
+      addToHistory('theme_change', { oldTheme, newTheme: themeName });
+      
+      // Update theme selector
+      if (elements.themeSelector) {
+        elements.themeSelector.value = themeName;
+      }
+      
+      // Update preset card states
+      document.querySelectorAll('.theme-preset-card').forEach(card => {
+        card.classList.toggle('active', card.dataset.theme === themeName);
+      });
+    }
+    
+    function getCurrentTheme() {
+      const html = document.documentElement;
+      for (const className of html.classList) {
+        if (className.startsWith('theme-')) {
+          return className.replace('theme-', '');
+        }
+      }
+      return 'dark';
+    }
+
+    // Help system
+    function toggleHelp(helpId) {
+      const helpPanel = document.getElementById(helpId);
+      if (helpPanel) {
+        helpPanel.classList.toggle('active');
+      }
+    }
+
     // Initialize dashboard
     function init() {
       initNavigation();
       initEventHandlers();
+      initPreview();
+      initLogoUpload();
+      updateHistoryControls();
+      loadSavedTheme();
       connectWebSocket();
       updateTickerControls();
       updateStats();
