@@ -1127,13 +1127,12 @@ async function start() {
 
   const baseUrl = `http://${host}:${port}`;
   console.log(`[ticker] listening on ${baseUrl}`);
-  console.log(`[ticker] dashboard available at ${baseUrl}/ticker/index.html`);
-  console.log(`[ticker] NEW dashboard available at ${baseUrl}/ticker/dashboard`);
-  console.log(`[ticker] PRO dashboard available at ${baseUrl}/ticker/dashboard-pro`);
-  console.log(`[ticker] ULTIMATE dashboard available at ${baseUrl}/ticker/dashboard-ultimate`);
-  console.log(`[ticker] overlay available at ${baseUrl}/ticker/output.html`);
-  console.log(`[ticker] ENHANCED overlay available at ${baseUrl}/ticker/output-enhanced`);
-  console.log(`[ticker] ANALYTICS dashboard available at ${baseUrl}/ticker/analytics`);
+  console.log(`[ticker] 🚀 MAIN dashboard available at ${baseUrl}/ticker/dashboard-ultimate.html`);
+  console.log(`[ticker] 🎯 OPTIMIZED dashboard available at ${baseUrl}/ticker/dashboard-optimized.html`);
+  console.log(`[ticker] 📱 PRO dashboard available at ${baseUrl}/ticker/dashboard-pro.html`);
+  console.log(`[ticker] 📜 LEGACY dashboard available at ${baseUrl}/ticker/index.html`);
+  console.log(`[ticker] 🎬 MAIN overlay available at ${baseUrl}/ticker/output.html`);
+  console.log(`[ticker] ⚡ OPTIMIZED overlay available at ${baseUrl}/ticker/output-optimized.html`);
   console.log(`[ticker] WebSocket available at ws://${host}:${port}/ws`);
   const shutdown = () => {
     server.close(() => {
