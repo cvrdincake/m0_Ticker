@@ -1,5 +1,5 @@
 const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 function setupWebSocketServer(wss, state) {
   function broadcastToAllClients(data) {
@@ -101,7 +101,7 @@ function setupWebSocketServer(wss, state) {
   }
 
   wss.on('connection', (ws) => {
-    ws.clientId = uuidv4();
+    ws.clientId = randomUUID();
     console.log(`[ticker] WebSocket client ${ws.clientId} connected`);
 
     // Send initial state
