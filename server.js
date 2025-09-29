@@ -6,7 +6,6 @@ const { randomUUID } = require('crypto');
 const express = require('express');
 const cors = require('cors');
 const expressWs = require('express-ws');
-const { v4: uuidv4 } = require('uuid');
 
 const fsp = fs.promises;
 
@@ -1064,7 +1063,7 @@ async function start() {
 
   // WebSocket endpoint for real-time communication
   app.ws('/ws', (ws) => {
-    const clientId = uuidv4();
+    const clientId = randomUUID();
     ws.clientId = clientId;
     console.log(`[ticker] Client ${clientId} connected`);
 
@@ -1079,7 +1078,7 @@ async function start() {
         switch (type) {
           case 'add-message':
             if (payload?.text) {
-              state.messages.push({ text: payload.text, id: uuidv4() });
+              state.messages.push({ text: payload.text, id: randomUUID() });
               wsHandlers.broadcastToAllClients({ type: 'state-update', data: state });
             }
             break;
