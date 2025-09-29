@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced GSAP Features Test</title>
+  
+  <!-- Load modular CSS -->
+  <link rel="stylesheet" href="css/modular/variables.css">
+  <link rel="stylesheet" href="css/modular/components.css">
+  <link rel="stylesheet" href="css/modular/gsap-animations.css">
+  
+  <!-- GSAP Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js"></script>
+  
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-family-primary);
+      min-height: 100vh;
+    }
+    
+    .test-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 30px;
+    }
+    
+    .section {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--border-radius-lg);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .section h2 {
+      color: var(--accent-primary);
+      margin-top: 0;
+      border-bottom: 2px solid var(--accent-primary);
+      padding-bottom: 10px;
+    }
+    
+    .demo-widget {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-secondary);
+      border-radius: var(--border-radius-md);
+      padding: 15px;
+      margin: 10px 0;
+      min-width: 100px;
+      display: inline-block;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .control-panel {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 15px 0;
+    }
+    
+    .btn {
+      background: var(--accent-primary);
+      color: var(--bg-primary);
+      border: none;
+      padding: 8px 16px;
+      border-radius: var(--border-radius-sm);
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      background: var(--accent-bright);
+      transform: translateY(-1px);
+    }
+    
+    .status {
+      background: var(--bg-quaternary);
+      border: 1px solid var(--border-tertiary);
+      border-radius: var(--border-radius-sm);
+      padding: 10px;
+      margin: 10px 0;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+    
+    .measurement-display {
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid var(--accent-primary);
+      border-radius: 4px;
+      padding: 5px 10px;
+      margin: 5px 0;
+      font-size: 12px;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body>
+  <div class="test-container">
+    <h1>🎬 Enhanced GSAP Animation Features Test</h1>
+    
+    <!-- Text Measurement & Panel Scaling -->
+    <div class="section">
+      <h2>📏 Smart Panel Scaling with Text Measurement</h2>
+      <p>Panels now measure text width and scale precisely to fit content.</p>
+      
+      <div class="control-panel">
+        <button class="btn" onclick="testMeasurement('short')">Short Text</button>
+        <button class="btn" onclick="testMeasurement('medium')">Medium Text</button>
+        <button class="btn" onclick="testMeasurement('long')">Long Text</button>
+        <button class="btn" onclick="testMeasurement('multiline')">Multi-line Text</button>
+      </div>
+      
+      <div id="measurement-demo" class="demo-widget">
+        <span class="demo-text">Ready for measurement test...</span>
+      </div>
+      <div id="measurement-info" class="measurement-display">Waiting for test...</div>
+    </div>
+    
+    <!-- Enhanced Character Effects -->
+    <div class="section">
+      <h2>✨ Advanced Text Materialization</h2>
+      <p>Character-by-character reveals with sophisticated timing and effects.</p>
+      
+      <div class="control-panel">
+        <button class="btn" onclick="testTextEffect('character')">Character Reveal</button>
+        <button class="btn" onclick="testTextEffect('typewriter')">Typewriter</button>
+        <button class="btn" onclick="testTextEffect('scramble')">Scramble Text</button>
+        <button class="btn" onclick="testTextEffect('word')">Word-by-Word</button>
+      </div>
+      
+      <div id="text-demo" class="demo-widget">
+        <span class="demo-text">Ready for text animation...</span>
+      </div>
+    </div>
+    
+    <!-- Widget-Specific Enhancements -->
+    <div class="section">
+      <h2>🎭 Widget-Specific Advanced Effects</h2>
+      <p>Each widget type has specialized animations and behaviors.</p>
+      
+      <div class="control-panel">
+        <button class="btn" onclick="testPopupEnhanced()">Enhanced Popup</button>
+        <button class="btn" onclick="testBRBDramatic()">Dramatic BRB</button>
+        <button class="btn" onclick="testSlateEdge()">Slate Edge Snap</button>
+        <button class="btn" onclick="testTickerInfinite()">Infinite Ticker</button>
+      </div>
+      
+      <div id="popup-demo" class="demo-widget" style="background: rgba(255, 0, 128, 0.1);">
+        <span class="demo-text">Popup Effect Area</span>
+      </div>
+      
+      <div id="brb-demo" class="demo-widget" style="background: rgba(255, 128, 0, 0.1);">
+        <span class="demo-text">BRB Effect Area</span>
+      </div>
+      
+      <div id="slate-demo" class="demo-widget" style="background: rgba(0, 128, 255, 0.1); float: right;">
+        <span class="demo-text">Slate Widget</span>
+      </div>
+    </div>
+    
+    <!-- Interactive Micro-animations -->
+    <div class="section">
+      <h2>🖱️ Interactive Micro-animations</h2>
+      <p>Hover and focus effects that respond to user interaction.</p>
+      
+      <div class="control-panel">
+        <button class="btn" onclick="enableHoverEffects()">Enable Hover Effects</button>
+        <button class="btn" onclick="testFocusAnimations()">Test Focus States</button>
+        <button class="btn" onclick="testRippleEffect()">Ripple Effects</button>
+      </div>
+      
+      <div id="interactive-demo" class="demo-widget hover-target">
+        <span class="demo-text">Hover over me for effects!</span>
+      </div>
+    </div>
+    
+    <!-- Performance & Debug -->
+    <div class="section">
+      <h2>⚡ Performance & Debug Information</h2>
+      <div id="debug-info" class="status">Loading debug information...</div>
+      <div class="control-panel">
+        <button class="btn" onclick="refreshDebugInfo()">Refresh Debug</button>
+        <button class="btn" onclick="testPerformance()">Performance Test</button>
+        <button class="btn" onclick="clearAllAnimations()">Clear Animations</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Enhanced Components -->
+  <script src="js/shared-utils.js"></script>
+  <script src="js/modular/state-manager-enhanced.js"></script>
+  <script src="js/modular/gsap-animation-controller.js"></script>
+
+  <script>
+    // Initialize the enhanced GSAP system
+    let gsapController;
+    let stateManager;
+
+    // Enhanced text samples for testing
+    const textSamples = {
+      short: "Hello!",
+      medium: "Enhanced GSAP animations are now live!",
+      long: "This is a comprehensive demonstration of sophisticated text materialization with panel scaling effects that adapt to content length dynamically.",
+      multiline: "Multi-line text content\\nwith proper handling\\nfor complex layouts\\nand responsive design."
+    };
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeEnhancedSystem();
+      setupEventListeners();
+      refreshDebugInfo();
+    });
+
+    function initializeEnhancedSystem() {
+      try {
+        // Initialize state manager
+        stateManager = new ModularStateManager();
+        
+        // Initialize GSAP controller
+        gsapController = new GSAPAnimationController();
+        window.gsapAnimations = gsapController;
+        
+        console.log('[Enhanced Test] System initialized successfully');
+        updateStatus('✅ Enhanced GSAP system initialized');
+      } catch (error) {
+        console.error('[Enhanced Test] Initialization failed:', error);
+        updateStatus('❌ Initialization failed: ' + error.message);
+      }
+    }
+
+    function testMeasurement(type) {
+      const demo = document.getElementById('measurement-demo');
+      const info = document.getElementById('measurement-info');
+      const text = textSamples[type];
+      
+      if (!gsapController) {
+        updateStatus('❌ GSAP controller not ready');
+        return;
+      }
+
+      // Reset the demo widget
+      demo.style.width = '100px';
+      demo.style.overflow = 'hidden';
+      demo.innerHTML = '<span class="demo-text"></span>';
+      
+      const textElement = demo.querySelector('.demo-text');
+      
+      // Measure text width before animation
+      const measuredWidth = gsapController._measureTextWidth(textElement, text);
+      info.innerHTML = `
+        📏 Text: "${text.substring(0, 30)}${text.length > 30 ? '...' : ''}"<br>
+        📐 Measured Width: ${measuredWidth}px<br>
+        🎯 Panel scaling to: ${measuredWidth + 40}px (with padding)
+      `;
+      
+      // Animate with enhanced panel scaling
+      gsapController.animateTextMaterialization(demo, text, {
+        effect: 'character-reveal',
+        panelScale: true,
+        glow: true,
+        duration: 2.0
+      });
+      
+      updateStatus(`🎬 Testing ${type} text measurement and scaling`);
+    }
+
+    function testTextEffect(type) {
+      const demo = document.getElementById('text-demo');
+      const sampleText = "✨ Watch this text materialize with " + type + " effects!";
+      
+      if (!gsapController) {
+        updateStatus('❌ GSAP controller not ready');
+        return;
+      }
+      
+      demo.innerHTML = '<span class="demo-text"></span>';
+      
+      const config = {
+        effect: type,
+        panelScale: true,
+        glow: true,
+        duration: 1.8
+      };
+      
+      if (type === 'typewriter') {
+        config.typewriter = true;
+      } else if (type === 'scramble') {
+        config.scramble = true;
+      }
+      
+      gsapController.animateTextMaterialization(demo, sampleText, config);
+      updateStatus(`🎭 Testing ${type} text effect`);
+    }
+
+    function testPopupEnhanced() {
+      const demo = document.getElementById('popup-demo');
+      const text = "🎪 Enhanced popup with backdrop blur and elastic scaling!";
+      
+      // Add backdrop blur effect
+      demo.style.backdropFilter = 'blur(0px)';
+      demo.style.background = 'rgba(255, 0, 128, 0.1)';
+      
+      gsap.to(demo, {
+        backdropFilter: 'blur(10px)',
+        background: 'rgba(255, 0, 128, 0.3)',
+        duration: 0.6,
+        ease: "power2.out"
+      });
+      
+      gsapController.animatePopupAppearance(demo, text, {
+        effect: 'scale',
+        typewriter: true,
+        glow: true,
+        duration: 2.5
+      });
+      
+      updateStatus('🎪 Testing enhanced popup with backdrop effects');
+    }
+
+    function testBRBDramatic() {
+      const demo = document.getElementById('brb-demo');
+      const text = "🎬 BE RIGHT BACK - Dramatic effect in progress!";
+      
+      // Screen shake effect
+      gsap.to(document.body, {
+        x: "+=5",
+        yoyo: true,
+        repeat: 5,
+        duration: 0.1,
+        ease: "power2.inOut"
+      });
+      
+      gsapController.animateBRBAppearance(demo, text, {
+        effect: 'dramatic',
+        scramble: true,
+        duration: 3.0
+      });
+      
+      updateStatus('🎬 Testing dramatic BRB with screen effects');
+    }
+
+    function testSlateEdge() {
+      const demo = document.getElementById('slate-demo');
+      const text = "📊 Slate widget with edge magnetism!";
+      
+      // Simulate edge snap
+      gsap.fromTo(demo, 
+        { x: -300, opacity: 0 },
+        { 
+          x: 0, 
+          opacity: 1, 
+          duration: 1.2, 
+          ease: "elastic.out(1, 0.8)",
+          onComplete: () => {
+            // Magnetic snap to edge
+            gsap.to(demo, {
+              x: 10,
+              duration: 0.3,
+              ease: "power2.out",
+              yoyo: true,
+              repeat: 1
+            });
+          }
+        }
+      );
+      
+      gsapController.animateTextMaterialization(demo, text, {
+        effect: 'character-reveal',
+        panelScale: true,
+        duration: 1.5
+      });
+      
+      updateStatus('📊 Testing slate edge magnetism effect');
+    }
+
+    function testTickerInfinite() {
+      updateStatus('🎞️ Infinite ticker requires ScrollTrigger plugin');
+      // This would require GSAP ScrollTrigger for full implementation
+    }
+
+    function enableHoverEffects() {
+      const demo = document.getElementById('interactive-demo');
+      
+      demo.addEventListener('mouseenter', (e) => {
+        gsap.to(demo, {
+          scale: 1.05,
+          boxShadow: '0 10px 30px rgba(0, 255, 136, 0.3)',
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      });
+      
+      demo.addEventListener('mouseleave', (e) => {
+        gsap.to(demo, {
+          scale: 1,
+          boxShadow: '0 0 0px rgba(0, 255, 136, 0)',
+          duration: 0.3,
+          ease: "power2.out"
+        });
+      });
+      
+      demo.addEventListener('mousemove', (e) => {
+        const rect = demo.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        
+        const rotateX = (y - centerY) / centerY * 10;
+        const rotateY = (x - centerX) / centerX * 10;
+        
+        gsap.to(demo, {
+          rotationX: rotateX,
+          rotationY: rotateY,
+          duration: 0.2,
+          ease: "power2.out"
+        });
+      });
+      
+      updateStatus('🖱️ Hover effects enabled - try hovering over the widget!');
+    }
+
+    function testFocusAnimations() {
+      const demo = document.getElementById('interactive-demo');
+      demo.setAttribute('tabindex', '0');
+      demo.focus();
+      
+      gsap.to(demo, {
+        outline: '3px solid var(--accent-primary)',
+        outlineOffset: '5px',
+        duration: 0.3,
+        yoyo: true,
+        repeat: 3
+      });
+      
+      updateStatus('🎯 Focus animation test completed');
+    }
+
+    function testRippleEffect() {
+      const demo = document.getElementById('interactive-demo');
+      
+      demo.addEventListener('click', (e) => {
+        const rect = demo.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const ripple = document.createElement('div');
+        ripple.style.position = 'absolute';
+        ripple.style.left = x + 'px';
+        ripple.style.top = y + 'px';
+        ripple.style.width = '0px';
+        ripple.style.height = '0px';
+        ripple.style.background = 'var(--accent-primary)';
+        ripple.style.borderRadius = '50%';
+        ripple.style.pointerEvents = 'none';
+        ripple.style.opacity = '0.6';
+        ripple.style.transform = 'translate(-50%, -50%)';
+        
+        demo.appendChild(ripple);
+        
+        gsap.to(ripple, {
+          width: '100px',
+          height: '100px',
+          opacity: 0,
+          duration: 0.6,
+          ease: "power2.out",
+          onComplete: () => ripple.remove()
+        });
+      });
+      
+      updateStatus('💫 Ripple effects enabled - click the widget!');
+    }
+
+    function refreshDebugInfo() {
+      const debugDiv = document.getElementById('debug-info');
+      
+      if (gsapController) {
+        const info = gsapController.getDebugInfo();
+        debugDiv.innerHTML = `
+          🎬 GSAP Ready: ${info.isGSAPReady}<br>
+          ⏱️ Active Timelines: ${info.activeTimelines}<br>
+          📋 Queued Animations: ${info.queuedAnimations}<br>
+          📊 GSAP Version: ${info.gsapVersion}<br>
+          💾 State Manager: ${stateManager ? '✅ Ready' : '❌ Not Ready'}<br>
+          🧩 Components: ${Object.keys(window).filter(k => k.startsWith('modular')).length} loaded
+        `;
+      } else {
+        debugDiv.innerHTML = '❌ GSAP Controller not initialized';
+      }
+    }
+
+    function testPerformance() {
+      const start = performance.now();
+      
+      // Run multiple animations simultaneously
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          testTextEffect('character');
+        }, i * 200);
+      }
+      
+      setTimeout(() => {
+        const end = performance.now();
+        updateStatus(`⚡ Performance test: ${(end - start).toFixed(2)}ms for 5 animations`);
+      }, 2000);
+    }
+
+    function clearAllAnimations() {
+      if (gsapController) {
+        gsapController.killAllAnimations();
+        updateStatus('🧹 All animations cleared');
+      }
+    }
+
+    function updateStatus(message) {
+      console.log('[Enhanced Test]', message);
+    }
+
+    function setupEventListeners() {
+      // Add keyboard shortcuts
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          clearAllAnimations();
+        }
+      });
+    }
+  </script>
+</body>
+</html>

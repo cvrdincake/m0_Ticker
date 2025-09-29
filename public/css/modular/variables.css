@@ -1,0 +1,114 @@
+/* 
+ * Modular CSS - Base Variables
+ * Central CSS custom properties for consistent theming
+ */
+
+:root {
+  /* Base Colors */
+  --background-primary: rgba(15, 23, 42, 0.95);
+  --background-secondary: rgba(30, 41, 59, 0.8);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --accent-primary: #00ff88;
+  --accent-secondary: #ff0080;
+  
+  /* Border and Shadows */
+  --border-color: rgba(100, 116, 139, 0.3);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --glow-color: rgba(0, 255, 136, 0.3);
+  
+  /* Layout */
+  --ui-scale: 1;
+  --popup-scale: 1;
+  --border-radius: 8px;
+  --border-radius-small: 4px;
+  --border-radius-large: 12px;
+  
+  /* Typography */
+  --font-family-primary: 'Segoe UI', system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-size-small: 12px;
+  --font-size-base: 14px;
+  --font-size-large: 18px;
+  --font-size-xlarge: 24px;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  
+  /* Animation */
+  --transition-fast: 0.15s ease;
+  --transition-smooth: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --ease-premium: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* Effects */
+  --backdrop-filter: blur(10px);
+  --box-shadow-small: 0 2px 8px var(--shadow-color);
+  --box-shadow-medium: 0 4px 16px var(--shadow-color);
+  --box-shadow-large: 0 8px 32px var(--shadow-color);
+  
+  /* Z-index layers */
+  --z-base: 1;
+  --z-overlay: 100;
+  --z-popup: 1000;
+  --z-modal: 2000;
+  --z-toast: 3000;
+  --z-debug: 9999;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-primary: rgba(10, 10, 23, 0.95);
+    --background-secondary: rgba(20, 20, 40, 0.9);
+    --shadow-color: rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* Reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition-fast: 0s;
+    --transition-smooth: 0s;
+    --transition-slow: 0s;
+  }
+  
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  :root {
+    --border-color: rgba(255, 255, 255, 0.8);
+    --text-secondary: #ffffff;
+    --glow-color: transparent;
+  }
+}
+
+/* Scale adjustments */
+[data-ui-scale="small"] {
+  --ui-scale: 0.8;
+  --font-size-base: 12px;
+  --spacing-md: 12px;
+}
+
+[data-ui-scale="large"] {
+  --ui-scale: 1.2;
+  --font-size-base: 16px;
+  --spacing-md: 20px;
+}
+
+[data-ui-scale="xlarge"] {
+  --ui-scale: 1.5;
+  --font-size-base: 18px;
+  --spacing-md: 24px;
+}

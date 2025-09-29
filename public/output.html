@@ -6,13 +6,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OBS Ticker Overlay</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Modular CSS Architecture -->
+  <link rel="stylesheet" href="css/modular/variables.css">
+  <link rel="stylesheet" href="css/modular/components.css">
+  <link rel="stylesheet" href="css/modular/animations.css">
+  <link rel="stylesheet" href="css/modular/gsap-animations.css">
+  
+  <!-- Legacy CSS (being gradually replaced) -->
+  <link rel="stylesheet" href="css/themes.css">
+  
+  <!-- External Libraries -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.8/pixi.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <link rel="stylesheet" href="css/themes.css">
   <script src="js/shared-utils.js"></script>
   <script src="js/shared-config.js"></script>
   <script src="js/scene-normaliser.js"></script>
@@ -22,64 +32,97 @@
     :root {
       --ui-scale: 1.75;
       --popup-scale: 1;
-      --bar-height: calc(38px * var(--ui-scale));
-      --label-width: calc(100px * var(--ui-scale));
+      --bar-height: calc(55px * var(--ui-scale));
+      --label-width: calc(120px * var(--ui-scale));
       --padding-x: var(--space-lg);
       --divider-height: calc(var(--space-sm) * 1.75);
-      --overlay-accent: #38bdf8;
-      --overlay-accent-secondary: #f472b6;
-      --accent: var(--overlay-accent, #38bdf8);
-      --accent-secondary: var(--overlay-accent-secondary, var(--accent));
-      --accent-bright: #7dd3fc;
-      --accent-secondary-bright: #fbcfe8;
-      --accent-soft: rgba(56, 189, 248, 0.16);
-      --accent-glow: rgba(56, 189, 248, 0.42);
-      --accent-muted: rgba(14, 18, 30, 0.75);
-      --accent-duo: #2f6bb2;
-      --accent-contrast: #0b0f1a;
-      --surface-a: rgba(14, 16, 24, 0.94);
-      --surface-b: rgba(6, 8, 14, 0.92);
-      --surface-border: rgba(255, 255, 255, 0.12);
-      --surface-outline: rgba(255, 255, 255, 0.06);
-      --text: #f5f7fb;
-      --shadow: 0 18px 52px rgba(3, 5, 14, 0.52);
-      --marquee-pps: 110;
-      --hide-shift: calc(12px * var(--ui-scale) / 1.75);
+      
+      /* Enhanced Modern Color System */
+      --overlay-accent: #00ff88;
+      --overlay-accent-secondary: #ff0080;
+      --accent: var(--overlay-accent, #00ff88);
+      --accent-secondary: var(--overlay-accent-secondary, #ff0080);
+      --accent-tertiary: #0080ff;
+      --accent-bright: #33ff99;
+      --accent-secondary-bright: #ff3399;
+      --accent-soft: rgba(0, 255, 136, 0.18);
+      --accent-glow: rgba(0, 255, 136, 0.45);
+      --accent-muted: rgba(10, 15, 25, 0.85);
+      --accent-duo: #0066cc;
+      --accent-contrast: #000814;
+      
+      /* Enhanced Dark Surfaces */
+      --surface-a: rgba(8, 10, 16, 0.96);
+      --surface-b: rgba(4, 6, 12, 0.94);
+      --surface-c: rgba(15, 18, 28, 0.92);
+      --surface-border: rgba(0, 255, 136, 0.15);
+      --surface-outline: rgba(255, 255, 255, 0.08);
+      --surface-glass: rgba(0, 0, 0, 0.6);
+      
+      /* Enhanced Text Colors */
+      --text: #ffffff;
+      --text-bright: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      
+      /* Enhanced Shadows and Effects */
+      --shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 30px rgba(0, 255, 136, 0.3);
+      --shadow-intense: 0 35px 80px rgba(0, 0, 0, 0.8);
+      
+      /* Animation Settings */
+      --marquee-pps: 120;
+      --hide-shift: calc(15px * var(--ui-scale) / 1.75);
+      
+      /* Ticker Surfaces */
       --ticker-surface-a: var(--surface-a);
       --ticker-surface-b: var(--surface-b);
-      --ticker-border: var(--surface-outline);
+      --ticker-border: var(--surface-border);
       --ticker-shadow: 0 14px 38px rgba(3, 5, 14, 0.42);
+      
+      /* Enhanced Ticker Styling */
       --ticker-label-width: var(--label-width);
-      --ticker-label-size: calc(12px * var(--ui-scale));
-      --ticker-label-weight: 700;
-      --ticker-label-letter: calc(1px * var(--ui-scale));
+      --ticker-label-size: calc(14px * var(--ui-scale));
+      --ticker-label-weight: 800;
+      --ticker-label-letter: calc(1.5px * var(--ui-scale));
       --ticker-label-case: uppercase;
-      --ticker-label-color: #ffffff;
-      --ticker-label-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+      --ticker-label-color: var(--text-bright);
+      --ticker-label-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 2px 8px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(0, 255, 136, 0.4);
+      
+      /* Enhanced Visual Effects */
+      --ticker-glow-primary: rgba(0, 255, 136, 0.6);
+      --ticker-glow-secondary: rgba(255, 0, 128, 0.4);
+      --ticker-pulse-duration: 2s;
+      --ticker-shimmer-duration: 3s;
+      
+      /* Ticker Accents and Overlays */
       --ticker-divider-color: rgba(255, 255, 255, 0.32);
       --ticker-accent-overlay:
-        linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
+        linear-gradient(155deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0) 62%),
         linear-gradient(140deg,
-          rgba(125, 211, 252, 0.78),
-          rgba(32, 46, 82, 0.82)
+          rgba(0, 255, 136, 0.85),
+          rgba(0, 40, 80, 0.90)
         );
-      --ticker-accent-border: 1px solid rgba(56, 189, 248, 0.35);
-      --ticker-accent-glow: 0 0 18px rgba(56, 189, 248, 0.26);
-      --ticker-accent-animation: midnightGlassSweep 18s var(--ease-premium) infinite;
-      --popup-surface-a: rgba(18, 20, 30, 0.95);
-      --popup-surface-b: rgba(10, 12, 22, 0.9);
-      --popup-border-color: rgba(160, 180, 220, 0.22);
-      --popup-shadow: var(--ticker-shadow);
-      --popup-text-color: rgba(248, 250, 255, 0.96);
-      --popup-divider-color: rgba(200, 210, 240, 0.2);
-      --popup-countdown-color: rgba(240, 242, 248, 0.9);
-      --popup-countdown-dot: rgba(255, 255, 255, 0.52);
-      --popup-accent-strip:
-        linear-gradient(165deg,
-          var(--accent),
-          rgba(255, 255, 255, 0.18)
-        );
-      --popup-sheen: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 65%);
+      --ticker-accent-border: 1px solid rgba(0, 255, 136, 0.4);
+      --ticker-accent-glow: 0 0 25px rgba(0, 255, 136, 0.35);
+      --ticker-accent-animation: enhancedGlassSweep 16s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      
+      /* Enhanced Popup Surfaces */
+      --popup-surface-a: rgba(12, 15, 25, 0.96);
+      --popup-surface-b: rgba(8, 10, 18, 0.94);
+      --popup-border-color: rgba(0, 255, 136, 0.2);
+      --popup-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(0, 255, 136, 0.15);
+      --popup-text-color: var(--text-bright);
+      --popup-divider-color: rgba(255, 255, 255, 0.15);
+      --popup-countdown-color: var(--accent);
+      --popup-countdown-dot: var(--accent-secondary);
+      --popup-accent-strip: linear-gradient(180deg, var(--accent), var(--accent-secondary));
+      --popup-sheen: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
     }
 
     @supports (color: color-mix(in srgb, red 50%, blue)) {
@@ -821,6 +864,12 @@
   <script src="js/shared-config.js"></script>
   <script src="js/shared-utils.js"></script>
   <script src="js/request-client.js"></script>
+  <script src="js/modular/state-manager-enhanced.js"></script>
+  <script src="js/modular/ticker-component.js"></script>
+  <script src="js/modular/popup-overlay.js"></script>
+  <script src="js/modular/brb-overlay.js"></script>
+  <script src="js/modular/theme-engine.js"></script>
+  <script src="js/modular/gsap-animation-controller.js"></script>
   <script>
     var TickerShared = window.TickerShared || {};
     var OVERLAY_THEMES = TickerShared.OVERLAY_THEMES;
@@ -4937,7 +4986,12 @@
       buildMarqueeHtml() {
         if (!this.messages.length) return '';
         var separator = '<span class="message-separator"></span>';
-        var formatted = this.messages.map(function(msg) { return formatMessage(msg, this.highlightRegex); }.bind(this)).join(separator);
+        var formatted = this.messages.map(function(msg) { 
+          return formatMessage(msg, this.highlightRegex); 
+        }.bind(this)).join(separator);
+        
+        // Duplicate content for seamless looping
+        return formatted + separator + formatted;
       }
 
     updateLabel() {
@@ -4948,9 +5002,334 @@
       }
     }
   
-      new TickerOverlay();
-      new SlateManager();
+    // Enhanced Ticker Effects
+    class TickerEffects {
+      constructor() {
+        this.initParticleSystem();
+        this.initPulseEffects();
+      }
+      
+      initParticleSystem() {
+        // Add subtle particle effects to ticker
+        const ticker = document.querySelector('.ticker');
+        if (ticker) {
+          const particles = document.createElement('div');
+          particles.className = 'ticker-particles';
+          ticker.appendChild(particles);
+          
+          for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particles.appendChild(particle);
+          }
+        }
+      }
+      
+      initPulseEffects() {
+        // Enhanced pulse effects for breaking news
+        document.addEventListener('ticker-message-update', (e) => {
+          const { type } = e.detail;
+          const ticker = document.querySelector('.ticker');
+          
+          if (type === 'breaking' && ticker) {
+            ticker.classList.add('breaking-pulse');
+            setTimeout(() => {
+              ticker.classList.remove('breaking-pulse');
+            }, 3000);
+          }
+        });
+      }
+    }
+  
+    // Initialize Modular State Manager (replaces inline state management)
+    window.stateManager = new ModularStateManager();
+    window.stateManager.enableDebug();
+    
+    // Add some test messages for demonstration
+    setTimeout(() => {
+      const tickerOverlay = window.tickerOverlay;
+      if (tickerOverlay) {
+        // Use the new modular state manager
+        window.stateManager.updateState('ticker', {
+          messages: [
+            "Breaking: Enhanced ticker system now live with modular architecture",
+            "Update: Widget settings fully operational with comprehensive controls", 
+            "News: Dashboard merge completed successfully with improved stability"
+          ],
+          isActive: true,
+          displayDuration: 5,
+          intervalBetween: 1
+        });
+      }
+    }, 1000);
+    
+    const tickerOverlay = new TickerOverlay();
+    window.tickerOverlay = tickerOverlay;
+    
+    // Initialize Modular Ticker Component (enhanced ticker logic)
+    const tickerContainer = document.querySelector('.ticker');
+    if (tickerContainer) {
+      window.modularTicker = new ModularTickerComponent(tickerContainer, window.stateManager);
+      
+      // Connect the modular ticker to state updates
+      window.stateManager.subscribe('ticker', (state) => {
+        console.log('[Modular] Ticker state updated:', state);
+      });
+    }
+
+    // Initialize GSAP Animation Controller FIRST
+    window.gsapAnimations = new GSAPAnimationController();
+    console.log('[Modular] GSAP animations initialized');
+
+    // Initialize Modular Theme Engine
+    window.themeEngine = new ModularThemeEngine(window.stateManager);
+    console.log('[Modular] Theme engine initialized');
+
+    // Initialize Modular Popup Overlay (now with GSAP available)
+    const popupContainer = document.getElementById('popup');
+    if (popupContainer) {
+      window.modularPopup = new ModularPopupOverlay(popupContainer, window.stateManager);
+      console.log('[Modular] Popup overlay initialized with GSAP integration');
+    }
+
+    // Initialize Modular BRB Overlay (now with GSAP available)
+    const brbContainer = document.getElementById('brbBanner');
+    if (brbContainer) {
+      window.modularBRB = new ModularBRBOverlay(brbContainer, window.stateManager);
+      console.log('[Modular] BRB overlay initialized with GSAP integration');
+    }
+
+    // Enhanced Integration: Ensure components reconnect to GSAP after initialization
+    setTimeout(() => {
+      console.log('[Integration] Verifying GSAP connections...');
+      
+      // Verify popup has GSAP controller
+      if (window.modularPopup && !window.modularPopup.animationController) {
+        window.modularPopup.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ Popup connected to GSAP');
+      }
+      
+      // Verify BRB has GSAP controller
+      if (window.modularBRB && !window.modularBRB.animationController) {
+        window.modularBRB.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ BRB connected to GSAP');
+      }
+      
+      // Verify ticker has GSAP controller
+      if (window.modularTicker && !window.modularTicker.animationController) {
+        window.modularTicker.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ Ticker connected to GSAP');
+      }
+      
+      // Test GSAP system with a sample animation
+      if (window.gsapAnimations && window.modularPopup) {
+        console.log('[Integration] 🎬 Testing GSAP integration...');
+        // This will run the demo animations from the original code
+      }
+    }, 500);
+
+    // Add demo controls for testing modular components with GSAP
+    setTimeout(() => {
+      // Test popup with GSAP animation after 3 seconds
+      setTimeout(() => {
+        if (window.modularPopup) {
+          window.modularPopup.showMessage('🎬 GSAP-powered popup with text materialization! Watch the characters appear one by one with elastic scaling!', { 
+            duration: 8,
+            typewriter: true,
+            glow: true,
+            effect: 'scale'
+          });
+        }
+      }, 3000);
+
+      // Test BRB with dramatic GSAP animation after 10 seconds
+      setTimeout(() => {
+        if (window.modularBRB) {
+          window.modularBRB.showPreset('coffee');
+          setTimeout(() => window.modularBRB.hideBRB(), 4000);
+        }
+      }, 10000);
+
+      // Test ticker message updates with staggered animations
+      setTimeout(() => {
+        if (window.stateManager) {
+          window.stateManager.updateState('ticker', {
+            messages: [
+              { type: 'breaking', text: '🚀 GSAP animations are now LIVE!' },
+              { type: 'update', text: '✨ Text materializes with elastic scaling' },
+              { type: 'normal', text: '🎭 Panels expand smoothly as words appear' }
+            ],
+            isActive: true
+          });
+        }
+      }, 15000);
+    }, 1000);
+    new SlateManager();
+    new TickerEffects();
   </script>
+  
+  <style>
+    /* Enhanced Modern Animations */
+    @keyframes enhancedGlassSweep {
+      0%, 100% { 
+        background-position: -200% 50%, 0% 0%;
+        filter: brightness(1) saturate(1);
+      }
+      50% { 
+        background-position: 200% 50%, 100% 100%;
+        filter: brightness(1.1) saturate(1.2);
+      }
+    }
+    
+    @keyframes tickerGlow {
+      0%, 100% { 
+        box-shadow: 
+          0 0 20px rgba(0, 255, 136, 0.3),
+          0 0 40px rgba(0, 255, 136, 0.1),
+          inset 0 0 20px rgba(0, 255, 136, 0.05);
+      }
+      50% { 
+        box-shadow: 
+          0 0 30px rgba(0, 255, 136, 0.5),
+          0 0 60px rgba(0, 255, 136, 0.2),
+          inset 0 0 30px rgba(0, 255, 136, 0.1);
+      }
+    }
+    
+    @keyframes breakingPulse {
+      0%, 100% { 
+        transform: scale(1);
+        filter: brightness(1) hue-rotate(0deg);
+      }
+      25% { 
+        transform: scale(1.02);
+        filter: brightness(1.1) hue-rotate(5deg);
+      }
+      75% { 
+        transform: scale(0.98);
+        filter: brightness(1.05) hue-rotate(-5deg);
+      }
+    }
+    
+    @keyframes particleFloat {
+      0%, 100% { 
+        transform: translateY(0px) scale(0);
+        opacity: 0;
+      }
+      50% { 
+        transform: translateY(-20px) scale(1);
+        opacity: 0.6;
+      }
+    }
+    
+    /* Enhanced Ticker Styling */
+    .ticker {
+      animation: tickerGlow 4s ease-in-out infinite;
+      border-radius: 0 0 8px 8px;
+      overflow: visible;
+    }
+    
+    .ticker.breaking-pulse {
+      animation: breakingPulse 0.8s ease-in-out 3;
+    }
+    
+    .ticker::before {
+      border-radius: 0 0 0 8px;
+    }
+    
+    .ticker-label {
+      text-shadow: 
+        0 0 15px rgba(0, 255, 136, 0.8),
+        0 2px 10px rgba(0, 0, 0, 0.7),
+        0 0 25px rgba(0, 255, 136, 0.4);
+      animation: labelPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes labelPulse {
+      0%, 100% { 
+        text-shadow: 
+          0 0 15px rgba(0, 255, 136, 0.8),
+          0 2px 10px rgba(0, 0, 0, 0.7),
+          0 0 25px rgba(0, 255, 136, 0.4);
+      }
+      50% { 
+        text-shadow: 
+          0 0 20px rgba(0, 255, 136, 1),
+          0 2px 15px rgba(0, 0, 0, 0.8),
+          0 0 35px rgba(0, 255, 136, 0.6);
+      }
+    }
+    
+    .ticker-content {
+      font-size: calc(16px * var(--ui-scale));
+      font-weight: 600;
+      color: var(--text-bright);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+    
+    /* Enhanced Particle System */
+    .ticker-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: radial-gradient(circle, rgba(0, 255, 136, 0.8) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: particleFloat 5s ease-in-out infinite;
+      top: 100%;
+    }
+    
+    .particle:nth-child(odd) {
+      background: radial-gradient(circle, rgba(255, 0, 128, 0.6) 0%, transparent 70%);
+      animation-duration: 6s;
+    }
+    
+    /* Enhanced Message Styling */
+    .message-separator {
+      background: linear-gradient(180deg, 
+        transparent 20%,
+        rgba(0, 255, 136, 0.4) 50%,
+        transparent 80%
+      );
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    }
+    
+    /* Enhanced Breaking News Styling */
+    .ticker.show .ticker-label.is-breaking {
+      background: linear-gradient(135deg, 
+        rgba(255, 0, 128, 0.2) 0%,
+        rgba(255, 80, 0, 0.2) 100%
+      );
+      animation: breakingLabelPulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes breakingLabelPulse {
+      0%, 100% {
+        text-shadow: 
+          0 0 20px rgba(255, 0, 128, 0.8),
+          0 2px 15px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(255, 80, 0, 0.6);
+        filter: brightness(1);
+      }
+      50% {
+        text-shadow: 
+          0 0 30px rgba(255, 0, 128, 1),
+          0 2px 20px rgba(0, 0, 0, 0.9),
+          0 0 40px rgba(255, 80, 0, 0.8);
+        filter: brightness(1.2);
+      }
+    }
+  </style>
 </body>
 </html>
-    }

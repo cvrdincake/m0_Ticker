@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Modular Ticker Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #ffffff;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    .demo-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-section {
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .ticker-container {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-radius: 8px;
+      padding: 16px;
+      margin: 20px 0;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .ticker-content {
+      white-space: nowrap;
+      color: #00ff88;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .ticker-message {
+      margin-right: 20px;
+    }
+
+    .ticker-message--breaking {
+      color: #ff0080;
+      text-shadow: 0 0 10px rgba(255, 0, 128, 0.5);
+    }
+
+    .ticker-message--update {
+      color: #38bdf8;
+    }
+
+    .message-separator {
+      margin: 0 15px;
+      color: #64748b;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+    }
+
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    button:hover {
+      background: #2563eb;
+    }
+
+    button:disabled {
+      background: #64748b;
+      cursor: not-allowed;
+    }
+
+    .status {
+      background: #064e3b;
+      color: #10b981;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+
+    .debug-info {
+      background: #1e1b4b;
+      color: #a78bfa;
+      padding: 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+    }
+
+    .debug-info pre {
+      margin: 0;
+      font-size: 12px;
+    }
+
+    h1, h2 {
+      color: #f8fafc;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .highlight {
+      background: #fbbf24;
+      color: #1f2937;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-container">
+    <h1>🧩 Modular Ticker Component Demo</h1>
+    
+    <div class="demo-section">
+      <h2>Benefits of Modular Architecture</h2>
+      <p>This demo shows how breaking the monolithic ticker into smaller, focused components provides:</p>
+      <ul>
+        <li><span class="highlight">Isolation</span> - Changes don't break other components</li>
+        <li><span class="highlight">Testability</span> - Each component can be tested independently</li>
+        <li><span class="highlight">Reusability</span> - Components can be used across different pages</li>
+        <li><span class="highlight">Maintainability</span> - Smaller files are easier to understand and modify</li>
+      </ul>
+    </div>
+
+    <div class="demo-section">
+      <h2>Live Ticker Component</h2>
+      <div class="ticker-container" id="tickerDemo">
+        <div class="ticker-content" id="tickerContent"></div>
+      </div>
+
+      <div class="controls">
+        <button onclick="addTestMessages()">Add Test Messages</button>
+        <button onclick="addBreakingNews()">Add Breaking News</button>
+        <button onclick="toggleTicker()">Toggle Active</button>
+        <button onclick="clearMessages()">Clear Messages</button>
+        <button onclick="showDebugInfo()">Debug Info</button>
+      </div>
+
+      <div class="status" id="status">
+        Status: Initializing...
+      </div>
+
+      <div class="debug-info" id="debugInfo" style="display: none;">
+        <h3>Debug Information</h3>
+        <pre id="debugContent"></pre>
+      </div>
+    </div>
+
+    <div class="demo-section">
+      <h2>Component Architecture</h2>
+      <p>This modular approach separates concerns:</p>
+      <ul>
+        <li><strong>ModularStateManager</strong> - Handles all state management and pub/sub</li>
+        <li><strong>ModularTickerComponent</strong> - Manages ticker display and animations</li>
+        <li><strong>Separate CSS</strong> - Styles are isolated and reusable</li>
+        <li><strong>Event-Driven</strong> - Components communicate through events</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Load modular components -->
+  <script src="js/modular/state-manager-enhanced.js"></script>
+  <script src="js/modular/ticker-component.js"></script>
+
+  <script>
+    // Initialize modular system
+    let stateManager;
+    let tickerComponent;
+    let isActive = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeModularSystem();
+    });
+
+    function initializeModularSystem() {
+      try {
+        // Initialize state manager
+        stateManager = new ModularStateManager();
+        stateManager.enableDebug();
+
+        // Initialize ticker component
+        const container = document.getElementById('tickerDemo');
+        tickerComponent = new ModularTickerComponent(container, stateManager);
+
+        // Subscribe to state changes for status updates
+        stateManager.subscribe('ticker', (state) => {
+          updateStatus(`Active: ${state.isActive}, Messages: ${state.messages?.length || 0}`);
+        });
+
+        updateStatus('Modular system initialized successfully! 🚀');
+
+        // Add initial test messages
+        setTimeout(() => {
+          tickerComponent.addTestMessages();
+        }, 1000);
+
+      } catch (error) {
+        console.error('Failed to initialize modular system:', error);
+        updateStatus('❌ Initialization failed: ' + error.message);
+      }
+    }
+
+    function addTestMessages() {
+      const messages = [
+        { type: 'normal', text: 'Modular architecture provides better maintainability' },
+        { type: 'update', text: 'Components can be tested independently' },
+        { type: 'normal', text: 'Code isolation prevents cascade failures' }
+      ];
+
+      stateManager.updateState('ticker', {
+        messages: messages,
+        isActive: true
+      });
+    }
+
+    function addBreakingNews() {
+      const breakingMessages = [
+        { type: 'breaking', text: 'BREAKING: Monolithic architecture successfully modularized!' },
+        { type: 'breaking', text: 'System stability increased by 300%' },
+        { type: 'update', text: 'Development velocity improved significantly' }
+      ];
+
+      stateManager.updateState('ticker', {
+        messages: breakingMessages,
+        isActive: true
+      });
+    }
+
+    function toggleTicker() {
+      isActive = !isActive;
+      const currentState = stateManager.getState('ticker');
+      
+      stateManager.updateState('ticker', {
+        ...currentState,
+        isActive: isActive
+      });
+    }
+
+    function clearMessages() {
+      stateManager.updateState('ticker', {
+        messages: [],
+        isActive: false
+      });
+    }
+
+    function showDebugInfo() {
+      const debugElement = document.getElementById('debugInfo');
+      const debugContent = document.getElementById('debugContent');
+      
+      if (debugElement.style.display === 'none') {
+        const tickerDebug = tickerComponent.getDebugInfo();
+        const stateDebug = stateManager.getState();
+        
+        debugContent.textContent = JSON.stringify({
+          tickerComponent: tickerDebug,
+          globalState: stateDebug
+        }, null, 2);
+        
+        debugElement.style.display = 'block';
+      } else {
+        debugElement.style.display = 'none';
+      }
+    }
+
+    function updateStatus(message) {
+      const statusElement = document.getElementById('status');
+      if (statusElement) {
+        statusElement.textContent = `Status: ${message}`;
+      }
+    }
+
+    // Demonstrate error handling
+    window.addEventListener('error', (event) => {
+      updateStatus(`❌ Error: ${event.message}`);
+    });
+  </script>
+</body>
+</html>
