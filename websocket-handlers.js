@@ -138,6 +138,48 @@ function setupWebSocketServer(wss, state) {
         
         // Handle new dashboard message format
         switch (type) {
+          case 'ticker_message':
+            if (payload && payload.text) {
+              if (!state.ticker.messages) state.ticker.messages = [];
+              const message = {
+                text: payload.text,
+                type: payload.type || 'normal',
+                priority: payload.priority || 'normal',
+                duration: payload.duration || 10,
+                id: Date.now(),
+                timestamp: Date.now()
+              };
+              state.ticker.messages.push(message);
+              await persistState(state);
+              broadcastToAllClients({ 
+                type: 'state-update', 
+                data: { messages: state.ticker.messages } 
+              });
+              broadcastToAllClients({ 
+                type: 'ticker', 
+                payload: state.ticker 
+              });
+            }
+            break;
+          case 'popup_message':
+            if (payload && payload.message) {
+              await handlePopupUpdate({
+                text: payload.message,
+                title: payload.title || '',
+                isActive: true,
+                durationSeconds: payload.duration || 5,
+                type: payload.type || 'info',
+                position: payload.position || 'center',
+                animation: payload.animation || 'fade',
+                sound: payload.sound || false
+              }, state);
+            }
+            break;
+          case 'state_update':
+            if (payload) {
+              await handleTickerUpdate(payload, state);
+            }
+            break;
           case 'add-message':
             if (data && data.text) {
               if (!state.ticker.messages) state.ticker.messages = [];

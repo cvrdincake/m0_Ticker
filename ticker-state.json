@@ -4,7 +4,19 @@
     "messages": [
       {
         "type": "breaking",
-        "text": "🧪 WebSocket Test: Connection successful!"
+        "text": "🔴 BREAKING: Widget Control Hub now online with modern design!"
+      },
+      {
+        "type": "normal", 
+        "text": "📡 Real-time communication system operational"
+      },
+      {
+        "type": "info",
+        "text": "⚡ All widgets functioning with GSAP animations"
+      },
+      {
+        "type": "urgent",
+        "text": "🎨 Professional glassmorphism design system active"
       }
     ],
     "displayDuration": 45,

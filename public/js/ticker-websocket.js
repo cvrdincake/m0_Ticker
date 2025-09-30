@@ -106,6 +106,22 @@ TickerWebSocket.prototype.disconnect = function() {
   }
 };
 
+// Specific message sending methods
+TickerWebSocket.prototype.sendMessage = function(messageData) {
+  console.log('[ticker] Sending message:', messageData);
+  this.send('ticker_message', messageData);
+};
+
+TickerWebSocket.prototype.sendPopup = function(popupData) {
+  console.log('[ticker] Sending popup:', popupData);
+  this.send('popup_message', popupData);
+};
+
+TickerWebSocket.prototype.updateState = function(stateData) {
+  console.log('[ticker] Updating state:', stateData);
+  this.send('state_update', stateData);
+};
+
 // Export for both module systems
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = TickerWebSocket;
