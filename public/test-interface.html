@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Widget System Test</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0f172a;
+            color: white;
+            padding: 20px;
+            margin: 0;
+        }
+        .test-panel {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .connected { background: rgba(16, 185, 129, 0.2); }
+        .disconnected { background: rgba(239, 68, 68, 0.2); }
+        button {
+            background: #00ff88;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 600;
+        }
+        #messages {
+            max-height: 300px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Widget System Test Interface</h1>
+    
+    <div class="test-panel">
+        <h2>Connection Status</h2>
+        <div id="connectionStatus" class="status disconnected">Disconnected</div>
+        <button onclick="connect()">Connect WebSocket</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div class="test-panel">
+        <h2>Quick Actions</h2>
+        <button onclick="sendTestMessage()">Send Test Message</button>
+        <button onclick="testPopup()">Test Popup</button>
+        <button onclick="toggleTicker()">Toggle Ticker</button>
+        <button onclick="getState()">Get Current State</button>
+    </div>
+
+    <div class="test-panel">
+        <h2>Message Log</h2>
+        <div id="messages"></div>
+        <button onclick="clearLog()">Clear Log</button>
+    </div>
+
+    <script>
+        let ws = null;
+        let messageCount = 0;
+
+        function log(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const timestamp = new Date().toLocaleTimeString();
+            const messageEl = document.createElement('div');
+            messageEl.innerHTML = `<span style="color: #666">[${timestamp}]</span> <span style="color: ${type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#60a5fa'}">[${type.toUpperCase()}]</span> ${message}`;
+            messagesDiv.appendChild(messageEl);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            messageCount++;
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (connected) {
+                statusEl.textContent = 'Connected';
+                statusEl.className = 'status connected';
+            } else {
+                statusEl.textContent = 'Disconnected';
+                statusEl.className = 'status disconnected';
+            }
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected');
+                return;
+            }
+
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            log(`Connecting to ${wsUrl}...`);
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                log('WebSocket connected!', 'success');
+                updateConnectionStatus(true);
+            };
+
+            ws.onclose = () => {
+                log('WebSocket disconnected', 'error');
+                updateConnectionStatus(false);
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(data, null, 2)}`);
+                } catch (error) {
+                    log(`Raw message: ${event.data}`);
+                }
+            };
+
+            ws.onerror = (error) => {
+                log(`WebSocket error: ${error}`, 'error');
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+                log('Disconnected manually');
+                updateConnectionStatus(false);
+            }
+        }
+
+        function send(data) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return false;
+            }
+            
+            const message = JSON.stringify(data);
+            ws.send(message);
+            log(`Sent: ${message}`, 'success');
+            return true;
+        }
+
+        function sendTestMessage() {
+            send({
+                type: 'ticker_message',
+                payload: {
+                    text: `🧪 Test message #${messageCount + 1} from test interface`,
+                    type: 'info',
+                    priority: 'normal',
+                    duration: 10,
+                    timestamp: Date.now()
+                }
+            });
+        }
+
+        function testPopup() {
+            send({
+                type: 'show-popup',
+                data: {
+                    message: '🎉 Test popup from test interface!',
+                    duration: 3000,
+                    type: 'success'
+                }
+            });
+        }
+
+        function toggleTicker() {
+            send({
+                type: 'start-ticker',
+                data: {
+                    duration: 10,
+                    interval: 2
+                }
+            });
+        }
+
+        function getState() {
+            send({
+                type: 'get_state',
+                timestamp: Date.now()
+            });
+        }
+
+        function clearLog() {
+            document.getElementById('messages').innerHTML = '';
+            messageCount = 0;
+        }
+
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            connect();
+        });
+    </script>
+</body>
+</html>

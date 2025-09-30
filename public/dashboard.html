@@ -3650,7 +3650,29 @@
       initWebSocket() {
         // Initialize WebSocket connection
         if (window.TickerWebSocket) {
-          window.tickerWebSocket = new TickerWebSocket();
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          const wsUrl = `${protocol}//${window.location.host}`;
+          window.tickerWebSocket = new TickerWebSocket(wsUrl);
+          
+          // Subscribe to updates
+          window.tickerWebSocket.subscribe('ticker', (data) => {
+            console.log('Ticker update:', data);
+            this.updateTickerDisplay(data);
+          });
+          
+          window.tickerWebSocket.subscribe('popup', (data) => {
+            console.log('Popup update:', data);
+            this.updatePopupDisplay(data);
+          });
+          
+          window.tickerWebSocket.subscribe('connection', (data) => {
+            console.log('Connection status:', data);
+            this.updateConnectionStatus(data.status === 'connected');
+          });
+          
+          console.log('WebSocket initialized');
+        } else {
+          console.error('TickerWebSocket not available');
         }
       }
       
@@ -3674,6 +3696,45 @@
         }
         if (state.collapsedSections) {
           this.applyCollapsedState(state.collapsedSections);
+        }
+      }
+      
+      updateTickerDisplay(data) {
+        // Update ticker status in UI
+        const tickerStatus = document.querySelector('.ticker-status');
+        if (tickerStatus) {
+          tickerStatus.textContent = data.isActive ? 'Running' : 'Stopped';
+          tickerStatus.className = `ticker-status ${data.isActive ? 'active' : 'inactive'}`;
+        }
+        
+        // Update message count
+        if (data.messages) {
+          const messageCount = document.getElementById('queueLength');
+          if (messageCount) {
+            messageCount.textContent = `${data.messages.length} messages`;
+          }
+        }
+      }
+      
+      updatePopupDisplay(data) {
+        // Update popup status in UI
+        const popupStatus = document.querySelector('.popup-status');
+        if (popupStatus) {
+          popupStatus.textContent = data.isActive ? 'Active' : 'Ready';
+          popupStatus.className = `popup-status ${data.isActive ? 'active' : 'ready'}`;
+        }
+      }
+      
+      updateConnectionStatus(connected) {
+        // Update connection indicator
+        const connectionDot = document.getElementById('connectionDot');
+        const connectionStatus = document.getElementById('connectionStatus');
+        
+        if (connectionDot) {
+          connectionDot.style.backgroundColor = connected ? '#10b981' : '#ef4444';
+        }
+        if (connectionStatus) {
+          connectionStatus.textContent = connected ? 'Connected' : 'Disconnected';
         }
       }
       

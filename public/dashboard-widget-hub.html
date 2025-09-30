@@ -276,7 +276,6 @@
       height: var(--widget-card-compact);
       backdrop-filter: var(--glass-backdrop);
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      cursor: pointer;
       position: relative;
       overflow: hidden;
     }
@@ -624,7 +623,7 @@
         </h2>
         <div class="widget-grid">
           <!-- Ticker Widget -->
-          <div class="widget-card active" data-widget="ticker" onclick="openWidget('ticker')">
+          <div class="widget-card active" data-widget="ticker">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-play"></i>
@@ -639,20 +638,26 @@
               <div class="widget-description">Scrolling text ticker with GSAP animations</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn primary">Configure</button>
-              <button class="widget-btn">Stats</button>
+              <button class="widget-btn primary" onclick="toggleTicker()">
+                <i class="ph-play"></i>
+                <span id="ticker-toggle-text">Start</span>
+              </button>
+              <button class="widget-btn" onclick="openWidget('ticker')">
+                <i class="ph-gear"></i>
+                Settings
+              </button>
             </div>
           </div>
 
           <!-- Popup Widget -->
-          <div class="widget-card" data-widget="popup" onclick="openWidget('popup')">
+          <div class="widget-card" data-widget="popup">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-chat-circle"></i>
               </div>
               <div class="widget-status">
                 <div class="widget-status-dot"></div>
-                <span>3 Active</span>
+                <span id="popup-status">Ready</span>
               </div>
             </div>
             <div class="widget-info">
@@ -660,20 +665,26 @@
               <div class="widget-description">Interactive notifications and alerts</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn primary">Configure</button>
-              <button class="widget-btn">Create</button>
+              <button class="widget-btn primary" onclick="showTestPopup()">
+                <i class="ph-chat-circle"></i>
+                Test Popup
+              </button>
+              <button class="widget-btn" onclick="openWidget('popup')">
+                <i class="ph-gear"></i>
+                Settings
+              </button>
             </div>
           </div>
 
           <!-- BRB Widget -->
-          <div class="widget-card" data-widget="brb" onclick="openWidget('brb')">
+          <div class="widget-card" data-widget="brb">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-coffee"></i>
               </div>
               <div class="widget-status offline">
                 <div class="widget-status-dot"></div>
-                <span>Inactive</span>
+                <span id="brb-status">Inactive</span>
               </div>
             </div>
             <div class="widget-info">
@@ -681,8 +692,14 @@
               <div class="widget-description">"Be Right Back" mode for stream breaks</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn">Activate</button>
-              <button class="widget-btn">Settings</button>
+              <button class="widget-btn primary" onclick="toggleBRB()">
+                <i class="ph-coffee"></i>
+                <span id="brb-toggle-text">Activate</span>
+              </button>
+              <button class="widget-btn" onclick="openWidget('brb')">
+                <i class="ph-gear"></i>
+                Settings
+              </button>
             </div>
           </div>
         </div>
@@ -696,14 +713,14 @@
         </h2>
         <div class="widget-grid">
           <!-- State Manager -->
-          <div class="widget-card" data-widget="state" onclick="openWidget('state')">
+          <div class="widget-card" data-widget="state">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-database"></i>
               </div>
               <div class="widget-status">
                 <div class="widget-status-dot"></div>
-                <span>Synced</span>
+                <span id="state-status">Synced</span>
               </div>
             </div>
             <div class="widget-info">
@@ -711,13 +728,19 @@
               <div class="widget-description">Centralized state with persistence</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn primary">Monitor</button>
-              <button class="widget-btn">Backup</button>
+              <button class="widget-btn primary" onclick="refreshState()">
+                <i class="ph-arrow-clockwise"></i>
+                Refresh
+              </button>
+              <button class="widget-btn" onclick="openWidget('state')">
+                <i class="ph-eye"></i>
+                Monitor
+              </button>
             </div>
           </div>
 
           <!-- Theme Engine -->
-          <div class="widget-card" data-widget="theme" onclick="openWidget('theme')">
+          <div class="widget-card" data-widget="theme">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-palette"></i>
@@ -732,13 +755,19 @@
               <div class="widget-description">Dynamic theme switching and customization</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn primary">Customize</button>
-              <button class="widget-btn">Presets</button>
+              <button class="widget-btn primary" onclick="cycleTheme()">
+                <i class="ph-palette"></i>
+                Cycle Theme
+              </button>
+              <button class="widget-btn" onclick="openWidget('theme')">
+                <i class="ph-gear"></i>
+                Customize
+              </button>
             </div>
           </div>
 
           <!-- Animation Controller -->
-          <div class="widget-card" data-widget="animation" onclick="openWidget('animation')">
+          <div class="widget-card" data-widget="animation">
             <div class="widget-header">
               <div class="widget-icon">
                 <i class="ph-magic-wand"></i>
@@ -753,8 +782,14 @@
               <div class="widget-description">Professional GSAP animations with fallbacks</div>
             </div>
             <div class="widget-actions">
-              <button class="widget-btn primary">Effects</button>
-              <button class="widget-btn">Timeline</button>
+              <button class="widget-btn primary" onclick="testAnimations()">
+                <i class="ph-magic-wand"></i>
+                Test Effects
+              </button>
+              <button class="widget-btn" onclick="openWidget('animation')">
+                <i class="ph-sliders"></i>
+                Timeline
+              </button>
             </div>
           </div>
         </div>
@@ -799,9 +834,16 @@
         this.ws = new WebSocket(wsUrl);
         
         this.ws.onopen = () => {
+          console.log('WebSocket connected');
           this.updateConnectionStatus(true);
           this.stats.activeConnections++;
           this.updateStats();
+          
+          // Request initial state
+          this.ws.send(JSON.stringify({
+            type: 'get_state',
+            timestamp: Date.now()
+          }));
         };
         
         this.ws.onclose = () => {
@@ -835,9 +877,31 @@
       handleWebSocketMessage(event) {
         try {
           const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
           
           // Update widget states based on message type
           switch (data.type) {
+            case 'init':
+              this.handleInitialState(data.payload);
+              break;
+            case 'ticker':
+              this.updateTickerState(data.payload);
+              break;
+            case 'popup':
+              this.updatePopupState(data.payload);
+              break;
+            case 'brb':
+              this.updateBRBState(data.payload);
+              break;
+            case 'overlay':
+              this.updateOverlayState(data.payload);
+              break;
+            case 'state-update':
+              this.updateMessageQueue(data.data);
+              break;
+            case 'ticker-status':
+              this.updateTickerStatus(data.data);
+              break;
             case 'widget_state':
               this.updateWidgetState(data.widget, data.state);
               break;
@@ -847,9 +911,97 @@
             case 'widget_error':
               this.handleWidgetError(data.widget, data.error);
               break;
+            default:
+              console.log('Unhandled message type:', data.type);
           }
         } catch (error) {
           console.warn('Failed to parse WebSocket message:', error);
+        }
+      }
+
+      handleInitialState(payload) {
+        console.log('Initial state received:', payload);
+        if (payload.ticker) {
+          this.updateTickerState(payload.ticker);
+        }
+        if (payload.popup) {
+          this.updatePopupState(payload.popup);
+        }
+        if (payload.brb) {
+          this.updateBRBState(payload.brb);
+        }
+        this.stats.messagesProcessed = payload.ticker?.messages?.length || 0;
+        this.updateStats();
+      }
+
+      updateTickerState(tickerData) {
+        console.log('Updating ticker state:', tickerData);
+        const tickerCard = document.querySelector('[data-widget="ticker"]');
+        const toggleText = document.getElementById('ticker-toggle-text');
+        
+        if (tickerData.isActive || tickerData.isRunning) {
+          tickerCard.classList.add('active');
+          toggleText.textContent = 'Stop';
+        } else {
+          tickerCard.classList.remove('active');
+          toggleText.textContent = 'Start';
+        }
+        
+        if (tickerData.messages) {
+          this.stats.messagesProcessed = tickerData.messages.length;
+          this.updateStats();
+        }
+      }
+
+      updatePopupState(popupData) {
+        console.log('Updating popup state:', popupData);
+        const statusEl = document.getElementById('popup-status');
+        if (popupData.isActive) {
+          statusEl.textContent = 'Active';
+        } else {
+          statusEl.textContent = 'Ready';
+        }
+      }
+
+      updateBRBState(brbData) {
+        console.log('Updating BRB state:', brbData);
+        const statusEl = document.getElementById('brb-status');
+        const toggleText = document.getElementById('brb-toggle-text');
+        const statusContainer = document.querySelector('[data-widget="brb"] .widget-status');
+        
+        if (brbData.isActive) {
+          statusEl.textContent = 'Active';
+          toggleText.textContent = 'Deactivate';
+          statusContainer.classList.remove('offline');
+        } else {
+          statusEl.textContent = 'Inactive';
+          toggleText.textContent = 'Activate';
+          statusContainer.classList.add('offline');
+        }
+      }
+
+      updateOverlayState(overlayData) {
+        console.log('Updating overlay state:', overlayData);
+        // Update theme display if needed
+      }
+
+      updateMessageQueue(data) {
+        if (data.messages) {
+          this.stats.messagesProcessed = data.messages.length;
+          this.updateStats();
+        }
+      }
+
+      updateTickerStatus(data) {
+        const tickerCard = document.querySelector('[data-widget="ticker"]');
+        const toggleText = document.getElementById('ticker-toggle-text');
+        
+        if (data.isRunning) {
+          tickerCard.classList.add('active');
+          toggleText.textContent = 'Stop';
+        } else {
+          tickerCard.classList.remove('active');
+          toggleText.textContent = 'Start';
         }
       }
 
@@ -1028,19 +1180,158 @@
 
     // Global Functions
     function openWidget(widgetId) {
-      // Open widget configuration modal or navigate to widget page
+      // Map widget IDs to dashboard views
       const widgetUrls = {
         ticker: '/ticker/dashboard.html#ticker-control',
         popup: '/ticker/dashboard.html#popup',
         brb: '/ticker/dashboard.html#brb',
-        state: '/ticker/dashboard.html#state',
+        state: '/ticker/dashboard.html#overview',
         theme: '/ticker/dashboard.html#themes',
-        animation: '/ticker/dashboard.html#animations'
+        animation: '/ticker/dashboard.html#overlay'
       };
       
       if (widgetUrls[widgetId]) {
-        window.open(widgetUrls[widgetId], '_blank');
+        // Open in new tab for better workflow
+        window.open(widgetUrls[widgetId], '_blank', 'width=1400,height=900');
+      } else {
+        console.warn('Widget not found:', widgetId);
       }
+    }
+
+    // Widget Control Functions
+    function toggleTicker() {
+      const hub = window.widgetHub;
+      if (!hub || !hub.ws || hub.ws.readyState !== WebSocket.OPEN) {
+        hub.showNotification('WebSocket not connected', 'error');
+        return;
+      }
+
+      const isActive = document.querySelector('[data-widget="ticker"]').classList.contains('active');
+      const toggleText = document.getElementById('ticker-toggle-text');
+      
+      if (isActive) {
+        hub.ws.send(JSON.stringify({ type: 'stop-ticker' }));
+        toggleText.textContent = 'Start';
+        document.querySelector('[data-widget="ticker"]').classList.remove('active');
+        hub.showNotification('Ticker stopped', 'info');
+      } else {
+        hub.ws.send(JSON.stringify({ type: 'start-ticker', data: { duration: 10, interval: 2 } }));
+        toggleText.textContent = 'Stop';
+        document.querySelector('[data-widget="ticker"]').classList.add('active');
+        hub.showNotification('Ticker started', 'success');
+      }
+    }
+
+    function showTestPopup() {
+      const hub = window.widgetHub;
+      if (!hub || !hub.ws || hub.ws.readyState !== WebSocket.OPEN) {
+        hub.showNotification('WebSocket not connected', 'error');
+        return;
+      }
+
+      const testPopup = {
+        message: '🎉 Test popup from Widget Control Hub!',
+        duration: 3000,
+        type: 'success'
+      };
+
+      hub.ws.send(JSON.stringify({ type: 'show-popup', data: testPopup }));
+      document.getElementById('popup-status').textContent = 'Test Active';
+      hub.showNotification('Test popup sent', 'success');
+      
+      setTimeout(() => {
+        document.getElementById('popup-status').textContent = 'Ready';
+      }, 3000);
+    }
+
+    function toggleBRB() {
+      const hub = window.widgetHub;
+      if (!hub || !hub.ws || hub.ws.readyState !== WebSocket.OPEN) {
+        hub.showNotification('WebSocket not connected', 'error');
+        return;
+      }
+
+      const isActive = !document.querySelector('[data-widget="brb"] .widget-status').classList.contains('offline');
+      const toggleText = document.getElementById('brb-toggle-text');
+      const statusEl = document.getElementById('brb-status');
+      const statusContainer = document.querySelector('[data-widget="brb"] .widget-status');
+      
+      if (isActive) {
+        hub.ws.send(JSON.stringify({ type: 'stop-brb' }));
+        toggleText.textContent = 'Activate';
+        statusEl.textContent = 'Inactive';
+        statusContainer.classList.add('offline');
+        hub.showNotification('BRB mode deactivated', 'info');
+      } else {
+        hub.ws.send(JSON.stringify({ 
+          type: 'start-brb', 
+          data: { message: 'Be right back! Taking a quick break.' }
+        }));
+        toggleText.textContent = 'Deactivate';
+        statusEl.textContent = 'Active';
+        statusContainer.classList.remove('offline');
+        hub.showNotification('BRB mode activated', 'success');
+      }
+    }
+
+    function refreshState() {
+      const hub = window.widgetHub;
+      if (!hub || !hub.ws || hub.ws.readyState !== WebSocket.OPEN) {
+        hub.showNotification('WebSocket not connected', 'error');
+        return;
+      }
+
+      hub.ws.send(JSON.stringify({ type: 'refresh_state' }));
+      document.getElementById('state-status').textContent = 'Refreshing...';
+      hub.showNotification('State refresh requested', 'info');
+      
+      setTimeout(() => {
+        document.getElementById('state-status').textContent = 'Synced';
+      }, 1000);
+    }
+
+    function cycleTheme() {
+      const themes = ['midnight-glass', 'cyber-glow', 'minimal-dark', 'neon-pulse'];
+      const currentTheme = localStorage.getItem('current-theme') || 'midnight-glass';
+      const currentIndex = themes.indexOf(currentTheme);
+      const nextIndex = (currentIndex + 1) % themes.length;
+      const nextTheme = themes[nextIndex];
+      
+      localStorage.setItem('current-theme', nextTheme);
+      
+      const hub = window.widgetHub;
+      if (hub && hub.ws && hub.ws.readyState === WebSocket.OPEN) {
+        hub.ws.send(JSON.stringify({ 
+          type: 'update_theme', 
+          data: { theme: nextTheme }
+        }));
+      }
+      
+      hub.showNotification(`Theme switched to: ${nextTheme.replace('-', ' ')}`, 'success');
+    }
+
+    function testAnimations() {
+      const hub = window.widgetHub;
+      
+      // Trigger GSAP test animation on widget cards
+      gsap.fromTo('.widget-card', 
+        { scale: 1, rotationY: 0 },
+        { 
+          scale: 1.02, 
+          rotationY: 5,
+          duration: 0.3,
+          stagger: 0.1,
+          yoyo: true,
+          repeat: 1,
+          ease: 'power2.inOut'
+        }
+      );
+      
+      if (hub && hub.ws && hub.ws.readyState === WebSocket.OPEN) {
+        hub.ws.send(JSON.stringify({ type: 'test-overlay' }));
+      }
+      
+      hub.showNotification('Animation test triggered', 'success');
     }
 
     function togglePreview() {
@@ -1052,24 +1343,37 @@
     }
 
     function refreshAllWidgets() {
+      const hub = window.widgetHub;
+      if (!hub) return;
+      
       // Send refresh command to all widgets
-      if (window.widgetHub && window.widgetHub.ws.readyState === WebSocket.OPEN) {
-        window.widgetHub.ws.send(JSON.stringify({
+      if (hub.ws && hub.ws.readyState === WebSocket.OPEN) {
+        hub.ws.send(JSON.stringify({
           type: 'refresh_all_widgets',
+          timestamp: Date.now()
+        }));
+        
+        // Also request current state
+        hub.ws.send(JSON.stringify({
+          type: 'get_state',
           timestamp: Date.now()
         }));
       }
       
       // Visual feedback
-      const btn = event.target;
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<i class="ph-spinner"></i> Refreshing...';
-      btn.style.pointerEvents = 'none';
+      const btn = event?.target;
+      if (btn) {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="ph-spinner"></i> Refreshing...';
+        btn.style.pointerEvents = 'none';
+        
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.pointerEvents = 'auto';
+        }, 2000);
+      }
       
-      setTimeout(() => {
-        btn.innerHTML = originalText;
-        btn.style.pointerEvents = 'auto';
-      }, 2000);
+      hub.showNotification('Refreshing all widgets...', 'info');
     }
 
     function exportConfig() {
