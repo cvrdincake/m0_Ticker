@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Control Hub - Professional Dashboard</title>
+  
+  <!-- Professional Design System -->
+  <link rel="stylesheet" href="css/unified-design-system.css">
+  <link rel="stylesheet" href="css/professional-forms.css">
+  <link rel="stylesheet" href="css/professional-components.css">
+  <link rel="stylesheet" href="css/professional-widgets.css">
+  <link rel="stylesheet" href="css/professional-ui-effects.css">
+  
+  <!-- Modular CSS -->
+  <link rel="stylesheet" href="css/modular/variables.css">
+  <link rel="stylesheet" href="css/modular/components.css">
+  <link rel="stylesheet" href="css/modular/animations.css">
+  
+  <!-- External Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  
+  <style>
+    :root {
+      /* Enhanced Glassmorphism Variables */
+      --glass-bg: rgba(8, 12, 20, 0.75);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --glass-highlight: rgba(255, 255, 255, 0.12);
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      --glass-backdrop: blur(16px);
+      
+      /* Compact Layout Variables */
+      --header-height: 64px;
+      --sidebar-width: 240px;
+      --widget-card-height: 140px;
+      --widget-card-compact: 120px;
+      --grid-gap: 16px;
+      --content-padding: 20px;
+      
+      /* Enhanced Color Palette */
+      --accent-primary: #00ff88;
+      --accent-secondary: #0080ff;
+      --accent-danger: #ff4757;
+      --accent-warning: #ffa502;
+      --text-primary: #ffffff;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      /* Status Indicators */
+      --status-online: #10b981;
+      --status-offline: #ef4444;
+      --status-warning: #f59e0b;
+      --status-idle: #6b7280;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: var(--text-primary);
+      overflow-x: hidden;
+      height: 100vh;
+    }
+
+    /* Dashboard Layout */
+    .dashboard-container {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) 1fr;
+      grid-template-rows: var(--header-height) 1fr;
+      grid-template-areas: 
+        "sidebar header"
+        "sidebar main";
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .dashboard-header {
+      grid-area: header;
+      background: var(--glass-bg);
+      border-bottom: 1px solid var(--glass-border);
+      backdrop-filter: var(--glass-backdrop);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 var(--content-padding);
+      box-shadow: var(--glass-shadow);
+    }
+
+    .header-title {
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-online);
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Sidebar */
+    .dashboard-sidebar {
+      grid-area: sidebar;
+      background: var(--glass-bg);
+      border-right: 1px solid var(--glass-border);
+      backdrop-filter: var(--glass-backdrop);
+      padding: var(--content-padding);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      box-shadow: var(--glass-shadow);
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: black;
+      font-weight: bold;
+    }
+
+    .logo-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .sidebar-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    .stat-value {
+      font-weight: 600;
+      color: var(--accent-primary);
+    }
+
+    .quick-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .quick-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      cursor: pointer;
+    }
+
+    .quick-action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-primary);
+      transform: translateY(-1px);
+    }
+
+    /* Main Content */
+    .dashboard-main {
+      grid-area: main;
+      padding: var(--content-padding);
+      overflow-y: auto;
+      height: calc(100vh - var(--header-height));
+    }
+
+    /* Widget Grid */
+    .widget-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--grid-gap);
+      margin-bottom: 24px;
+    }
+
+    .widget-category {
+      margin-bottom: 32px;
+    }
+
+    .category-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Widget Cards */
+    .widget-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 20px;
+      height: var(--widget-card-compact);
+      backdrop-filter: var(--glass-backdrop);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .widget-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .widget-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+      border-color: var(--glass-highlight);
+    }
+
+    .widget-card:hover::before {
+      opacity: 1;
+    }
+
+    .widget-card.active::before {
+      opacity: 1;
+    }
+
+    .widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .widget-icon {
+      width: 40px;
+      height: 40px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--accent-primary);
+    }
+
+    .widget-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .widget-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--status-online);
+    }
+
+    .widget-status.offline .widget-status-dot {
+      background: var(--status-offline);
+    }
+
+    .widget-status.warning .widget-status-dot {
+      background: var(--status-warning);
+    }
+
+    .widget-info {
+      margin-bottom: 16px;
+    }
+
+    .widget-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .widget-description {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .widget-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .widget-btn {
+      flex: 1;
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .widget-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-primary);
+    }
+
+    .widget-btn.primary {
+      background: var(--accent-primary);
+      color: black;
+    }
+
+    .widget-btn.primary:hover {
+      background: var(--accent-primary);
+      opacity: 0.9;
+    }
+
+    /* System Overview */
+    .system-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--grid-gap);
+      margin-bottom: 32px;
+    }
+
+    .overview-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: var(--glass-backdrop);
+      text-align: center;
+    }
+
+    .overview-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent-primary);
+      margin-bottom: 4px;
+    }
+
+    .overview-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: var(--header-height) 1fr;
+        grid-template-areas: 
+          "header"
+          "main";
+      }
+      
+      .dashboard-sidebar {
+        display: none;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .widget-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .system-overview {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Custom Scrollbar */
+    .dashboard-main::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .dashboard-main::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .dashboard-main::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+    }
+
+    .dashboard-main::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Animation Classes */
+    .fade-in {
+      animation: fadeIn 0.6s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .scale-in {
+      animation: scaleIn 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Header -->
+    <header class="dashboard-header">
+      <div class="header-title">
+        <i class="ph-squares-four"></i>
+        Widget Control Hub
+      </div>
+      <div class="header-actions">
+        <div class="connection-status">
+          <div class="status-dot" id="connectionDot"></div>
+          <span id="connectionStatus">Connected</span>
+        </div>
+        <button class="quick-action-btn" onclick="togglePreview()">
+          <i class="ph-eye"></i>
+          Preview
+        </button>
+      </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="dashboard-sidebar">
+      <div class="sidebar-logo">
+        <div class="logo-icon">⚡</div>
+        <div class="logo-text">Widget Hub</div>
+      </div>
+
+      <div class="sidebar-stats">
+        <div class="stat-item">
+          <span>Active Widgets</span>
+          <span class="stat-value" id="activeWidgetCount">6</span>
+        </div>
+        <div class="stat-item">
+          <span>Messages Sent</span>
+          <span class="stat-value" id="messageCount">247</span>
+        </div>
+        <div class="stat-item">
+          <span>System Uptime</span>
+          <span class="stat-value" id="uptimeDisplay">98%</span>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button class="quick-action-btn" onclick="refreshAllWidgets()">
+          <i class="ph-arrow-clockwise"></i>
+          Refresh All
+        </button>
+        <button class="quick-action-btn" onclick="exportConfig()">
+          <i class="ph-download"></i>
+          Export Config
+        </button>
+        <button class="quick-action-btn" onclick="openPreview()">
+          <i class="ph-monitor"></i>
+          Live Preview
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+      <!-- System Overview -->
+      <div class="system-overview fade-in">
+        <div class="overview-card">
+          <div class="overview-value" id="totalWidgets">6</div>
+          <div class="overview-label">Total Widgets</div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-value" id="activeConnections">3</div>
+          <div class="overview-label">Active Connections</div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-value" id="messagesProcessed">247</div>
+          <div class="overview-label">Messages Processed</div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-value" id="systemHealth">98%</div>
+          <div class="overview-label">System Health</div>
+        </div>
+      </div>
+
+      <!-- Core Widgets -->
+      <div class="widget-category">
+        <h2 class="category-title">
+          <i class="ph-gear"></i>
+          Core Widgets
+        </h2>
+        <div class="widget-grid">
+          <!-- Ticker Widget -->
+          <div class="widget-card active" data-widget="ticker" onclick="openWidget('ticker')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-play"></i>
+              </div>
+              <div class="widget-status">
+                <div class="widget-status-dot"></div>
+                <span>Active</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">Ticker Component</div>
+              <div class="widget-description">Scrolling text ticker with GSAP animations</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn primary">Configure</button>
+              <button class="widget-btn">Stats</button>
+            </div>
+          </div>
+
+          <!-- Popup Widget -->
+          <div class="widget-card" data-widget="popup" onclick="openWidget('popup')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-chat-circle"></i>
+              </div>
+              <div class="widget-status">
+                <div class="widget-status-dot"></div>
+                <span>3 Active</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">Popup Overlay</div>
+              <div class="widget-description">Interactive notifications and alerts</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn primary">Configure</button>
+              <button class="widget-btn">Create</button>
+            </div>
+          </div>
+
+          <!-- BRB Widget -->
+          <div class="widget-card" data-widget="brb" onclick="openWidget('brb')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-coffee"></i>
+              </div>
+              <div class="widget-status offline">
+                <div class="widget-status-dot"></div>
+                <span>Inactive</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">BRB Overlay</div>
+              <div class="widget-description">"Be Right Back" mode for stream breaks</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn">Activate</button>
+              <button class="widget-btn">Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Widgets -->
+      <div class="widget-category">
+        <h2 class="category-title">
+          <i class="ph-cpu"></i>
+          System & Tools
+        </h2>
+        <div class="widget-grid">
+          <!-- State Manager -->
+          <div class="widget-card" data-widget="state" onclick="openWidget('state')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-database"></i>
+              </div>
+              <div class="widget-status">
+                <div class="widget-status-dot"></div>
+                <span>Synced</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">State Manager</div>
+              <div class="widget-description">Centralized state with persistence</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn primary">Monitor</button>
+              <button class="widget-btn">Backup</button>
+            </div>
+          </div>
+
+          <!-- Theme Engine -->
+          <div class="widget-card" data-widget="theme" onclick="openWidget('theme')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-palette"></i>
+              </div>
+              <div class="widget-status">
+                <div class="widget-status-dot"></div>
+                <span>Dark Theme</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">Theme Engine</div>
+              <div class="widget-description">Dynamic theme switching and customization</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn primary">Customize</button>
+              <button class="widget-btn">Presets</button>
+            </div>
+          </div>
+
+          <!-- Animation Controller -->
+          <div class="widget-card" data-widget="animation" onclick="openWidget('animation')">
+            <div class="widget-header">
+              <div class="widget-icon">
+                <i class="ph-magic-wand"></i>
+              </div>
+              <div class="widget-status">
+                <div class="widget-status-dot"></div>
+                <span>GSAP Ready</span>
+              </div>
+            </div>
+            <div class="widget-info">
+              <div class="widget-title">Animation Controller</div>
+              <div class="widget-description">Professional GSAP animations with fallbacks</div>
+            </div>
+            <div class="widget-actions">
+              <button class="widget-btn primary">Effects</button>
+              <button class="widget-btn">Timeline</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/shared-utils.js"></script>
+  <script src="js/shared-config.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/ticker-websocket.js"></script>
+  
+  <script>
+    // Dashboard State Management
+    class WidgetHubController {
+      constructor() {
+        this.widgets = new Map();
+        this.connections = new Map();
+        this.stats = {
+          totalWidgets: 6,
+          activeConnections: 0,
+          messagesProcessed: 0,
+          systemHealth: 100
+        };
+        
+        this.init();
+      }
+
+      init() {
+        this.initializeWebSocket();
+        this.setupEventListeners();
+        this.loadWidgetStates();
+        this.startPerformanceMonitoring();
+        this.animateOnLoad();
+      }
+
+      initializeWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        
+        this.ws = new WebSocket(wsUrl);
+        
+        this.ws.onopen = () => {
+          this.updateConnectionStatus(true);
+          this.stats.activeConnections++;
+          this.updateStats();
+        };
+        
+        this.ws.onclose = () => {
+          this.updateConnectionStatus(false);
+          this.stats.activeConnections = Math.max(0, this.stats.activeConnections - 1);
+          this.updateStats();
+          // Attempt reconnection
+          setTimeout(() => this.initializeWebSocket(), 3000);
+        };
+        
+        this.ws.onmessage = (event) => {
+          this.handleWebSocketMessage(event);
+          this.stats.messagesProcessed++;
+          this.updateStats();
+        };
+      }
+
+      updateConnectionStatus(connected) {
+        const dot = document.getElementById('connectionDot');
+        const status = document.getElementById('connectionStatus');
+        
+        if (connected) {
+          dot.style.background = 'var(--status-online)';
+          status.textContent = 'Connected';
+        } else {
+          dot.style.background = 'var(--status-offline)';
+          status.textContent = 'Disconnected';
+        }
+      }
+
+      handleWebSocketMessage(event) {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Update widget states based on message type
+          switch (data.type) {
+            case 'widget_state':
+              this.updateWidgetState(data.widget, data.state);
+              break;
+            case 'system_stats':
+              this.updateSystemStats(data.stats);
+              break;
+            case 'widget_error':
+              this.handleWidgetError(data.widget, data.error);
+              break;
+          }
+        } catch (error) {
+          console.warn('Failed to parse WebSocket message:', error);
+        }
+      }
+
+      updateWidgetState(widgetId, state) {
+        const card = document.querySelector(`[data-widget="${widgetId}"]`);
+        if (!card) return;
+
+        const statusEl = card.querySelector('.widget-status span');
+        const dotEl = card.querySelector('.widget-status-dot');
+        
+        if (state.active) {
+          card.classList.add('active');
+          dotEl.style.background = 'var(--status-online)';
+          statusEl.textContent = state.status || 'Active';
+        } else {
+          card.classList.remove('active');
+          dotEl.style.background = 'var(--status-offline)';
+          statusEl.textContent = 'Inactive';
+        }
+      }
+
+      updateSystemStats(stats) {
+        Object.assign(this.stats, stats);
+        this.updateStats();
+      }
+
+      updateStats() {
+        document.getElementById('totalWidgets').textContent = this.stats.totalWidgets;
+        document.getElementById('activeConnections').textContent = this.stats.activeConnections;
+        document.getElementById('messagesProcessed').textContent = this.stats.messagesProcessed;
+        document.getElementById('systemHealth').textContent = `${this.stats.systemHealth}%`;
+        
+        // Update sidebar stats
+        document.getElementById('activeWidgetCount').textContent = this.stats.totalWidgets;
+        document.getElementById('messageCount').textContent = this.stats.messagesProcessed;
+        document.getElementById('uptimeDisplay').textContent = `${this.stats.systemHealth}%`;
+      }
+
+      loadWidgetStates() {
+        // Load saved widget states
+        const savedStates = localStorage.getItem('widget-hub-states');
+        if (savedStates) {
+          try {
+            const states = JSON.parse(savedStates);
+            Object.entries(states).forEach(([widgetId, state]) => {
+              this.updateWidgetState(widgetId, state);
+            });
+          } catch (error) {
+            console.warn('Failed to load widget states:', error);
+          }
+        }
+      }
+
+      startPerformanceMonitoring() {
+        setInterval(() => {
+          // Monitor system performance
+          const performance = this.calculateSystemHealth();
+          this.stats.systemHealth = performance;
+          this.updateStats();
+        }, 5000);
+      }
+
+      calculateSystemHealth() {
+        // Simple health calculation based on connection status and active widgets
+        let health = 100;
+        
+        if (this.ws.readyState !== WebSocket.OPEN) {
+          health -= 20;
+        }
+        
+        // Additional health checks can be added here
+        return Math.max(0, Math.min(100, health));
+      }
+
+      animateOnLoad() {
+        // Animate cards on load
+        const cards = document.querySelectorAll('.widget-card');
+        cards.forEach((card, index) => {
+          setTimeout(() => {
+            card.classList.add('scale-in');
+          }, index * 100);
+        });
+      }
+
+      setupEventListeners() {
+        // Set up event listeners for dashboard interactions
+        document.addEventListener('keydown', (e) => {
+          if (e.ctrlKey && e.key === 'r') {
+            e.preventDefault();
+            this.refreshAllWidgets();
+          }
+        });
+      }
+    }
+
+    // Global Functions
+    function openWidget(widgetId) {
+      // Open widget configuration modal or navigate to widget page
+      const widgetUrls = {
+        ticker: '/ticker/dashboard.html#ticker-control',
+        popup: '/ticker/dashboard.html#popup',
+        brb: '/ticker/dashboard.html#brb',
+        state: '/ticker/dashboard.html#state',
+        theme: '/ticker/dashboard.html#themes',
+        animation: '/ticker/dashboard.html#animations'
+      };
+      
+      if (widgetUrls[widgetId]) {
+        window.open(widgetUrls[widgetId], '_blank');
+      }
+    }
+
+    function togglePreview() {
+      window.open('/ticker/output.html', '_blank', 'width=1200,height=800');
+    }
+
+    function openPreview() {
+      window.open('/ticker/output.html', '_blank');
+    }
+
+    function refreshAllWidgets() {
+      // Send refresh command to all widgets
+      if (window.widgetHub && window.widgetHub.ws.readyState === WebSocket.OPEN) {
+        window.widgetHub.ws.send(JSON.stringify({
+          type: 'refresh_all_widgets',
+          timestamp: Date.now()
+        }));
+      }
+      
+      // Visual feedback
+      const btn = event.target;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="ph-spinner"></i> Refreshing...';
+      btn.style.pointerEvents = 'none';
+      
+      setTimeout(() => {
+        btn.innerHTML = originalText;
+        btn.style.pointerEvents = 'auto';
+      }, 2000);
+    }
+
+    function exportConfig() {
+      // Export current widget configuration
+      const config = {
+        widgets: Array.from(document.querySelectorAll('[data-widget]')).map(card => ({
+          id: card.dataset.widget,
+          active: card.classList.contains('active'),
+          timestamp: Date.now()
+        })),
+        stats: window.widgetHub?.stats || {},
+        timestamp: Date.now()
+      };
+      
+      const blob = new Blob([JSON.stringify(config, null, 2)], {
+        type: 'application/json'
+      });
+      
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `widget-hub-config-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // Initialize Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      window.widgetHub = new WidgetHubController();
+      
+      // Add some initial animation
+      gsap.from('.widget-card', {
+        duration: 0.6,
+        y: 20,
+        opacity: 0,
+        stagger: 0.1,
+        ease: 'power2.out'
+      });
+      
+      gsap.from('.overview-card', {
+        duration: 0.8,
+        scale: 0.8,
+        opacity: 0,
+        stagger: 0.1,
+        ease: 'back.out(1.7)',
+        delay: 0.3
+      });
+    });
+  </script>
+</body>
+</html>

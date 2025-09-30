@@ -158,7 +158,7 @@ class ModularBRBOverlay {
       });
     } else {
       // Fallback to CSS animations
-      this.container.classList.add('brb--active');
+      this.container.classList.add('modular-brb--active');
       this.container.style.opacity = '1';
       this.container.style.visibility = 'visible';
       this.container.style.pointerEvents = 'auto';
@@ -179,7 +179,7 @@ class ModularBRBOverlay {
   hide() {
     if (!this.container) return;
 
-    this.container.classList.remove('brb--active');
+    this.container.classList.remove('modular-brb--active');
     this.container.style.opacity = '0';
     this.container.style.visibility = 'hidden';
     this.container.style.pointerEvents = 'none';

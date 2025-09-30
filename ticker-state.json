@@ -2,25 +2,20 @@
   "ticker": {
     "isActive": true,
     "messages": [
-      "We're LIVE on both YouTube & Twitch!",
-      "We're testing some new widget features. Please be aware of any weird bugs and the curse words that follow.",
-      "DISCLAIMER: 95% of anything Moose ever says is a symptom of his irony disorder and he should not be taken seriously under any circumstances.",
-      "Welcome to our Silent Hill f deep dive analysis streams! We'll be using our knowledge of Silent Hill, Shinto, Higurashi, Umineko and Ryukishi07's background to truly be able to dig into this motherfucker."
+      {
+        "type": "breaking",
+        "text": "🧪 WebSocket Test: Connection successful!"
+      }
     ],
     "displayDuration": 45,
     "intervalBetween": 1200,
+    "updatedAt": 1759188488891,
     "_updatedAt": 1758647900783
   },
-  "brb": {
-    "isActive": false,
-    "text": "Be Right Back",
-    "_updatedAt": 1758556847480
-  },
-  "presets": [],
-  "scenes": [],
   "overlay": {
     "label": "LIVE",
     "accent": "#ef4444",
+    "accentSecondary": "#f472b6",
     "highlight": "live, breaking, alert, update, disclaimer, silent, hill",
     "scale": 1.75,
     "popupScale": 1.3,
@@ -29,15 +24,16 @@
     "accentAnim": true,
     "sparkle": true,
     "theme": "midnight-glass",
+    "updatedAt": 1758648188427,
     "_updatedAt": 1758648188427
   },
   "popup": {
-    "text": "Silent Hill f - Deep Dive / Analysis w/ Moose",
-    "isActive": true,
+    "text": "",
+    "isActive": false,
     "durationSeconds": null,
     "countdownEnabled": false,
     "countdownTarget": null,
-    "_updatedAt": 1758647615533
+    "updatedAt": 1759188489889
   },
   "slate": {
     "isEnabled": true,
@@ -55,6 +51,15 @@
     "notes": [
       "Don't forget to like / follow / sub to know when we go live!"
     ],
+    "updatedAt": 1758643516886,
     "_updatedAt": 1758643516886
-  }
+  },
+  "brb": {
+    "text": "",
+    "isActive": false,
+    "updatedAt": 1759188494892
+  },
+  "presets": [],
+  "scenes": [],
+  "updatedAt": 1759188494892
 }

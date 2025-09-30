@@ -20,14 +20,10 @@
   <link rel="stylesheet" href="css/professional-widgets.css">
   <link rel="stylesheet" href="css/professional-ui-effects.css">
   
-  <!-- Legacy Theme System (for compatibility) -->
-  <link rel="stylesheet" href="css/unified-theme.css">
+  <!-- Additional Components -->
   <link rel="stylesheet" href="css/components.css">
-  <link rel="stylesheet" href="css/theme-customizer.css">
   <link rel="stylesheet" href="css/advanced-animations.css">
-  <link rel="stylesheet" href="css/enhanced-themes.css">
-  <link rel="stylesheet" href="css/enhanced-ux.css">
-  <link rel="stylesheet" href="css/widget-settings.css">
+  <link rel="stylesheet" href="css/themes.css">
   
   <style>
     /* ===== MODERN DARK AESTHETICS ===== */
@@ -229,34 +225,80 @@
     
     .sidebar-nav {
       flex: 1;
-      padding: var(--space-lg);
+      padding: var(--space-md) var(--space-lg);
+      overflow-y: auto;
     }
     
     .nav-section {
-      margin-bottom: var(--space-2xl);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .nav-section-collapsible {
+      margin-bottom: var(--space-md);
+    }
+    
+    .nav-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius);
+      transition: all 0.2s var(--ease-smooth);
+    }
+    
+    .nav-section-header:hover {
+      background: var(--surface-hover);
     }
     
     .nav-section-title {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin-bottom: var(--space-lg);
+      margin-bottom: var(--space-sm);
       padding-left: var(--space-md);
+    }
+    
+    .nav-section-collapsible .nav-section-title {
+      margin-bottom: 0;
+      padding-left: 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    .nav-section-toggle {
+      font-size: 14px;
+      color: var(--text-muted);
+      transition: transform 0.2s var(--ease-smooth);
+    }
+    
+    .nav-section-collapsible.collapsed .nav-section-toggle {
+      transform: rotate(-90deg);
+    }
+    
+    .nav-section-content {
+      max-height: 500px;
+      overflow: hidden;
+      transition: max-height 0.3s var(--ease-smooth);
+    }
+    
+    .nav-section-collapsible.collapsed .nav-section-content {
+      max-height: 0;
     }
     
     .nav-item {
       display: flex;
       align-items: center;
-      gap: var(--space-md);
-      padding: var(--space-md) var(--space-lg);
+      gap: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
       margin-bottom: var(--space-xs);
       background: transparent;
       border: none;
       border-radius: var(--radius);
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       width: 100%;
       cursor: pointer;
@@ -270,7 +312,7 @@
       position: absolute;
       left: 0;
       top: 0;
-      width: 3px;
+      width: 2px;
       height: 100%;
       background: var(--accent-primary);
       transform: scaleY(0);
@@ -280,7 +322,7 @@
     .nav-item:hover {
       background: var(--surface-hover);
       color: var(--text-primary);
-      transform: translateX(4px);
+      transform: translateX(2px);
     }
     
     .nav-item.active {
@@ -295,18 +337,20 @@
     
     .nav-item i {
       font-size: 16px;
-      width: 20px;
+      width: 18px;
       text-align: center;
     }
     
     .nav-badge {
       background: var(--accent-secondary);
       color: var(--text-inverse);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
-      padding: 2px 6px;
-      border-radius: 10px;
+      padding: 2px 5px;
+      border-radius: 8px;
       margin-left: auto;
+      min-width: 16px;
+      text-align: center;
     }
     
     /* ===== MAIN CONTENT ===== */
@@ -347,11 +391,18 @@
       z-index: 50;
     }
     
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+    }
+    
     .header-title {
       font-size: 24px;
       font-weight: 700;
       color: var(--text-primary);
       font-family: 'Space Grotesk', sans-serif;
+      margin: 0;
     }
     
     .header-controls {
@@ -502,6 +553,208 @@
       padding: var(--space-2xl);
     }
     
+    /* ===== WIDGET HUB STYLES ===== */
+    
+    .widget-hub-header {
+      text-align: center;
+      margin-bottom: var(--space-3xl);
+      padding: var(--space-2xl) 0;
+    }
+    
+    .widget-hub-title {
+      font-size: 32px;
+      font-weight: 900;
+      color: var(--text-primary);
+      margin-bottom: var(--space-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-lg);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    
+    .widget-hub-subtitle {
+      font-size: 18px;
+      color: var(--text-secondary);
+      margin: 0;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .widget-grid {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3xl);
+      margin-bottom: var(--space-3xl);
+    }
+    
+    .widget-category {
+      background: var(--surface-glass);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-xl);
+      padding: var(--space-2xl);
+      backdrop-filter: blur(20px);
+    }
+    
+    .widget-category-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding-bottom: var(--space-lg);
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    
+    .widget-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    .widget-card {
+      background: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      transition: all 0.3s var(--ease-smooth);
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .widget-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      opacity: 0;
+      transition: opacity 0.3s var(--ease-smooth);
+    }
+    
+    .widget-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent-primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .widget-card:hover::before {
+      opacity: 1;
+    }
+    
+    .widget-card-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-lg);
+      box-shadow: var(--shadow-glow);
+    }
+    
+    .widget-card-icon i {
+      font-size: 24px;
+      color: var(--text-inverse);
+    }
+    
+    .widget-card-content {
+      flex: 1;
+      margin-bottom: var(--space-lg);
+    }
+    
+    .widget-card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-sm);
+    }
+    
+    .widget-card-description {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-lg);
+      line-height: 1.5;
+    }
+    
+    .widget-card-status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .widget-card-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .widget-hub-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-lg);
+    }
+    
+    .stat-card {
+      background: var(--surface-glass);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      display: flex;
+      align-items: center;
+      gap: var(--space-lg);
+      transition: all 0.3s var(--ease-smooth);
+    }
+    
+    .stat-card:hover {
+      background: var(--surface-hover);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      background: var(--accent-primary);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+    }
+    
+    .stat-icon i {
+      font-size: 18px;
+      color: var(--text-inverse);
+    }
+    
+    .stat-content {
+      flex: 1;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 900;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
     /* ===== FORM CONTROLS ===== */
     
     .form-group {
@@ -535,7 +788,21 @@
     
     /* ===== RESPONSIVE ===== */
     
+    @media (max-width: 1024px) {
+      .widget-cards {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      
+      .widget-hub-stats {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      }
+    }
+    
     @media (max-width: 768px) {
+      :root {
+        --sidebar-width: 260px;
+      }
+      
       .dashboard-layout {
         grid-template-columns: 1fr;
       }
@@ -556,6 +823,295 @@
       
       .main-content {
         grid-column: 1;
+      }
+      
+      .widget-hub-title {
+        font-size: 24px;
+        flex-direction: column;
+        gap: var(--space-md);
+      }
+      
+      .widget-cards {
+        grid-template-columns: 1fr;
+      }
+      
+      .widget-hub-stats {
+        grid-template-columns: 1fr;
+      }
+      
+      .nav-item {
+        padding: var(--space-md) var(--space-lg);
+        font-size: 14px;
+      }
+      
+      .nav-section {
+        margin-bottom: var(--space-lg);
+      }
+    }
+    
+    @media (max-width: 480px) {
+      :root {
+        --sidebar-width: 240px;
+      }
+      
+      .widget-card {
+        padding: var(--space-lg);
+      }
+      
+      .card-header,
+      .card-body {
+        padding: var(--space-lg);
+      }
+      
+      .content-area {
+        padding: var(--space-lg);
+      }
+    }
+    
+    /* ===== SIDEBAR COMPACTNESS IMPROVEMENTS ===== */
+    
+    .sidebar-header {
+      padding: var(--space-lg) var(--space-xl) var(--space-md);
+    }
+    
+    .status-panel {
+      margin: var(--space-md) var(--space-lg);
+      padding: var(--space-md) var(--space-lg);
+    }
+    
+    .connection-indicator {
+      font-size: 13px;
+    }
+    
+    .status-dot {
+      width: 6px;
+      height: 6px;
+    }
+    
+    /* ===== PREVIEW FRAME STYLES ===== */
+    
+    .preview-container {
+      background: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg);
+      background: var(--surface-glass);
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    
+    .preview-controls {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    .preview-info {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+    
+    .preview-status {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .preview-frame-container {
+      position: relative;
+      width: 100%;
+      height: 600px;
+      background: var(--bg-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .preview-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      transform-origin: center;
+      transition: transform 0.3s var(--ease-smooth);
+    }
+    
+    .preview-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg);
+      background: var(--surface-glass);
+      border-top: 1px solid var(--border-secondary);
+    }
+    
+    .preview-resolution,
+    .preview-scale {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+    
+    .preview-resolution select,
+    .preview-scale input {
+      min-width: 120px;
+    }
+    
+    /* ===== TICKER CONTROL STYLES ===== */
+    
+    .ticker-controls {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    
+    .status-items {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: var(--space-sm) 0;
+      border-bottom: 1px solid var(--border-secondary);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    /* ===== EXPORT STYLES ===== */
+    
+    .export-options {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .export-option {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      padding: var(--space-sm);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background-color 0.2s var(--ease-smooth);
+    }
+    
+    .export-option:hover {
+      background: var(--surface-hover);
+    }
+    
+    .export-option input[type="checkbox"] {
+      margin: 0;
+    }
+    
+    .export-actions {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+    }
+    
+    .backup-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .backup-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--space-lg);
+      background: var(--surface);
+      border: 1px solid var(--border-primary);
+      border-radius: var(--radius);
+      transition: all 0.2s var(--ease-smooth);
+    }
+    
+    .backup-item:hover {
+      background: var(--surface-hover);
+      border-color: var(--accent-primary);
+    }
+    
+    .backup-info {
+      flex: 1;
+    }
+    
+    .backup-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+    }
+    
+    .backup-date {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    
+    .backup-actions {
+      display: flex;
+      gap: var(--space-sm);
+    }
+    
+    /* ===== IMPROVED FORM STYLES ===== */
+    
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: var(--space-lg);
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      cursor: pointer;
+      font-size: 14px;
+      color: var(--text-primary);
+    }
+    
+    .checkbox-label input[type="checkbox"] {
+      margin: 0;
+      width: 16px;
+      height: 16px;
+    }
+    
+    .checkbox-label:hover {
+      color: var(--accent-primary);
+    }
+    
+    .mobile-menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-size: 24px;
+      cursor: pointer;
+    }
+    
+    @media (max-width: 768px) {
+      .mobile-menu-toggle {
+        display: block;
+      }
+      
+      .header {
+        padding: 0 var(--space-lg);
       }
     }
     
@@ -907,56 +1463,79 @@
       
       <nav class="sidebar-nav">
         <div class="nav-section">
-          <div class="nav-section-title">Dashboard</div>
-          <button class="nav-item active" data-view="overview">
-            <i class="ph-house"></i>
-            <span>Overview</span>
+          <div class="nav-section-title">Widget Collection</div>
+          <button class="nav-item active" data-view="widget-hub">
+            <i class="ph-squares-four"></i>
+            <span>Widget Hub</span>
           </button>
-          <button class="nav-item" data-view="messages">
-            <i class="ph-chat-text"></i>
-            <span>Messages</span>
-            <span class="nav-badge" id="messageCount">4</span>
-          </button>
-          <button class="nav-item" data-view="ticker-control">
-            <i class="ph-play"></i>
-            <span>Ticker Control</span>
+          <button class="nav-item" data-view="overview">
+            <i class="ph-chart-line"></i>
+            <span>Analytics</span>
           </button>
         </div>
         
-        <div class="nav-section">
-          <div class="nav-section-title">Widgets</div>
-          <button class="nav-item" data-view="overlay">
-            <i class="ph-monitor"></i>
-            <span>Overlay</span>
-          </button>
-          <button class="nav-item" data-view="popup">
-            <i class="ph-chat-circle"></i>
-            <span>Popups</span>
-          </button>
-          <button class="nav-item" data-view="brb">
-            <i class="ph-coffee"></i>
-            <span>BRB Mode</span>
-          </button>
-          <button class="nav-item" data-view="themes">
-            <i class="ph-palette"></i>
-            <span>Theme Studio</span>
-          </button>
-          <button class="nav-item" data-view="output-preview">
-            <i class="ph-eye"></i>
-            <span>Output Preview</span>
-          </button>
+        <div class="nav-section nav-section-collapsible" data-section="core-widgets">
+          <div class="nav-section-header">
+            <div class="nav-section-title">Core Widgets</div>
+            <i class="nav-section-toggle ph-caret-down"></i>
+          </div>
+          <div class="nav-section-content">
+            <button class="nav-item" data-view="ticker-control">
+              <i class="ph-play"></i>
+              <span>Ticker</span>
+            </button>
+            <button class="nav-item" data-view="messages">
+              <i class="ph-chat-text"></i>
+              <span>Messages</span>
+              <span class="nav-badge" id="messageCount">4</span>
+            </button>
+            <button class="nav-item" data-view="overlay">
+              <i class="ph-monitor"></i>
+              <span>Overlay</span>
+            </button>
+          </div>
         </div>
         
-        <div class="nav-section">
-          <div class="nav-section-title">Tools</div>
-          <button class="nav-item" data-view="settings">
-            <i class="ph-gear"></i>
-            <span>Settings</span>
-          </button>
-          <button class="nav-item" data-view="export">
-            <i class="ph-download"></i>
-            <span>Export Data</span>
-          </button>
+        <div class="nav-section nav-section-collapsible" data-section="interactive-widgets">
+          <div class="nav-section-header">
+            <div class="nav-section-title">Interactive</div>
+            <i class="nav-section-toggle ph-caret-down"></i>
+          </div>
+          <div class="nav-section-content">
+            <button class="nav-item" data-view="popup">
+              <i class="ph-chat-circle"></i>
+              <span>Popups</span>
+            </button>
+            <button class="nav-item" data-view="brb">
+              <i class="ph-coffee"></i>
+              <span>BRB Mode</span>
+            </button>
+            <button class="nav-item" data-view="output-preview">
+              <i class="ph-eye"></i>
+              <span>Preview</span>
+            </button>
+          </div>
+        </div>
+        
+        <div class="nav-section nav-section-collapsible" data-section="customization">
+          <div class="nav-section-header">
+            <div class="nav-section-title">Customization</div>
+            <i class="nav-section-toggle ph-caret-down"></i>
+          </div>
+          <div class="nav-section-content">
+            <button class="nav-item" data-view="themes">
+              <i class="ph-palette"></i>
+              <span>Themes</span>
+            </button>
+            <button class="nav-item" data-view="settings">
+              <i class="ph-gear"></i>
+              <span>Settings</span>
+            </button>
+            <button class="nav-item" data-view="export">
+              <i class="ph-download"></i>
+              <span>Export</span>
+            </button>
+          </div>
         </div>
       </nav>
     </aside>
@@ -964,7 +1543,12 @@
     <!-- Enhanced Main Content -->
     <main class="main-content">
       <header class="header">
-        <h1 class="header-title" id="headerTitle">Overview</h1>
+        <div class="header-left">
+          <button class="mobile-menu-toggle" id="mobileMenuToggle">
+            <i class="ph-list"></i>
+          </button>
+          <h1 class="header-title" id="headerTitle">Widget Collection</h1>
+        </div>
         <div class="header-controls">
           <!-- Undo/Redo Controls -->
           <div class="undo-controls">
@@ -992,8 +1576,261 @@
       </header>
       
       <div class="content-area">
+        <!-- Widget Hub View -->
+        <div id="widget-hub-view" class="view active">
+          <div class="widget-hub-header">
+            <h2 class="widget-hub-title">
+              <i class="ph-squares-four"></i>
+              Widget Collection
+            </h2>
+            <p class="widget-hub-subtitle">Manage and configure all your streaming widgets from one place</p>
+          </div>
+          
+          <div class="widget-grid">
+            <!-- Core Widgets -->
+            <div class="widget-category">
+              <h3 class="widget-category-title">
+                <i class="ph-pulse"></i>
+                Core Widgets
+              </h3>
+              <div class="widget-cards">
+                <div class="widget-card" data-widget="ticker-control">
+                  <div class="widget-card-icon">
+                    <i class="ph-play"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Ticker</h4>
+                    <p class="widget-card-description">Scrolling text ticker for news and updates</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Active</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('ticker-control')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="messages">
+                  <div class="widget-card-icon">
+                    <i class="ph-chat-text"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Messages</h4>
+                    <p class="widget-card-description">Create and manage ticker messages</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>4 queued</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('messages')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="overlay">
+                  <div class="widget-card-icon">
+                    <i class="ph-monitor"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Overlay</h4>
+                    <p class="widget-card-description">Customize overlay appearance and behavior</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Ready</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('overlay')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Interactive Widgets -->
+            <div class="widget-category">
+              <h3 class="widget-category-title">
+                <i class="ph-chat-circle"></i>
+                Interactive Widgets
+              </h3>
+              <div class="widget-cards">
+                <div class="widget-card" data-widget="popup">
+                  <div class="widget-card-icon">
+                    <i class="ph-chat-circle"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Popups</h4>
+                    <p class="widget-card-description">Interactive popup notifications and alerts</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>3 active</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('popup')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="brb">
+                  <div class="widget-card-icon">
+                    <i class="ph-coffee"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">BRB Mode</h4>
+                    <p class="widget-card-description">"Be Right Back" overlay for breaks</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator offline"></span>
+                      <span>Inactive</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('brb')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="output-preview">
+                  <div class="widget-card-icon">
+                    <i class="ph-eye"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Output Preview</h4>
+                    <p class="widget-card-description">Live preview of your stream overlay</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Connected</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('output-preview')">
+                      <i class="ph-eye"></i>
+                      View
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Customization Widgets -->
+            <div class="widget-category">
+              <h3 class="widget-category-title">
+                <i class="ph-palette"></i>
+                Customization & Tools
+              </h3>
+              <div class="widget-cards">
+                <div class="widget-card" data-widget="themes">
+                  <div class="widget-card-icon">
+                    <i class="ph-palette"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Theme Studio</h4>
+                    <p class="widget-card-description">Create and manage custom themes</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Dark theme</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('themes')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="settings">
+                  <div class="widget-card-icon">
+                    <i class="ph-gear"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Settings</h4>
+                    <p class="widget-card-description">Global application settings</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Configured</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('settings')">
+                      <i class="ph-gear"></i>
+                      Configure
+                    </button>
+                  </div>
+                </div>
+                
+                <div class="widget-card" data-widget="export">
+                  <div class="widget-card-icon">
+                    <i class="ph-download"></i>
+                  </div>
+                  <div class="widget-card-content">
+                    <h4 class="widget-card-title">Export Data</h4>
+                    <p class="widget-card-description">Export configurations and data</p>
+                    <div class="widget-card-status">
+                      <span class="status-indicator online"></span>
+                      <span>Ready</span>
+                    </div>
+                  </div>
+                  <div class="widget-card-actions">
+                    <button class="btn btn-sm" onclick="switchView('export')">
+                      <i class="ph-download"></i>
+                      Export
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Stats -->
+          <div class="widget-hub-stats">
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="ph-activity"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-value">7</div>
+                <div class="stat-label">Active Widgets</div>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="ph-chart-line"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-value">247</div>
+                <div class="stat-label">Messages Sent</div>
+              </div>
+            </div>
+            
+            <div class="stat-card">
+              <div class="stat-icon">
+                <i class="ph-wifi-high"></i>
+              </div>
+              <div class="stat-content">
+                <div class="stat-value">98%</div>
+                <div class="stat-label">Uptime</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <!-- Overview View -->
-        <div id="overview-view" class="view active">
+        <div id="overview-view" class="view">
           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             <!-- Live Statistics -->
             <div class="card">
@@ -1071,6 +1908,85 @@
                   <div class="status-item">
                     <div class="status-indicator online"></div>
                     <span>Theme Engine</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Ticker Control View -->
+        <div id="ticker-control-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="ph-play"></i>
+                Ticker Control
+              </h2>
+              <p class="card-subtitle">Control and manage your ticker display</p>
+            </div>
+            <div class="card-body">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Ticker Controls -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="ph-play-circle"></i>
+                      Playback Controls
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="ticker-controls">
+                      <button class="btn btn-primary w-full mb-3" id="startTicker">
+                        <i class="ph-play"></i>
+                        Start Ticker
+                      </button>
+                      <button class="btn w-full mb-3" id="pauseTicker">
+                        <i class="ph-pause"></i>
+                        Pause Ticker
+                      </button>
+                      <button class="btn w-full" id="stopTicker">
+                        <i class="ph-stop"></i>
+                        Stop Ticker
+                      </button>
+                    </div>
+                    
+                    <div class="form-group mt-4">
+                      <label class="form-label">Ticker Speed</label>
+                      <input type="range" class="form-input" id="tickerSpeed" min="0.5" max="3.0" step="0.1" value="1.0">
+                      <span class="text-sm text-secondary" id="speedValue">1.0x</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Current Status -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="ph-info"></i>
+                      Current Status
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="status-items">
+                      <div class="status-item">
+                        <span>Status:</span>
+                        <span id="tickerStatus" class="text-accent-primary">Active</span>
+                      </div>
+                      <div class="status-item">
+                        <span>Current Message:</span>
+                        <span id="currentMessage" class="text-secondary">Breaking News: System Update Complete</span>
+                      </div>
+                      <div class="status-item">
+                        <span>Queue Length:</span>
+                        <span id="queueLength" class="text-secondary">4 messages</span>
+                      </div>
+                      <div class="status-item">
+                        <span>Speed:</span>
+                        <span id="currentSpeed" class="text-secondary">1.0x</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1667,34 +2583,30 @@
                     </h3>
                   </div>
                   <div class="card-body">
-                    <div class="settings-form-group">
-                      <label class="settings-form-label">Main Message</label>
-                      <textarea class="settings-form-input" id="brbMainMessage" rows="3" placeholder="Be Right Back!\n\nTaking a quick break...">Be Right Back!
-
-Taking a quick break...</textarea>
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-form-label">Estimated Return Time</label>
-                      <input type="text" class="settings-form-input" id="brbReturnTime" placeholder="Back in 10 minutes">
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-form-label">Background Style</label>
-                      <div class="settings-select">
-                        <select id="brbBackgroundStyle">
+                    <div class="settings-grid">
+                      <div class="form-group">
+                        <label class="form-label">Main Message</label>
+                        <textarea class="form-input" id="brbMainMessage" rows="2" placeholder="Be Right Back!">Be Right Back!</textarea>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="form-label">Estimated Return</label>
+                        <input type="text" class="form-input" id="brbReturnTime" placeholder="Back in 10 minutes">
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="form-label">Background Style</label>
+                        <select class="form-input" id="brbBackgroundStyle">
                           <option value="blur">Blur Background</option>
                           <option value="dim">Dim Background</option>
                           <option value="solid">Solid Color</option>
                           <option value="gradient">Gradient</option>
                         </select>
                       </div>
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-form-label">Background Color</label>
-                      <div class="settings-color-picker">
-                        <input type="color" id="brbBackgroundColor" value="#000000">
+                      
+                      <div class="form-group">
+                        <label class="form-label">Background Color</label>
+                        <input type="color" class="form-input" id="brbBackgroundColor" value="#000000">
                       </div>
                     </div>
                   </div>
@@ -1709,43 +2621,43 @@ Taking a quick break...</textarea>
                     </h3>
                   </div>
                   <div class="card-body">
-                    <div class="settings-form-group">
-                      <label class="settings-checkbox">
-                        <input type="checkbox" id="brbHideTicker" checked>
-                        <span>Hide ticker during BRB</span>
-                      </label>
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-checkbox">
-                        <input type="checkbox" id="brbHidePopups" checked>
-                        <span>Hide popups during BRB</span>
-                      </label>
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-checkbox">
-                        <input type="checkbox" id="brbShowClock">
-                        <span>Show current time</span>
-                      </label>
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-checkbox">
-                        <input type="checkbox" id="brbAutoReturn">
-                        <span>Auto-return after time limit</span>
-                      </label>
-                    </div>
-                    
-                    <div class="settings-form-group" id="autoReturnSettings" style="display: none;">
-                      <label class="settings-form-label">Auto-return after (minutes)</label>
-                      <input type="number" class="settings-form-input" id="brbAutoReturnTime" value="30" min="1" max="300">
-                    </div>
-                    
-                    <div class="settings-form-group">
-                      <label class="settings-form-label">Transition Animation</label>
-                      <div class="settings-select">
-                        <select id="brbTransition">
+                    <div class="settings-grid">
+                      <div class="form-group">
+                        <label class="checkbox-label">
+                          <input type="checkbox" id="brbHideTicker" checked>
+                          <span>Hide ticker during BRB</span>
+                        </label>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="checkbox-label">
+                          <input type="checkbox" id="brbHidePopups" checked>
+                          <span>Hide popups during BRB</span>
+                        </label>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="checkbox-label">
+                          <input type="checkbox" id="brbShowClock">
+                          <span>Show current time</span>
+                        </label>
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="checkbox-label">
+                          <input type="checkbox" id="brbAutoReturn">
+                          <span>Auto-return after time limit</span>
+                        </label>
+                      </div>
+                      
+                      <div class="form-group" id="autoReturnSettings">
+                        <label class="form-label">Auto-return after (minutes)</label>
+                        <input type="number" class="form-input" id="brbAutoReturnTime" value="30" min="1" max="300">
+                      </div>
+                      
+                      <div class="form-group">
+                        <label class="form-label">Transition Animation</label>
+                        <select class="form-input" id="brbTransition">
                           <option value="fade">Fade</option>
                           <option value="slide">Slide</option>
                           <option value="zoom">Zoom</option>
@@ -1765,23 +2677,23 @@ Taking a quick break...</textarea>
                     </h3>
                   </div>
                   <div class="card-body">
-                    <div class="flex flex-wrap gap-4">
-                      <button class="settings-btn settings-btn-primary" id="activateBRB">
+                    <div class="flex flex-wrap gap-3">
+                      <button class="btn btn-primary" id="activateBRB">
                         <i class="ph-play"></i>
                         Activate BRB Mode
                       </button>
                       
-                      <button class="settings-btn" id="deactivateBRB">
+                      <button class="btn" id="deactivateBRB">
                         <i class="ph-stop"></i>
                         Deactivate BRB Mode
                       </button>
                       
-                      <button class="settings-btn" id="previewBRB">
+                      <button class="btn" id="previewBRB">
                         <i class="ph-eye"></i>
                         Preview BRB Screen
                       </button>
                       
-                      <button class="settings-btn" id="resetBRBSettings">
+                      <button class="btn" id="resetBRBSettings">
                         <i class="ph-arrow-counter-clockwise"></i>
                         Reset to Defaults
                       </button>
@@ -2123,6 +3035,71 @@ Taking a quick break...</textarea>
           </div>
         </div>
         
+        <!-- Output Preview View -->
+        <div id="output-preview-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="ph-eye"></i>
+                Output Preview
+              </h2>
+              <p class="card-subtitle">Live preview of your stream overlay</p>
+            </div>
+            <div class="card-body">
+              <div class="preview-container">
+                <div class="preview-header">
+                  <div class="preview-controls">
+                    <button class="btn btn-sm" id="refreshPreview">
+                      <i class="ph-arrow-clockwise"></i>
+                      Refresh
+                    </button>
+                    <button class="btn btn-sm" id="fullscreenPreview">
+                      <i class="ph-arrows-out"></i>
+                      Fullscreen
+                    </button>
+                    <button class="btn btn-sm btn-primary" id="openOutput" onclick="window.open('output.html', '_blank')">
+                      <i class="ph-arrow-square-out"></i>
+                      Open in New Tab
+                    </button>
+                  </div>
+                  <div class="preview-info">
+                    <span class="preview-status">
+                      <span class="status-indicator online"></span>
+                      Live Preview
+                    </span>
+                  </div>
+                </div>
+                
+                <div class="preview-frame-container">
+                  <iframe 
+                    id="outputPreframe" 
+                    src="output.html" 
+                    class="preview-frame"
+                    title="Output Preview">
+                  </iframe>
+                </div>
+                
+                <div class="preview-footer">
+                  <div class="preview-resolution">
+                    <label for="previewResolution">Resolution:</label>
+                    <select id="previewResolution" class="form-input">
+                      <option value="1920x1080">1920x1080 (Full HD)</option>
+                      <option value="1280x720">1280x720 (HD)</option>
+                      <option value="1366x768">1366x768</option>
+                      <option value="800x600">800x600</option>
+                    </select>
+                  </div>
+                  <div class="preview-scale">
+                    <label for="previewScale">Scale:</label>
+                    <input type="range" id="previewScale" min="0.25" max="1" step="0.05" value="0.5" class="form-input">
+                    <span id="scaleDisplay">50%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <div id="settings-view" class="view">
           <div class="card">
             <div class="card-header">
@@ -2204,6 +3181,120 @@ Taking a quick break...</textarea>
             </div>
           </div>
         </div>
+        
+        <!-- Export Data View -->
+        <div id="export-view" class="view">
+          <div class="card">
+            <div class="card-header">
+              <h2 class="card-title">
+                <i class="ph-download"></i>
+                Export Data
+              </h2>
+              <p class="card-subtitle">Export your configurations and data</p>
+            </div>
+            <div class="card-body">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <!-- Export Options -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="ph-package"></i>
+                      Export Options
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="export-options">
+                      <label class="export-option">
+                        <input type="checkbox" checked>
+                        <span>Theme Settings</span>
+                      </label>
+                      <label class="export-option">
+                        <input type="checkbox" checked>
+                        <span>Widget Configurations</span>
+                      </label>
+                      <label class="export-option">
+                        <input type="checkbox" checked>
+                        <span>Message Templates</span>
+                      </label>
+                      <label class="export-option">
+                        <input type="checkbox" checked>
+                        <span>Popup Templates</span>
+                      </label>
+                      <label class="export-option">
+                        <input type="checkbox">
+                        <span>Message History</span>
+                      </label>
+                      <label class="export-option">
+                        <input type="checkbox">
+                        <span>Analytics Data</span>
+                      </label>
+                    </div>
+                    
+                    <div class="export-actions">
+                      <button class="btn btn-primary w-full mb-3">
+                        <i class="ph-download"></i>
+                        Export Configuration
+                      </button>
+                      <button class="btn w-full">
+                        <i class="ph-upload"></i>
+                        Import Configuration
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Backup & Restore -->
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="ph-clock-counter-clockwise"></i>
+                      Backup & Restore
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <div class="backup-list">
+                      <div class="backup-item">
+                        <div class="backup-info">
+                          <div class="backup-name">Auto Backup - Today</div>
+                          <div class="backup-date">2025-09-29 14:30</div>
+                        </div>
+                        <div class="backup-actions">
+                          <button class="btn btn-sm">
+                            <i class="ph-download"></i>
+                          </button>
+                          <button class="btn btn-sm">
+                            <i class="ph-arrow-counter-clockwise"></i>
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <div class="backup-item">
+                        <div class="backup-info">
+                          <div class="backup-name">Manual Backup</div>
+                          <div class="backup-date">2025-09-28 09:15</div>
+                        </div>
+                        <div class="backup-actions">
+                          <button class="btn btn-sm">
+                            <i class="ph-download"></i>
+                          </button>
+                          <button class="btn btn-sm">
+                            <i class="ph-arrow-counter-clockwise"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <button class="btn btn-primary w-full mt-4">
+                      <i class="ph-floppy-disk"></i>
+                      Create Backup Now
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
   </div>
@@ -2226,55 +3317,115 @@ Taking a quick break...</textarea>
       }
       
       init() {
-        this.initNavigation();
-        this.initFormHandlers();
-        this.initKeyboardShortcuts();
-        this.initWebSocket();
-        this.loadSavedState();
+        try {
+          this.initNavigation();
+          this.initFormHandlers();
+          this.initKeyboardShortcuts();
+          this.initWebSocket();
+          this.loadSavedState();
+          console.log('Dashboard initialized successfully');
+        } catch (error) {
+          console.error('Dashboard initialization error:', error);
+        }
       }
       
       initNavigation() {
+        // Handle navigation items
         document.querySelectorAll('.nav-item').forEach(item => {
           item.addEventListener('click', () => {
             const view = item.dataset.view;
             this.switchView(view);
           });
         });
+        
+        // Handle collapsible sections
+        document.querySelectorAll('.nav-section-collapsible').forEach(section => {
+          const header = section.querySelector('.nav-section-header');
+          const toggle = section.querySelector('.nav-section-toggle');
+          
+          header.addEventListener('click', () => {
+            section.classList.toggle('collapsed');
+            this.saveCollapsedState();
+          });
+        });
+        
+        // Initialize collapsed state from localStorage
+        this.loadCollapsedState();
+        
+        // Handle mobile menu toggle
+        const mobileToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        if (mobileToggle && sidebar) {
+          mobileToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('mobile-open');
+          });
+          
+          // Close mobile menu when clicking outside
+          document.addEventListener('click', (e) => {
+            if (!sidebar.contains(e.target) && !mobileToggle.contains(e.target)) {
+              sidebar.classList.remove('mobile-open');
+            }
+          });
+          
+          // Close mobile menu when navigating
+          document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+              sidebar.classList.remove('mobile-open');
+            });
+          });
+        }
       }
       
       switchView(viewName) {
-        // Hide current view
-        document.querySelectorAll('.view').forEach(view => {
-          view.classList.remove('active');
-        });
-        
-        // Show target view
-        const targetView = document.getElementById(`${viewName}-view`);
-        if (targetView) {
-          targetView.classList.add('active');
-          this.currentView = viewName;
-          
-          // Update header title
-          const titles = {
-            'overview': 'Overview',
-            'messages': 'Message Management',
-            'overlay': 'Overlay Settings',
-            'popup': 'Popup Management',
-            'themes': 'Theme Studio',
-            'settings': 'Settings'
-          };
-          
-          document.getElementById('headerTitle').textContent = titles[viewName] || 'Dashboard';
-          
-          // Update active nav item
-          document.querySelectorAll('.nav-item').forEach(item => {
-            item.classList.remove('active');
+        try {
+          // Hide current view
+          document.querySelectorAll('.view').forEach(view => {
+            view.classList.remove('active');
           });
           
-          const activeNavItem = document.querySelector(`[data-view="${viewName}"]`);
-          if (activeNavItem) {
-            activeNavItem.classList.add('active');
+          // Show target view
+          const targetView = document.getElementById(`${viewName}-view`);
+          if (targetView) {
+            targetView.classList.add('active');
+            this.currentView = viewName;
+            
+            // Update header title
+            const titles = {
+              'widget-hub': 'Widget Collection',
+              'overview': 'Analytics Dashboard',
+              'messages': 'Message Management',
+              'ticker-control': 'Ticker Control',
+              'overlay': 'Overlay Settings',
+              'popup': 'Popup Management',
+              'brb': 'BRB Mode',
+              'themes': 'Theme Studio',
+              'settings': 'Settings',
+              'export': 'Export Data',
+              'output-preview': 'Output Preview'
+            };
+            
+            const headerTitle = document.getElementById('headerTitle');
+            if (headerTitle) {
+              headerTitle.textContent = titles[viewName] || 'Dashboard';
+            }
+            
+            // Update active nav item
+            document.querySelectorAll('.nav-item').forEach(item => {
+              item.classList.remove('active');
+            });
+            
+            const activeNavItem = document.querySelector(`[data-view="${viewName}"]`);
+            if (activeNavItem) {
+              activeNavItem.classList.add('active');
+            }
+            
+            console.log(`Switched to view: ${viewName}`);
+          } else {
+            console.warn(`View not found: ${viewName}`);
           }
+        } catch (error) {
+          console.error('Error switching views:', error);
         }
       }
       
@@ -2521,6 +3672,41 @@ Taking a quick break...</textarea>
         if (state.currentView) {
           this.switchView(state.currentView);
         }
+        if (state.collapsedSections) {
+          this.applyCollapsedState(state.collapsedSections);
+        }
+      }
+      
+      loadCollapsedState() {
+        const collapsed = localStorage.getItem('collapsed-sections');
+        if (collapsed) {
+          try {
+            const collapsedSections = JSON.parse(collapsed);
+            this.applyCollapsedState(collapsedSections);
+          } catch (e) {
+            console.warn('Failed to load collapsed state:', e);
+          }
+        }
+      }
+      
+      applyCollapsedState(collapsedSections) {
+        collapsedSections.forEach(sectionId => {
+          const section = document.querySelector(`[data-section="${sectionId}"]`);
+          if (section) {
+            section.classList.add('collapsed');
+          }
+        });
+      }
+      
+      saveCollapsedState() {
+        const collapsedSections = [];
+        document.querySelectorAll('.nav-section-collapsible.collapsed').forEach(section => {
+          const sectionId = section.dataset.section;
+          if (sectionId) {
+            collapsedSections.push(sectionId);
+          }
+        });
+        localStorage.setItem('collapsed-sections', JSON.stringify(collapsedSections));
       }
       
       showNotification(message, type = 'info') {
@@ -2544,8 +3730,14 @@ Taking a quick break...</textarea>
     
     // Global functions for templates and quick actions
     function switchView(viewName) {
-      if (window.dashboardController) {
-        window.dashboardController.switchView(viewName);
+      try {
+        if (window.dashboardController) {
+          window.dashboardController.switchView(viewName);
+        } else {
+          console.warn('Dashboard controller not initialized');
+        }
+      } catch (error) {
+        console.error('Error in global switchView:', error);
       }
     }
     

@@ -5007,7 +5007,7 @@
         return formatted + separator + formatted;
       }
 
-    updateLabel() {
+      updateLabel() {
         this.labelNode.textContent = this.overlay.label;
         var combined = this.messages.join(' ').toLowerCase();
         var isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
@@ -5181,6 +5181,65 @@
     }, 1000);
     new SlateManager();
     new TickerEffects();
+    
+    // Add message listener for testing
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.command) {
+        console.log('[TestMessage] Received:', event.data);
+        
+        switch(event.data.command) {
+          case 'ticker':
+            if (window.stateManager) {
+              window.stateManager.updateState('ticker', event.data.data);
+              console.log('[TestMessage] Updated ticker state');
+            }
+            break;
+            
+          case 'popup':
+            if (window.modularPopup) {
+              window.modularPopup.showMessage(event.data.data.text, event.data.data);
+              console.log('[TestMessage] Showed popup');
+            }
+            break;
+            
+          case 'brb':
+            if (window.stateManager) {
+              window.stateManager.updateState('brb', event.data.data);
+              console.log('[TestMessage] Updated BRB state');
+            }
+            break;
+            
+          case 'config':
+            // Apply configuration changes
+            const config = event.data.data;
+            if (config.overlay && window.stateManager) {
+              window.stateManager.updateState('overlay', config.overlay);
+            }
+            if (config.ticker && window.stateManager) {
+              window.stateManager.updateState('ticker', { ...window.stateManager.getState('ticker'), ...config.ticker });
+            }
+            console.log('[TestMessage] Applied config:', config);
+            break;
+            
+          case 'theme':
+            if (window.themeEngine && event.data.data.name) {
+              window.themeEngine.applyTheme(event.data.data.name);
+              console.log('[TestMessage] Applied theme:', event.data.data.name);
+            }
+            break;
+        }
+        
+        // Send status back to test window
+        event.source.postMessage({
+          type: 'widget-status',
+          status: {
+            ticker: window.modularTicker ? window.modularTicker.getDebugInfo() : null,
+            popup: window.modularPopup ? { active: true } : null,
+            brb: window.modularBRB ? window.modularBRB.getDebugInfo() : null
+          }
+        }, event.origin);
+      }
+    });
   </script>
   
   <style>

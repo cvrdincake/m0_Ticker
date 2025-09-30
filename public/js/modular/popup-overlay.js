@@ -137,7 +137,7 @@ class ModularPopupOverlay {
       });
     } else {
       // Fallback to CSS animations
-      this.container.classList.add('popup--active');
+      this.container.classList.add('modular-popup--active');
       this.container.style.opacity = '1';
       this.container.style.visibility = 'visible';
       this.container.style.pointerEvents = 'auto';
@@ -167,7 +167,7 @@ class ModularPopupOverlay {
   hide() {
     if (!this.container) return;
 
-    this.container.classList.remove('popup--active');
+    this.container.classList.remove('modular-popup--active');
     this.container.style.opacity = '0';
     this.container.style.visibility = 'hidden';
     this.container.style.pointerEvents = 'none';

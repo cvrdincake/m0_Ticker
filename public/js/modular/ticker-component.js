@@ -170,7 +170,7 @@ class ModularTickerComponent {
 
   show() {
     if (this.container) {
-      this.container.classList.add('ticker--active');
+      this.container.classList.add('modular-ticker--active');
       this.container.style.opacity = '1';
       this.container.style.visibility = 'visible';
     }
@@ -178,7 +178,7 @@ class ModularTickerComponent {
 
   hide() {
     if (this.container) {
-      this.container.classList.remove('ticker--active');
+      this.container.classList.remove('modular-ticker--active');
       this.container.style.opacity = '0';
       this.container.style.visibility = 'hidden';
     }
