@@ -1,0 +1,5399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-store" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OBS Ticker Overlay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Professional Design System -->
+  <link rel="stylesheet" href="css/main.css">
+  
+  <!-- External Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/SplitText.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrambleTextPlugin.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/6.5.8/pixi.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="js/shared-config.js"></script>
+  <script src="js/scene-normaliser.js"></script>
+  <script src="js/state-manager.js"></script>
+  <script src="js/ticker-websocket.js"></script>
+  <style>
+    :root {
+      --ui-scale: 1.75;
+      --popup-scale: 1;
+      --bar-height: calc(55px * var(--ui-scale));
+      --label-width: calc(120px * var(--ui-scale));
+      --padding-x: var(--space-lg);
+      --divider-height: calc(var(--space-sm) * 1.75);
+      
+      /* Enhanced Modern Color System */
+      --overlay-accent: #00ff88;
+      --overlay-accent-secondary: #ff0080;
+      --accent: var(--overlay-accent, #00ff88);
+      --accent-secondary: var(--overlay-accent-secondary, #ff0080);
+      --accent-tertiary: #0080ff;
+      --accent-bright: #33ff99;
+      --accent-secondary-bright: #ff3399;
+      --accent-soft: rgba(0, 255, 136, 0.18);
+      --accent-glow: rgba(0, 255, 136, 0.45);
+      --accent-muted: rgba(10, 15, 25, 0.85);
+      --accent-duo: #0066cc;
+      --accent-contrast: #000814;
+      
+      /* Enhanced Dark Surfaces */
+      --surface-a: rgba(8, 10, 16, 0.96);
+      --surface-b: rgba(4, 6, 12, 0.94);
+      --surface-c: rgba(15, 18, 28, 0.92);
+      --surface-border: rgba(0, 255, 136, 0.15);
+      --surface-outline: rgba(255, 255, 255, 0.08);
+      --surface-glass: rgba(0, 0, 0, 0.6);
+      
+      /* Enhanced Text Colors */
+      --text: #ffffff;
+      --text-bright: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      
+      /* Enhanced Shadows and Effects */
+      --shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+      --shadow-glow: 0 0 30px rgba(0, 255, 136, 0.3);
+      --shadow-intense: 0 35px 80px rgba(0, 0, 0, 0.8);
+      
+      /* Animation Settings */
+      --marquee-pps: 120;
+      --hide-shift: calc(15px * var(--ui-scale) / 1.75);
+      
+      /* Ticker Surfaces */
+      --ticker-surface-a: var(--surface-a);
+      --ticker-surface-b: var(--surface-b);
+      --ticker-border: var(--surface-border);
+      --ticker-shadow: 0 14px 38px rgba(3, 5, 14, 0.42);
+      
+      /* Enhanced Ticker Styling */
+      --ticker-label-width: var(--label-width);
+      --ticker-label-size: calc(14px * var(--ui-scale));
+      --ticker-label-weight: 800;
+      --ticker-label-letter: calc(1.5px * var(--ui-scale));
+      --ticker-label-case: uppercase;
+      --ticker-label-color: var(--text-bright);
+      --ticker-label-shadow: 
+        0 0 10px rgba(0, 255, 136, 0.8),
+        0 2px 8px rgba(0, 0, 0, 0.6),
+        0 0 20px rgba(0, 255, 136, 0.4);
+      
+      /* Enhanced Visual Effects */
+      --ticker-glow-primary: rgba(0, 255, 136, 0.6);
+      --ticker-glow-secondary: rgba(255, 0, 128, 0.4);
+      --ticker-pulse-duration: 2s;
+      --ticker-shimmer-duration: 3s;
+      
+      /* Ticker Accents and Overlays */
+      --ticker-divider-color: rgba(255, 255, 255, 0.32);
+      --ticker-accent-overlay:
+        linear-gradient(155deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0) 62%),
+        linear-gradient(140deg,
+          rgba(0, 255, 136, 0.85),
+          rgba(0, 40, 80, 0.90)
+        );
+      --ticker-accent-border: 1px solid rgba(0, 255, 136, 0.4);
+      --ticker-accent-glow: 0 0 25px rgba(0, 255, 136, 0.35);
+      --ticker-accent-animation: enhancedGlassSweep 16s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+      
+      /* Enhanced Popup Surfaces */
+      --popup-surface-a: rgba(12, 15, 25, 0.96);
+      --popup-surface-b: rgba(8, 10, 18, 0.94);
+      --popup-border-color: rgba(0, 255, 136, 0.2);
+      --popup-shadow: 
+        0 25px 60px rgba(0, 0, 0, 0.8),
+        0 0 30px rgba(0, 255, 136, 0.15);
+      --popup-text-color: var(--text-bright);
+      --popup-divider-color: rgba(255, 255, 255, 0.15);
+      --popup-countdown-color: var(--accent);
+      --popup-countdown-dot: var(--accent-secondary);
+      --popup-accent-strip: linear-gradient(180deg, var(--accent), var(--accent-secondary));
+      --popup-sheen: radial-gradient(circle at 30% 40%, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+    }
+
+    @supports (color: color-mix(in srgb, red 50%, blue)) {
+      :root {
+        --accent-bright: color-mix(in srgb, var(--accent) 78%, #f6fbff 22%);
+        --accent-secondary-bright: color-mix(in srgb, var(--accent-secondary, var(--accent)) 75%, #f5f1ff 25%);
+        --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+        --accent-glow: color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.42));
+        --accent-muted: color-mix(in srgb, var(--accent) 45%, rgba(14, 18, 30, 0.75));
+        --accent-duo: color-mix(in srgb, var(--accent) 55%, var(--accent-secondary, var(--accent)) 45%);
+        --accent-contrast: color-mix(in srgb, var(--accent) 52%, #0b0f1a 48%);
+        --ticker-accent-overlay:
+          linear-gradient(155deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 62%),
+          linear-gradient(140deg,
+            color-mix(in srgb, var(--accent-bright) 80%, rgba(255, 255, 255, 0.2) 20%),
+            color-mix(in srgb, var(--accent-secondary, var(--accent)) 58%, rgba(8, 12, 24, 0.82) 42%)
+          );
+        --ticker-accent-border: 1px solid color-mix(in srgb, var(--accent) 45%, rgba(255, 255, 255, 0.28));
+        --ticker-accent-glow: 0 0 18px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.26));
+        --popup-surface-a: color-mix(in srgb, var(--ticker-surface-a) 92%, rgba(255, 255, 255, 0.02));
+        --popup-surface-b: color-mix(in srgb, var(--ticker-surface-b) 92%, rgba(0, 0, 0, 0.08));
+        --popup-border-color: color-mix(in srgb, var(--ticker-border) 85%, rgba(255, 255, 255, 0.12));
+        --popup-divider-color: color-mix(in srgb, var(--ticker-divider-color) 78%, rgba(255, 255, 255, 0.12));
+        --popup-countdown-color: color-mix(in srgb, rgba(240, 242, 248, 0.9) 82%, var(--accent) 18%);
+        --popup-countdown-dot: color-mix(in srgb, rgba(255, 255, 255, 0.52) 70%, var(--accent-secondary, var(--accent)) 30%);
+        --popup-accent-strip:
+          linear-gradient(165deg,
+            color-mix(in srgb, var(--accent) 78%, rgba(255, 255, 255, 0.2)),
+            color-mix(in srgb, var(--accent-secondary, var(--accent)) 52%, rgba(255, 255, 255, 0.08))
+          );
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-weight: 400;
+      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+      letter-spacing: -0.011em;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .brb-banner {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(24px, 6vw, 120px);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(56, 189, 248, 0.35), transparent 55%),
+        radial-gradient(circle at 85% 20%, rgba(244, 114, 182, 0.32), transparent 55%),
+        rgba(10, 14, 26, 0.94);
+      color: rgba(245, 247, 251, 0.96);
+      text-align: center;
+      letter-spacing: 0.04em;
+      font-size: clamp(28px, 6vw, 48px);
+      font-weight: 700;
+      line-height: 1.2;
+      text-transform: uppercase;
+      text-shadow:
+        0 0 24px rgba(56, 189, 248, 0.55),
+        0 6px 18px rgba(8, 12, 24, 0.6);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.35s var(--ease-smooth), visibility 0.35s var(--ease-smooth);
+      z-index: 1400;
+    }
+
+    .brb-banner.show {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .brb-banner__content {
+      max-width: min(960px, 90vw);
+      white-space: pre-line;
+      color: inherit;
+    }
+
+    .ticker.brb-hidden,
+    .popup.brb-hidden,
+    .slate-widget.brb-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: none !important;
+    }
+
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .ticker {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: var(--bar-height);
+      --ticker-ambient-opacity: 0.22;
+      --ticker-ambient-blur: 0px;
+      --ticker-ambient-scale: 1;
+      --ticker-accent-offset: 0%;
+      --ticker-accent-scale: 1;
+      --ticker-accent-blur: 0px;
+      --ticker-accent-sheen: 0%;
+      transform: translate3d(0, 100%, 0);
+      opacity: 0;
+      background:
+        var(--ticker-ambient-mask, transparent),
+        linear-gradient(150deg, var(--ticker-surface-a), var(--ticker-surface-b));
+      background-color: var(--ticker-surface-a);
+      box-shadow: var(--ticker-shadow), var(--ticker-chromatic-shadows, 0 0 0 transparent);
+      border-top: 1px solid var(--ticker-border);
+      filter: var(--ticker-depth-filter, none);
+      mask-image: var(--ticker-depth-mask, none);
+      -webkit-mask-image: var(--ticker-depth-mask, none);
+      mask-mode: luminance;
+      mask-size: cover;
+      -webkit-mask-size: cover;
+      mask-repeat: no-repeat;
+      -webkit-mask-repeat: no-repeat;
+      transition:
+        transform 0.52s var(--ease-dramatic),
+        opacity 0.48s var(--ease-smooth),
+        filter 0.52s var(--ease-smooth);
+      overflow: hidden;
+      will-change: transform, opacity, filter;
+      contain: layout style paint;
+      z-index: 1000;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .ticker {
+        backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+        -webkit-backdrop-filter: var(--ticker-backdrop-filter, blur(18px) saturate(1.05));
+      }
+    }
+
+    .ticker-visuals {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 0;
+      mix-blend-mode: normal;
+    }
+
+    .ticker-visuals canvas,
+    .ticker-visuals video,
+    .ticker-visuals svg,
+    .ticker-visuals div {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .ticker.top {
+      top: 0;
+      bottom: auto;
+      transform: translate3d(0, -100%, 0);
+      border-top: none;
+      border-bottom: 1px solid var(--ticker-border);
+    }
+
+    .ticker.show {
+      transform: translate3d(0, 0, 0);
+      opacity: 1;
+      filter: none;
+      animation: var(--ticker-motion-stack, none);
+    }
+
+    .ticker.is-hiding {
+      opacity: 0;
+      filter: saturate(0.88) brightness(0.9) blur(2px);
+      animation: none;
+    }
+
+    .ticker.show.is-hiding {
+      transform: translate3d(0, var(--hide-shift), 0) scale(0.995);
+    }
+
+    .ticker.top.show.is-hiding {
+      transform: translate3d(0, calc(var(--hide-shift) * -1), 0) scale(0.995);
+    }
+
+
+    .ticker::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--ticker-label-width);
+      background: var(--ticker-accent-overlay);
+      background-size: 220% 220%, 100% 100%;
+      background-position: var(--ticker-accent-sheen, 0%) 50%, 50% 50%;
+      border-right: var(--ticker-accent-border);
+      box-shadow: var(--ticker-accent-glow);
+      transform: translate3d(0, var(--ticker-accent-offset, 0%), 0) scaleY(var(--ticker-accent-scale, 1));
+      filter: blur(var(--ticker-accent-blur, 0px));
+      z-index: 1;
+      animation: var(--ticker-accent-animation, none);
+    }
+
+    .ticker::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        var(--ticker-ambient-caustics, transparent),
+        var(--ticker-surface-noise, none);
+      mix-blend-mode: screen;
+      opacity: var(--ticker-ambient-opacity, 0.22);
+      filter: blur(var(--ticker-ambient-blur, 0px));
+      transform: scaleX(var(--ticker-ambient-scale, 1));
+      animation: tickerAmbientGlow 12s var(--ease-smooth) infinite;
+      z-index: 0;
+    }
+
+    .ticker-label {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: var(--ticker-label-width);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--ticker-label-size);
+      font-weight: var(--ticker-label-weight);
+      letter-spacing: var(--ticker-label-letter);
+      text-transform: var(--ticker-label-case);
+      text-shadow: var(--ticker-label-shadow);
+      color: var(--ticker-label-color);
+      z-index: 2;
+    }
+
+    .ticker-label.is-breaking { animation: labelPulse 1.8s ease-in-out infinite; }
+
+    .ticker-track {
+      position: absolute;
+      left: var(--ticker-label-width);
+      right: 0;
+      top: 0;
+      bottom: 0;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    .ticker-content {
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: inline-block;
+      white-space: nowrap;
+      line-height: var(--bar-height);
+      font-size: calc(14px * var(--ui-scale));
+      font-weight: 500;
+      padding-left: var(--padding-x);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      transform: translate3d(0, 0, 0);
+      will-change: transform;
+    }
+
+    .ticker-measure {
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+      white-space: nowrap;
+      transform: none !important;
+      left: -9999px;
+      top: -9999px;
+    }
+
+    .message-separator {
+      display: inline-block;
+      width: 1px;
+      height: var(--divider-height);
+      margin: 0 var(--space-lg);
+      background: var(--ticker-divider-color);
+      vertical-align: middle;
+    }
+
+    .fx { display: inline-flex; position: relative; color: inherit; }
+    .fx-letter { display: inline-block; --i: 0; will-change: transform, filter; }
+    .fx-rainbow .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent-contrast) 60%, rgba(8, 12, 22, 0.25) 40%),
+        color-mix(in srgb, var(--accent-duo) 55%, rgba(10, 12, 24, 0.32) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow:
+        0 0 3px color-mix(in srgb, var(--accent) 26%, rgba(255, 255, 255, 0.25)),
+        0 0 8px color-mix(in srgb, var(--accent-glow) 35%, rgba(0, 0, 0, 0.12));
+      filter: saturate(1.08) brightness(1.04);
+    }
+
+    .fx.fx-sparkle { animation: gentlePulse 6s ease-in-out infinite; }
+
+    .fx-sparkle .fx-letter {
+      background-image:
+        radial-gradient(circle at 38% 62%, color-mix(in srgb, var(--accent-bright) 75%, white 25%) 0 18%, transparent 42%),
+        radial-gradient(circle at 68% 32%, color-mix(in srgb, var(--accent-glow) 65%, rgba(255, 255, 255, 0.05)) 0 16%, transparent 40%),
+        linear-gradient(120deg, color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.08)), color-mix(in srgb, var(--accent-contrast) 50%, rgba(8, 12, 22, 0.4)));
+      background-size: 160% 160%, 220% 220%, 280% 100%;
+      background-position: 0% 0%, 100% 100%, 0% 50%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: sparkleShift 4.2s linear infinite, subtleFloat 1.9s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.1s), calc(var(--i) * 0.07s);
+      text-shadow:
+        0 0 4px color-mix(in srgb, var(--accent) 28%, rgba(255, 255, 255, 0.3)),
+        0 0 10px color-mix(in srgb, var(--accent-glow) 24%, rgba(0, 0, 0, 0.16));
+      filter: saturate(1.1) contrast(1.05);
+    }
+
+    body.no-sparkle .fx-sparkle .fx-letter {
+      background-image: linear-gradient(
+        120deg,
+        color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.1) 30%),
+        color-mix(in srgb, var(--accent) 55%, rgba(8, 12, 22, 0.25) 45%)
+      );
+      background-size: 220% 100%;
+      background-position: 0% 50%;
+      animation: rainbowShift 3.6s linear infinite, subtleFloat 2s ease-in-out infinite;
+      animation-delay: calc(var(--i) * -0.12s), calc(var(--i) * 0.08s);
+      text-shadow: 0 0 3px color-mix(in srgb, var(--accent) 22%, rgba(255, 255, 255, 0.25));
+      filter: saturate(1.05) brightness(1.03);
+    }
+
+    .fx-bounce {
+      display: inline-block;
+      animation: enhancedBounce 2.2s ease-in-out infinite;
+      transform-origin: center bottom;
+      will-change: transform;
+    }
+
+    .fx-neon {
+      color: color-mix(in srgb, var(--accent-bright) 72%, white 28%);
+      text-shadow:
+        0 0 2px color-mix(in srgb, var(--accent) 50%, rgba(255, 255, 255, 0.32)),
+        0 0 6px color-mix(in srgb, var(--accent-glow) 40%, rgba(10, 14, 26, 0.4)),
+        0 0 12px color-mix(in srgb, var(--accent) 28%, rgba(0, 0, 0, 0.18));
+      animation: neonFlicker 3.4s ease-in-out infinite, gentlePulse 5.2s ease-in-out infinite;
+    }
+
+    .fx-glitch {
+      position: relative;
+      display: inline-block;
+      color: #f4f7ff;
+      animation: dataGlitch 2.4s steps(2, end) infinite;
+    }
+
+    .fx-glitch::before,
+    .fx-glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0.5;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .fx-glitch::before {
+      color: color-mix(in srgb, var(--accent-duo) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .fx-glitch::after {
+      color: color-mix(in srgb, var(--accent-contrast) 70%, rgba(255, 255, 255, 0.2));
+    }
+
+    .highlight { color: #fbbf24; font-weight: 600; }
+    strong { font-weight: 700; }
+    em { font-style: italic; }
+
+    .popup {
+      position: fixed;
+      top: calc(24px * var(--ui-scale) / 1.75);
+      left: calc(24px * var(--ui-scale) / 1.75);
+      max-width: min(calc(540px * var(--popup-scale)), 46vw);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(calc(-16px * var(--popup-scale)), calc(-16px * var(--popup-scale)));
+      transition: transform 0.42s cubic-bezier(0.22, 0.61, 0.36, 1), opacity 0.35s ease;
+      z-index: 1100;
+    }
+
+    .popup.show {
+      opacity: 1;
+      transform: translate(0, 0);
+    }
+
+    .popup.push-down {
+      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
+    }
+
+    .popup-inner {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: calc(14px * var(--popup-scale));
+      padding: calc(16px * var(--popup-scale)) calc(22px * var(--popup-scale));
+      border-radius: 0;
+      background-color: var(--popup-surface-a);
+      background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
+      border: 1px solid var(--popup-border-color);
+      box-shadow: var(--popup-shadow);
+      font-size: calc(16px * var(--popup-scale));
+      font-weight: 600;
+      line-height: 1.4;
+      color: var(--popup-text-color);
+      overflow: hidden;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .popup-inner {
+        backdrop-filter: blur(18px) saturate(1.05);
+        -webkit-backdrop-filter: blur(18px) saturate(1.05);
+      }
+    }
+
+    .popup-message {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+
+    .popup-countdown {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(10px * var(--popup-scale));
+      margin-left: calc(16px * var(--popup-scale));
+      padding-left: calc(16px * var(--popup-scale));
+      border-left: 1px solid var(--popup-divider-color);
+      font-size: calc(14px * var(--popup-scale));
+      font-weight: 600;
+      color: var(--popup-countdown-color);
+      letter-spacing: 0.025em;
+      text-transform: uppercase;
+    }
+
+    .popup-countdown::before {
+      content: '•';
+      margin-right: calc(4px * var(--popup-scale));
+      color: var(--popup-countdown-dot);
+    }
+
+    .popup-inner::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: calc(4px * var(--popup-scale));
+      background: var(--popup-accent-strip);
+      opacity: 0.9;
+    }
+
+    .popup-inner::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--popup-sheen);
+      opacity: 0.18;
+      pointer-events: none;
+      mix-blend-mode: screen;
+    }
+
+    .slate {
+      --slate-pill-size: calc(var(--text-xs, calc(10px * var(--ui-scale))) * 0.542857);
+      --slate-title-size: calc(var(--text-base, calc(14px * var(--ui-scale))) * 0.612245);
+      --slate-clock-size: calc(var(--text-base, calc(14px * var(--ui-scale))) * 0.734694);
+      --slate-subtitle-size: calc(var(--text-sm, calc(12px * var(--ui-scale))) * 0.571429);
+      --slate-meta-size: calc(var(--text-sm, calc(12px * var(--ui-scale))) * 0.52381);
+      position: fixed;
+      top: calc(24px * var(--ui-scale) / 1.75);
+      right: calc(24px * var(--ui-scale) / 1.75);
+      max-width: min(calc(360px * var(--ui-scale) / 1.75), 32vw);
+      pointer-events: none;
+      opacity: 0;
+      transform: translate3d(calc(16px * var(--ui-scale) / 1.75), calc(-16px * var(--ui-scale) / 1.75), 0);
+      transition: opacity 0.32s ease, transform 0.32s cubic-bezier(0.22, 0.61, 0.36, 1);
+      z-index: 1080;
+    }
+
+    .slate.push-down {
+      top: calc(var(--bar-height) + (28px * var(--ui-scale) / 1.75) + (12px * var(--popup-scale)));
+    }
+
+    .slate.show {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+
+    .slate-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: calc(8px * var(--ui-scale) / 1.75);
+      padding: calc(16px * var(--ui-scale) / 1.75) calc(22px * var(--ui-scale) / 1.75);
+      padding-left: calc(22px * var(--ui-scale) / 1.75);
+      min-width: min(calc(240px * var(--ui-scale) / 1.75), 30vw);
+      max-width: min(calc(320px * var(--ui-scale) / 1.75), 32vw);
+      border: 1px solid var(--popup-border-color);
+      border-radius: 0;
+      background-color: var(--popup-surface-a);
+      background: linear-gradient(150deg, var(--popup-surface-a), var(--popup-surface-b));
+      box-shadow: var(--popup-shadow);
+      color: var(--popup-text-color);
+      overflow: hidden;
+    }
+
+    @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .slate-card {
+        backdrop-filter: blur(14px) saturate(1.05);
+        -webkit-backdrop-filter: blur(14px) saturate(1.05);
+      }
+    }
+
+    .slate-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: calc(3px * var(--ui-scale));
+      background: var(--popup-accent-strip);
+      opacity: 0.95;
+      pointer-events: none;
+    }
+
+    .slate-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--popup-sheen);
+      opacity: 0.14;
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
+    .slate-pill {
+      font-size: var(--slate-pill-size);
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, var(--accent) 70%, rgba(255, 255, 255, 0.6));
+    }
+
+    .slate-title {
+      font-size: var(--slate-title-size);
+      font-weight: 600;
+      line-height: 1.25;
+      color: rgba(248, 250, 255, 0.96);
+      letter-spacing: 0.01em;
+    }
+
+    .slate-card[data-type='clock'] .slate-title {
+      font-size: var(--slate-clock-size);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.06em;
+    }
+
+    .slate-subtitle {
+      font-size: var(--slate-subtitle-size);
+      color: rgba(220, 226, 238, 0.82);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .slate-subtitle.is-hidden {
+      display: none;
+    }
+
+    .slate-meta {
+      font-size: var(--slate-meta-size);
+      color: rgba(198, 204, 218, 0.65);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .slate-meta.is-hidden {
+      display: none;
+    }
+
+    .slate-dots {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      margin-top: calc(6px * var(--ui-scale) / 1.75);
+    }
+
+    .slate-dots span {
+      width: 4px;
+      height: 4px;
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.32);
+      opacity: 0.45;
+      transition: opacity 0.25s ease;
+    }
+
+    .slate-dots span.is-active {
+      background: rgba(56, 189, 248, 0.68);
+      opacity: 1;
+    }
+
+    @supports (color: color-mix(in srgb, red 50%, blue)) {
+      .slate-dots span.is-active {
+        background: color-mix(in srgb, var(--accent) 72%, rgba(255, 255, 255, 0.6));
+      }
+    }
+
+    .popup-inner.refresh {
+      animation: popupRefresh 0.4s ease;
+    }
+
+    @keyframes popupRefresh {
+      0% { opacity: 0; transform: translateY(-8px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes rainbowShift {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+
+    @keyframes sparkleShift {
+      0% { background-position: 0% 0%, 100% 100%, 50% 0%, 0% 0%; }
+      25% { background-position: 50% 50%, 0% 0%, 100% 50%, 50% 50%; }
+      50% { background-position: 100% 100%, 50% 50%, 0% 100%, 100% 100%; }
+      75% { background-position: 50% 0%, 100% 0%, 50% 50%, 150% 50%; }
+      100% { background-position: 0% 0%, 100% 100%, 50% 0%, 200% 0%; }
+    }
+
+    @keyframes subtleFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+
+    @keyframes gentlePulse {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+
+    @keyframes enhancedBounce {
+      0%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-3px); }
+      55% { transform: translateY(-4px); }
+      75% { transform: translateY(-1px); }
+    }
+
+    @keyframes neonFlicker {
+      0%, 100% {
+        text-shadow:
+          0 0 1px color-mix(in srgb, var(--accent) 58%, rgba(255, 255, 255, 0.28)),
+          0 0 4px color-mix(in srgb, var(--accent-glow) 48%, rgba(12, 16, 28, 0.4)),
+          0 0 8px color-mix(in srgb, var(--accent) 36%, rgba(0, 0, 0, 0.18));
+      }
+      50% {
+        text-shadow:
+          0 0 2px color-mix(in srgb, var(--accent-bright) 70%, rgba(255, 255, 255, 0.36)),
+          0 0 6px color-mix(in srgb, var(--accent-glow) 60%, rgba(10, 14, 26, 0.3)),
+          0 0 12px color-mix(in srgb, var(--accent) 40%, rgba(0, 0, 0, 0.2));
+      }
+    }
+
+    @keyframes dataGlitch {
+      0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+      12% { transform: translate(-1px, 1px); filter: hue-rotate(-4deg); }
+      24% { transform: translate(1px, -1px); filter: hue-rotate(5deg); }
+      38% { transform: translate(-1.5px, 0); filter: hue-rotate(-6deg); }
+      52% { transform: translate(0.5px, 1px); filter: hue-rotate(4deg); }
+      68% { transform: translate(1.5px, -1px); filter: hue-rotate(-3deg); }
+      82% { transform: translate(-0.8px, 0); filter: hue-rotate(3deg); }
+      92% { transform: translate(0.8px, -0.6px); filter: hue-rotate(-2deg); }
+    }
+
+    @keyframes labelPulse {
+      0%, 100% { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+      50% { text-shadow: 0 0 6px rgba(255, 255, 255, 0.48); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="modular-popup" id="popup">
+    <div class="modular-popup__content" id="popupContent">
+      <div class="popup-text"></div>
+      <div class="countdown-display" style="display: none;"></div>
+    </div>
+  </div>
+
+  <div class="modular-brb" id="brbBanner" role="status" aria-live="assertive" aria-hidden="true">
+    <div class="modular-brb__content" id="brbBannerText">
+      <div class="brb-text"></div>
+    </div>
+  </div>
+
+  <div class="slate" id="slate" aria-live="polite" aria-atomic="true">
+    <div class="slate-card" id="slateCard" data-type="">
+      <div class="slate-pill" id="slatePill">Segment slate</div>
+      <div class="slate-title" id="slateTitle"></div>
+      <div class="slate-subtitle" id="slateSubtitle"></div>
+      <div class="slate-meta" id="slateMeta"></div>
+    </div>
+    <div class="slate-dots" id="slateDots"></div>
+  </div>
+
+  <div class="modular-ticker ticker" id="ticker">
+    <div class="modular-ticker__visuals ticker-visuals" id="tickerVisuals"></div>
+    <div class="modular-ticker__label ticker-label" id="tickerLabel">LIVE</div>
+    <div class="modular-ticker__track ticker-track" id="tickerTrack">
+      <div class="modular-ticker__content ticker-content" id="tickerContent"></div>
+    </div>
+  </div>
+
+  <script src="js/shared-config.js"></script>
+  <script src="js/shared-utils.js"></script>
+  <script src="js/request-client.js"></script>
+  <script src="js/modular/state-manager-enhanced.js"></script>
+  <script src="js/modular/ticker-component.js"></script>
+  <script src="js/modular/popup-overlay.js"></script>
+  <script src="js/modular/brb-overlay.js"></script>
+  <script src="js/modular/theme-engine.js"></script>
+  <script src="js/modular/gsap-animation-controller.js"></script>
+  <script src="js/professional-ui.js"></script>
+  <script>
+    var TickerShared = window.TickerShared || {};
+    var OVERLAY_THEMES = TickerShared.OVERLAY_THEMES;
+    var normaliseHighlightList = TickerShared.normaliseHighlightList;
+    var sharedNormaliseMode = TickerShared.normaliseMode;
+    var sharedNormalisePosition = TickerShared.normalisePosition;
+    var sharedNormaliseTheme = TickerShared.normaliseTheme;
+    var sharedNormaliseServerBase = TickerShared.normaliseServerBase;
+    var sharedNormaliseServerBaseUrl = TickerShared.normaliseServerBaseUrl;
+    var isSafeCssColor = TickerShared.isSafeCssColor;
+    var clampScaleValue = TickerShared.clampScaleValue;
+    var clampPopupScaleValue = TickerShared.clampPopupScaleValue;
+    var clampSlateRotationSeconds = TickerShared.clampSlateRotationSeconds;
+    var normaliseSlateNotes = TickerShared.normaliseSlateNotes;
+
+    var DEFAULT_SERVER_URL = 'http://127.0.0.1:3000';
+    var manualNormaliseServerBase = function(value, fallback) {
+      fallback = fallback || DEFAULT_SERVER_URL;
+      var fallbackValue = typeof fallback === 'string' && fallback.trim()
+        ? fallback.trim()
+        : DEFAULT_SERVER_URL;
+      var raw = typeof value === 'string' ? value.trim() : '';
+      var target = raw || fallbackValue;
+      var cleaned = target
+        .replace(/(?:\/ticker)+\/?$/i, '')
+        .replace(/\/+$/g, '');
+      var fallbackClean = fallbackValue.replace(/\/+$/g, '');
+      return cleaned || fallbackClean;
+    };
+    var normaliseServerBase = typeof sharedNormaliseServerBase === 'function'
+      ? function(value, fallback) { return sharedNormaliseServerBase(value, fallback == null ? DEFAULT_SERVER_URL : fallback); }
+      : typeof sharedNormaliseServerBaseUrl === 'function'
+        ? function(value, fallback) { return sharedNormaliseServerBaseUrl(value, fallback == null ? DEFAULT_SERVER_URL : fallback); }
+        : manualNormaliseServerBase;
+
+    var SPECIAL_MAP = {
+      '~~': 'rainbow',
+      '%%': 'sparkle',
+      '^^': 'bounce',
+      '==': 'neon',
+      '!!': 'glitch'
+    };
+
+    var sharedConfig = window.SharedConfig || {};
+
+    function normaliseThemeList(list) {
+      if (!Array.isArray(list)) return [];
+      var seen = new Set();
+      var normalised = [];
+      for (var i = 0; i < list.length; i++) {
+        var entry = list[i];
+        if (typeof entry !== 'string') continue;
+        var trimmed = entry.trim().toLowerCase();
+        if (!trimmed || seen.has(trimmed)) continue;
+        seen.add(trimmed);
+        normalised.push(trimmed);
+      }
+      return normalised;
+    }
+    var DEFAULT_HIGHLIGHTS = Array.isArray(sharedConfig.DEFAULT_HIGHLIGHTS) && sharedConfig.DEFAULT_HIGHLIGHTS.length
+      ? sharedConfig.DEFAULT_HIGHLIGHTS.slice()
+      : ['live', 'breaking', 'alert', 'update', 'tonight', 'today'];
+    var DEFAULT_HIGHLIGHT_STRING = typeof sharedConfig.DEFAULT_HIGHLIGHT_STRING === 'string' && sharedConfig.DEFAULT_HIGHLIGHT_STRING.trim()
+      ? sharedConfig.DEFAULT_HIGHLIGHT_STRING
+      : DEFAULT_HIGHLIGHTS.join(',');
+    var MAX_MESSAGES = 50;
+    var MAX_MESSAGE_LENGTH = 280;
+    var MAX_POPUP_SECONDS = 600;
+    var MAX_BRB_LENGTH = 280;
+    var MAX_SLATE_TITLE_LENGTH = 64;
+    var MAX_SLATE_TEXT_LENGTH = 200;
+    var MAX_SLATE_NOTES = 6;
+    var HIDE_TRANSITION_FALLBACK_MS = 700;
+    var themeOptions = Array.isArray(OVERLAY_THEMES) && OVERLAY_THEMES.length
+      ? OVERLAY_THEMES.slice()
+      : normaliseThemeList(sharedConfig.OVERLAY_THEMES);
+    var THEME_CLASSNAMES = themeOptions.map(function(theme) { return 'ticker--' + theme; });
+
+    const DEFAULT_OVERLAY = {
+      label: 'LIVE',
+      accent: '#38bdf8',
+      accentSecondary: '#f472b6',
+      highlight: DEFAULT_HIGHLIGHT_STRING,
+      scale: 1.75,
+      popupScale: 1,
+      position: 'bottom',
+      mode: 'auto',
+      accentAnim: true,
+      sparkle: true,
+      theme: 'midnight-glass',
+      ...(sharedConfig.DEFAULT_OVERLAY || {})
+    };
+    if (!DEFAULT_OVERLAY.highlight) {
+      DEFAULT_OVERLAY.highlight = DEFAULT_HIGHLIGHT_STRING;
+    }
+
+    const DEFAULT_POPUP = {
+      text: '',
+      isActive: false,
+      durationSeconds: null,
+      countdownEnabled: false,
+      countdownTarget: null,
+      ...(sharedConfig.DEFAULT_POPUP || {}),
+      updatedAt: null
+    };
+
+    const DEFAULT_BRB = {
+      text: '',
+      isActive: false,
+      updatedAt: null
+    };
+
+    const DEFAULT_SLATE_SOURCE = {
+      isEnabled: true,
+      rotationSeconds: 12,
+      showClock: true,
+      clockLabel: 'UK TIME',
+      clockSubtitle: 'UK time',
+      nextLabel: 'Next up',
+      nextTitle: '',
+      nextSubtitle: '',
+      sponsorLabel: 'Sponsor',
+      sponsorName: '',
+      sponsorTagline: '',
+      notesLabel: 'Spotlight',
+      notes: [],
+      ...(sharedConfig.DEFAULT_SLATE || {})
+    };
+
+    const DEFAULT_SLATE = {
+      ...DEFAULT_SLATE_SOURCE,
+      rotationSeconds: typeof clampSlateRotationSeconds === 'function'
+        ? clampSlateRotationSeconds(DEFAULT_SLATE_SOURCE.rotationSeconds, 12)
+        : Math.min(Math.max(Math.round(Number(DEFAULT_SLATE_SOURCE.rotationSeconds) || 12), 4), 900),
+      clockSubtitle: typeof DEFAULT_SLATE_SOURCE.clockSubtitle === 'string'
+        ? DEFAULT_SLATE_SOURCE.clockSubtitle.trim().slice(0, 200)
+        : 'UK time',
+      notes: typeof normaliseSlateNotes === 'function'
+        ? normaliseSlateNotes(DEFAULT_SLATE_SOURCE.notes, 6, 200)
+        : (Array.isArray(DEFAULT_SLATE_SOURCE.notes)
+            ? DEFAULT_SLATE_SOURCE.notes
+                .map(entry => String(entry || '').trim().slice(0, 200))
+                .filter(Boolean)
+                .slice(0, 6)
+            : []),
+      updatedAt: null
+    };
+
+    const requestClientApi = window.RequestClient || {};
+    const requestManager = typeof requestClientApi.create === 'function'
+      ? requestClientApi.create({ defaultTimeoutMs: 8000 })
+      : null;
+    const RequestErrorCtor = typeof requestClientApi.RequestError === 'function'
+      ? requestClientApi.RequestError
+      : class RequestError extends Error {
+          constructor(message, code, details = {}) {
+            super(message || 'Request failed');
+            this.name = 'RequestError';
+            this.code = code || 'request_error';
+            if (details && typeof details === 'object') {
+              Object.assign(this, details);
+            }
+          }
+        };
+
+    function createFallbackTimeoutController(timeoutMs, upstreamSignal) {
+      if (typeof AbortController !== 'function') {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+      const numericTimeout = Number(timeoutMs);
+      if (!Number.isFinite(numericTimeout) || numericTimeout <= 0) {
+        return { signal: upstreamSignal, cleanup() {} };
+      }
+
+      const controller = new AbortController();
+      let timeoutId = null;
+      let upstreamAbortListener = null;
+
+      if (upstreamSignal) {
+        if (upstreamSignal.aborted) {
+          controller.abort(upstreamSignal.reason);
+        } else {
+          upstreamAbortListener = () => controller.abort(upstreamSignal.reason);
+          upstreamSignal.addEventListener('abort', upstreamAbortListener, { once: true });
+        }
+      }
+
+      const timeoutError = new Error('Request timed out');
+      timeoutError.name = 'TimeoutError';
+      timeoutId = setTimeout(() => controller.abort(timeoutError), numericTimeout);
+
+      return {
+        signal: controller.signal,
+        cleanup() {
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          if (upstreamAbortListener && upstreamSignal) {
+            upstreamSignal.removeEventListener('abort', upstreamAbortListener);
+            upstreamAbortListener = null;
+          }
+        }
+      };
+    }
+
+    async function performFallbackFetch(url, init = {}, timeoutMs) {
+      const controller = createFallbackTimeoutController(timeoutMs, init.signal);
+      const mergedInit = { ...init };
+      if (controller.signal) {
+        mergedInit.signal = controller.signal;
+      }
+      try {
+        const response = await fetch(url, mergedInit);
+        return { response, cleanup: controller.cleanup };
+      } catch (error) {
+        controller.cleanup();
+        if (error && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
+          throw new RequestErrorCtor('Request timed out', 'timeout', { url });
+        }
+        const message = error && error.message ? error.message : 'Network request failed';
+        throw new RequestErrorCtor(message, 'network', { url, cause: error });
+      }
+    }
+
+    function createAsyncQueue(options = {}) {
+      if (requestManager && typeof requestManager.createQueue === 'function') {
+        return requestManager.createQueue(options);
+      }
+      return {
+        enqueue(task) {
+          try {
+            const result = task();
+            return result && typeof result.then === 'function'
+              ? result
+              : Promise.resolve(result);
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        }
+      };
+    }
+
+    async function requestJson(url, options = {}) {
+      if (requestManager) {
+        return requestManager.requestJson(url, options);
+      }
+      const init = options.init || {};
+      const timeoutMs = options.timeoutMs;
+      const validate = options.validate;
+      const { response, cleanup } = await performFallbackFetch(url, init, timeoutMs);
+      let payload = null;
+      const contentType = (response.headers && response.headers.get && response.headers.get('content-type')) || '';
+      const expectsJson = /json/i.test(contentType || '');
+
+      if (!response.ok) {
+        if (expectsJson) {
+          payload = await response.json().catch(() => null);
+        } else {
+          payload = await response.text().catch(() => null);
+        }
+        cleanup();
+        const message = typeof payload === 'object' && payload && typeof payload.error === 'string'
+          ? payload.error
+          : `Request failed with status ${response.status}`;
+        throw new RequestErrorCtor(message, 'http_error', { url, status: response.status, response: payload });
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (error) {
+        cleanup();
+        throw new RequestErrorCtor('Failed to parse response', 'parse_error', { url, cause: error });
+      }
+
+      cleanup();
+
+      if (typeof validate === 'function') {
+        const result = validate(data);
+        if (result !== true && result !== undefined) {
+          const message = typeof result === 'string'
+            ? result
+            : (result && typeof result === 'object' && typeof result.message === 'string'
+              ? result.message
+              : 'Response validation failed');
+          throw new RequestErrorCtor(message, 'invalid_response', { url, response: data });
+        }
+      }
+
+      return data;
+    }
+
+    function runQueued(queue, task) {
+      if (!queue) return task();
+      return queue.enqueue(task);
+    }
+
+    const STREAM_STATES = Object.freeze({
+      IDLE: 'idle',
+      CONNECTING: 'connecting',
+      OPEN: 'open',
+      ERROR: 'error',
+      POLLING: 'polling'
+    });
+    const STREAM_POLL_INTERVAL_MS = 8000;
+
+    function isRecord(value) {
+      return value !== null && typeof value === 'object' && !Array.isArray(value);
+    }
+
+    function validateTickerPayload(payload) {
+      if (!isRecord(payload)) return 'Invalid ticker payload';
+      if (!Array.isArray(payload.messages)) return 'Ticker payload missing messages';
+      return true;
+    }
+
+    function validateOverlayPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid overlay payload';
+    }
+
+    function validatePopupPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid popup payload';
+    }
+
+    function validateBrbPayload(payload) {
+      return isRecord(payload) ? true : 'Invalid BRB payload';
+    }
+
+    function validateSlatePayload(payload) {
+      return isRecord(payload) ? true : 'Invalid slate payload';
+    }
+
+    function normaliseHighlightString(value) {
+      return normaliseHighlightList
+        ? normaliseHighlightList(value)
+        : String(value || '')
+            .split(',')
+            .map(part => part.trim())
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    function clampScale(value) {
+      if (typeof clampScaleValue === 'function') {
+        return clampScaleValue(value, DEFAULT_OVERLAY.scale);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_OVERLAY.scale;
+      return Math.min(Math.max(Math.round(numeric * 100) / 100, 0.75), 2.5);
+    }
+
+    function clampPopupScale(value) {
+      if (typeof clampPopupScaleValue === 'function') {
+        return clampPopupScaleValue(value, DEFAULT_OVERLAY.popupScale);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_OVERLAY.popupScale;
+      return Math.min(Math.max(Math.round(numeric * 100) / 100, 0.6), 1.5);
+    }
+
+    function normaliseMode(value) {
+      if (typeof sharedNormaliseMode === 'function') {
+        return sharedNormaliseMode(value);
+      }
+      const mode = String(value || '').toLowerCase();
+      return ['auto', 'marquee', 'chunk'].includes(mode) ? mode : 'auto';
+    }
+
+    function normalisePosition(value) {
+      if (typeof sharedNormalisePosition === 'function') {
+        return sharedNormalisePosition(value);
+      }
+      const position = String(value || '').toLowerCase();
+      return position === 'top' ? 'top' : 'bottom';
+    }
+
+    function normaliseTheme(value) {
+      if (typeof sharedNormaliseTheme === 'function') {
+        return sharedNormaliseTheme(value);
+      }
+      const theme = String(value || '').toLowerCase();
+      return THEME_CLASSNAMES.includes(`ticker--${theme}`) ? theme : null;
+    }
+
+    function normalisePopupPayload(data) {
+      const text = data && typeof data.text === 'string' ? data.text.trim().slice(0, 280) : '';
+      const isActive = !!(data && data.isActive) && !!text;
+      const durationRaw = Number(data && data.durationSeconds);
+      const durationSeconds = Number.isFinite(durationRaw) && durationRaw > 0
+        ? Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(durationRaw)))
+        : null;
+      const countdownTargetRaw = Number(data && data.countdownTarget);
+      const countdownTarget = Number.isFinite(countdownTargetRaw) ? Math.round(countdownTargetRaw) : null;
+      const countdownEnabled = !!(data && data.countdownEnabled) && !!text && countdownTarget !== null;
+      const updatedAtSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+      const updatedAt = Number(updatedAtSource);
+      return {
+        text,
+        isActive,
+        durationSeconds,
+        countdownEnabled,
+        countdownTarget,
+        updatedAt: Number.isFinite(updatedAt) ? updatedAt : Date.now()
+      };
+    }
+
+    function normaliseBrbPayload(data) {
+      const raw = data && typeof data.text === 'string' ? data.text : '';
+      const text = raw.trim().slice(0, MAX_BRB_LENGTH);
+      const isActive = !!(data && data.isActive) && !!text;
+      const updatedAtSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+      const updatedAtRaw = Number(updatedAtSource);
+      return {
+        text,
+        isActive,
+        updatedAt: Number.isFinite(updatedAtRaw) ? updatedAtRaw : Date.now()
+      };
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, match => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[match]);
+    }
+
+    function applyEmphasis(html) {
+      return html
+        .replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+?)\*(?!\*)/g, (match, prefix, inner) => `${prefix}<em>${inner}</em>`);
+    }
+
+    function buildLetters(text) {
+      let index = 0;
+      let result = '';
+      for (const char of text) {
+        if (/\s/.test(char)) {
+          result += escapeHtml(char);
+        } else {
+          result += `<span class="fx-letter" style="--i:${index++}">${escapeHtml(char)}</span>`;
+        }
+      }
+      return result;
+    }
+
+    function formatMessage(raw, highlightRegex) {
+      const str = String(raw || '').trim();
+      if (!str) return '';
+      const segments = [];
+      const regex = /(%%|~~|\^\^|==|!!)([\s\S]+?)\1/g;
+      let lastIndex = 0;
+      let match;
+      while ((match = regex.exec(str))) {
+        if (match.index > lastIndex) {
+          segments.push({ type: 'text', text: str.slice(lastIndex, match.index) });
+        }
+        segments.push({ type: SPECIAL_MAP[match[1]] || 'text', text: match[2] });
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < str.length) {
+        segments.push({ type: 'text', text: str.slice(lastIndex) });
+      }
+      return segments.map(seg => renderSegment(seg, highlightRegex)).join('');
+    }
+
+    function renderSegment(segment, highlightRegex) {
+      const text = segment.text;
+      const escaped = escapeHtml(text);
+      switch (segment.type) {
+        case 'rainbow':
+          return `<span class="fx fx-rainbow">${buildLetters(text)}</span>`;
+        case 'sparkle':
+          return `<span class="fx fx-sparkle">${buildLetters(text)}</span>`;
+        case 'bounce':
+          return `<span class="fx fx-bounce">${escaped}</span>`;
+        case 'neon':
+          return `<span class="fx fx-neon">${escaped}</span>`;
+        case 'glitch':
+          return `<span class="fx fx-glitch" data-text="${escaped}">${escaped}</span>`;
+        default: {
+          const emphasised = applyEmphasis(escaped);
+          return highlightRegex ? emphasised.replace(highlightRegex, '<span class="highlight">$1</span>') : emphasised;
+        }
+      }
+    }
+
+    function registerTextAnimationPlugins() {
+      if (typeof window === 'undefined' || typeof gsap === 'undefined' || typeof SplitText === 'undefined') {
+        return false;
+      }
+      if (!registerTextAnimationPlugins._registered) {
+        const plugins = [SplitText];
+        if (typeof ScrambleTextPlugin !== 'undefined') {
+          plugins.push(ScrambleTextPlugin);
+        }
+        if (plugins.length) {
+          gsap.registerPlugin(...plugins);
+        }
+        registerTextAnimationPlugins._registered = true;
+      }
+      return true;
+    }
+
+    function createTextAnimator(headerEl, bodyEls = []) {
+      if (!headerEl) return null;
+      if (!registerTextAnimationPlugins()) return null;
+      const groups = Array.isArray(bodyEls) ? bodyEls : [bodyEls];
+      const activeBodies = groups.filter(el => el && typeof el.textContent === 'string' && el.textContent.trim().length);
+      let headerSplit;
+      let bodySplit;
+      try {
+        headerSplit = SplitText.create(headerEl, { type: 'chars', mask: 'chars' });
+        if (activeBodies.length) {
+          bodySplit = SplitText.create(activeBodies, { type: 'lines', mask: 'lines' });
+        }
+      } catch (err) {
+        console.warn('[ticker] text animation setup failed', err);
+        return null;
+      }
+
+      const headerChars = Array.isArray(headerSplit && headerSplit.chars) ? headerSplit.chars : [];
+      const bodyLines = Array.isArray(bodySplit && bodySplit.lines) ? bodySplit.lines : [];
+      const timeline = gsap.timeline({ paused: true });
+      const scrambleConfig = typeof ScrambleTextPlugin !== 'undefined' ? { text: '#', speed: 0.15 } : null;
+
+      timeline.from(headerChars, {
+        filter: 'blur(6px)',
+        y: '-15%',
+        opacity: 0,
+        scale: 0.95,
+        duration: 1.2,
+        ease: 'power2.out',
+        ...(scrambleConfig ? { scrambleText: scrambleConfig } : {}),
+        stagger: { each: 0.3, from: 'left' }
+      });
+
+      if (bodyLines.length) {
+        timeline.from(bodyLines, {
+          filter: 'blur(10px)',
+          delay: 0.55,
+          opacity: 0,
+          scale: 0.95,
+          y: '100%',
+          duration: 0.55,
+          ease: 'power1.out'
+        }, '-=0.9');
+      }
+
+      timeline.to(headerChars, {
+        opacity: 1,
+        y: '0%',
+        duration: 0.2
+      });
+
+      const playIn = () => new Promise(resolve => {
+        timeline.eventCallback('onComplete', () => {
+          timeline.eventCallback('onComplete', null);
+          resolve();
+        });
+        timeline.play(0);
+      });
+
+      const playOut = () => new Promise(resolve => {
+        const outTimeline = gsap.timeline({
+          defaults: { ease: 'power2.in', duration: 0.45 },
+          onComplete: () => {
+            resolve();
+          }
+        });
+        outTimeline.to(headerChars, {
+          filter: 'blur(6px)',
+          y: '-15%',
+          opacity: 0,
+          scale: 0.95,
+          stagger: { each: 0.12, from: 'right' }
+        });
+        if (bodyLines.length) {
+          outTimeline.to(bodyLines, {
+            filter: 'blur(10px)',
+            opacity: 0,
+            y: '100%',
+            duration: 0.4
+          }, '<');
+        }
+      });
+
+      const revert = () => {
+        try {
+          if (bodySplit && typeof bodySplit.revert === 'function') {
+            bodySplit.revert();
+          }
+          if (headerSplit && typeof headerSplit.revert === 'function') {
+            headerSplit.revert();
+          }
+        } catch (err) {
+          console.warn('[ticker] text animation revert failed', err);
+        }
+      };
+
+      return {
+        playIn() {
+          return playIn();
+        },
+        playOut() {
+          timeline.pause(0);
+          timeline.kill();
+          return playOut().finally(() => {
+            revert();
+          });
+        },
+        kill() {
+          timeline.kill();
+          revert();
+        }
+      };
+    }
+
+    function sanitiseMessages(list, options = {}) {
+      const includeMeta = !!options.includeMeta;
+      if (!Array.isArray(list)) {
+        return includeMeta ? { messages: [], meta: [], trimmed: 0, truncated: 0 } : [];
+      }
+
+      const {
+        maxMessages = MAX_MESSAGES,
+        maxLength = MAX_MESSAGE_LENGTH,
+        maxMetaLength = 200,
+        strict = false
+      } = options;
+
+      const maxMessageLimit = Number.isFinite(Number(maxMessages))
+        ? Math.max(0, Math.round(Number(maxMessages)))
+        : MAX_MESSAGES;
+      const maxLengthLimit = Number.isFinite(Number(maxLength))
+        ? Math.max(1, Math.round(Number(maxLength)))
+        : MAX_MESSAGE_LENGTH;
+      const maxMetaLimit = Number.isFinite(Number(maxMetaLength))
+        ? Math.max(0, Math.round(Number(maxMetaLength)))
+        : 200;
+
+      const cleaned = [];
+      const metadata = [];
+      let trimmed = 0;
+      let truncated = 0;
+
+      for (const entry of list) {
+        let text = '';
+        let metaValue = null;
+
+        if (typeof entry === 'string') {
+          text = entry.trim();
+        } else if (entry && typeof entry === 'object') {
+          if (typeof entry.text === 'string') {
+            text = entry.text.trim();
+          } else if (typeof entry.message === 'string') {
+            text = entry.message.trim();
+          } else if (typeof entry.value === 'string') {
+            text = entry.value.trim();
+          } else if (typeof entry.toString === 'function' && entry.toString !== Object.prototype.toString) {
+            text = String(entry).trim();
+          }
+
+          if (includeMeta) {
+            const rawMeta = entry.meta != null ? entry.meta : entry.description;
+            if (typeof rawMeta === 'string') {
+              const trimmedMeta = rawMeta.trim();
+              if (trimmedMeta) {
+                metaValue = trimmedMeta.slice(0, maxMetaLimit);
+              }
+            }
+          }
+        } else {
+          text = String(entry == null ? '' : entry).trim();
+        }
+
+        if (!text) continue;
+
+        if (cleaned.length >= maxMessageLimit) {
+          if (strict) {
+            throw new Error(`Too many ticker messages (maximum ${maxMessageLimit}).`);
+          }
+          truncated += 1;
+          if (!includeMeta) break;
+          continue;
+        }
+
+        if (text.length > maxLengthLimit) {
+          if (strict) {
+            throw new Error(`Ticker messages must be ${maxLengthLimit} characters or fewer.`);
+          }
+          text = text.slice(0, maxLengthLimit);
+          trimmed += 1;
+        }
+
+        cleaned.push(text);
+        if (includeMeta) {
+          metadata.push(metaValue);
+        }
+      }
+
+      if (includeMeta) {
+        return { messages: cleaned, meta: metadata, trimmed, truncated };
+      }
+      return cleaned;
+    }
+
+    function clampDuration(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 5;
+      return Math.min(Math.max(Math.round(numeric), 2), 90);
+    }
+
+    function clampInterval(value) {
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return 0;
+      return Math.min(Math.max(Math.round(numeric), 0), 3600);
+    }
+
+    function clampSlateRotation(value) {
+      if (typeof clampSlateRotationSeconds === 'function') {
+        return clampSlateRotationSeconds(value, DEFAULT_SLATE.rotationSeconds || 12);
+      }
+      const numeric = Number(value);
+      if (!Number.isFinite(numeric)) return DEFAULT_SLATE.rotationSeconds || 12;
+      return Math.min(Math.max(Math.round(numeric), 4), 900);
+    }
+
+    function computeSlateVisibleSeconds(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const candidate = rotation - 1;
+      const visible = Math.min(6, Math.max(2, candidate));
+      return visible;
+    }
+
+    function computeSlateGapMs(rotationSeconds) {
+      const rotation = clampSlateRotation(rotationSeconds);
+      if (!Number.isFinite(rotation) || rotation <= 0) return 0;
+      const visibleSeconds = computeSlateVisibleSeconds(rotation);
+      const totalMs = rotation * 1000;
+      const visibleMs = visibleSeconds * 1000;
+      const gap = Math.max(1000, totalMs - visibleMs);
+      return gap;
+    }
+
+    function normaliseSlateNotesList(value) {
+      if (typeof normaliseSlateNotes === 'function') {
+        return normaliseSlateNotes(value, MAX_SLATE_NOTES, MAX_SLATE_TEXT_LENGTH);
+      }
+      const raw = Array.isArray(value)
+        ? value
+        : String(value || '')
+            .split(/\r?\n|[,;]/)
+            .map(entry => entry.trim());
+      const notes = [];
+      for (const entry of raw) {
+        if (!entry) continue;
+        notes.push(entry.slice(0, MAX_SLATE_TEXT_LENGTH));
+        if (notes.length >= MAX_SLATE_NOTES) break;
+      }
+      return notes;
+    }
+
+    function normaliseSlateData(data) {
+      const result = {
+        ...DEFAULT_SLATE,
+        notes: Array.isArray(DEFAULT_SLATE.notes) ? [...DEFAULT_SLATE.notes] : [],
+        updatedAt: DEFAULT_SLATE.updatedAt
+      };
+      if (!data || typeof data !== 'object') return result;
+      if (typeof data.isEnabled === 'boolean') result.isEnabled = data.isEnabled;
+      if (Number.isFinite(data.rotationSeconds)) result.rotationSeconds = clampSlateRotation(data.rotationSeconds);
+      if (typeof data.showClock === 'boolean') result.showClock = data.showClock;
+      if (typeof data.clockLabel === 'string') result.clockLabel = data.clockLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.clockSubtitle === 'string') {
+        result.clockSubtitle = data.clockSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      }
+      if (typeof data.nextLabel === 'string') result.nextLabel = data.nextLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextTitle === 'string') result.nextTitle = data.nextTitle.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.nextSubtitle === 'string') result.nextSubtitle = data.nextSubtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.sponsorLabel === 'string') result.sponsorLabel = data.sponsorLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorName === 'string') result.sponsorName = data.sponsorName.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (typeof data.sponsorTagline === 'string') result.sponsorTagline = data.sponsorTagline.trim().slice(0, MAX_SLATE_TEXT_LENGTH);
+      if (typeof data.notesLabel === 'string') result.notesLabel = data.notesLabel.trim().slice(0, MAX_SLATE_TITLE_LENGTH);
+      if (Array.isArray(data.notes) || typeof data.notes === 'string') {
+        result.notes = normaliseSlateNotesList(data.notes);
+      }
+      const updatedAtSource = data.updatedAt != null ? data.updatedAt : data._updatedAt;
+      const updatedAt = Number(updatedAtSource);
+      if (Number.isFinite(updatedAt)) result.updatedAt = updatedAt;
+      return result;
+    }
+
+    function deriveSlateCards(slate, _overlay) {
+      const cards = [];
+      const activeSlate = normaliseSlateData(slate);
+
+      const pushCard = (type, pill, title, subtitle = '') => {
+        const safeTitle = typeof title === 'string' ? title.trim().slice(0, MAX_SLATE_TITLE_LENGTH) : '';
+        const safeSubtitle = typeof subtitle === 'string' ? subtitle.trim().slice(0, MAX_SLATE_TEXT_LENGTH) : '';
+        if (!safeTitle && !safeSubtitle) return;
+        cards.push({
+          type,
+          pill: pill && typeof pill === 'string' ? pill.trim() : '',
+          title: safeTitle,
+          subtitle: safeSubtitle,
+          meta: ''
+        });
+      };
+
+      if (activeSlate.showClock) {
+        const now = new Date();
+        const time = now.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/London'
+        });
+        cards.push({
+          type: 'clock',
+          pill: (activeSlate.clockLabel || 'UK TIME').trim(),
+          title: time,
+          subtitle: (activeSlate.clockSubtitle || 'UK time').trim(),
+          meta: ''
+        });
+      }
+
+      if (activeSlate.nextTitle || activeSlate.nextSubtitle) {
+        pushCard(
+          'next',
+          activeSlate.nextLabel || 'Next up',
+          activeSlate.nextTitle || activeSlate.nextLabel || 'Next up',
+          activeSlate.nextSubtitle || ''
+        );
+      }
+
+      if (activeSlate.sponsorName) {
+        pushCard(
+          'sponsor',
+          activeSlate.sponsorLabel || 'Sponsor',
+          activeSlate.sponsorName,
+          activeSlate.sponsorTagline || ''
+        );
+      }
+
+      if (Array.isArray(activeSlate.notes)) {
+        for (const note of activeSlate.notes) {
+          pushCard('note', activeSlate.notesLabel || 'Spotlight', note, '');
+        }
+      }
+
+      return cards;
+    }
+
+    function formatCountdownLabel(targetMs) {
+      const numeric = Number(targetMs);
+      if (!Number.isFinite(numeric)) return '';
+      const diff = Math.round(numeric - Date.now());
+      if (diff <= 0) return 'now';
+      const seconds = Math.floor(diff / 1000);
+      if (seconds >= 60) {
+        const minutes = Math.floor(seconds / 60);
+        return `${minutes} min${minutes === 1 ? '' : 's'}`;
+      }
+      const clampedSeconds = Math.max(1, seconds);
+      return `${clampedSeconds}s`;
+    }
+
+    const prefersReducedMotionQuery =
+      typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-reduced-motion: reduce)')
+        : null;
+
+    function createTickerAnimator(container, options = {}) {
+      const overlay = options.overlay || {};
+      if (!container || typeof gsap === 'undefined' || typeof gsap.timeline !== 'function') {
+        return null;
+      }
+
+      const reducedMotion =
+        options.forceReducedMotion === true ||
+        (prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false) ||
+        overlay.accentAnim === false;
+
+      if (reducedMotion) {
+        if (container.__tickerAnimator && typeof container.__tickerAnimator.reset === 'function') {
+          container.__tickerAnimator.reset();
+        }
+        container.__tickerAnimator = null;
+        return null;
+      }
+
+      if (container.__tickerAnimator) {
+        return container.__tickerAnimator;
+      }
+
+      const label = container.querySelector('.ticker-label');
+      const track = container.querySelector('.ticker-track');
+      const content = container.querySelector('.ticker-content');
+      const direction = container.classList.contains('top') ? -1 : 1;
+      const accentSweepStart = direction > 0 ? '-65%' : '-45%';
+      const accentSweepExit = direction > 0 ? '180%' : '140%';
+
+      const killTweens = () => {
+        gsap.killTweensOf(container);
+        if (label) gsap.killTweensOf(label);
+        if (track) gsap.killTweensOf(track);
+        if (content) gsap.killTweensOf(content);
+      };
+
+      const clearCustomProps = () => {
+        container.style.removeProperty('--ticker-accent-offset');
+        container.style.removeProperty('--ticker-accent-scale');
+        container.style.removeProperty('--ticker-accent-blur');
+        container.style.removeProperty('--ticker-accent-sheen');
+        container.style.removeProperty('--ticker-ambient-opacity');
+        container.style.removeProperty('--ticker-ambient-blur');
+        container.style.removeProperty('--ticker-ambient-scale');
+      };
+
+      const clearInlineStyles = () => {
+        container.style.removeProperty('transform');
+        container.style.removeProperty('opacity');
+        container.style.removeProperty('filter');
+        if (label) {
+          label.style.removeProperty('transform');
+          label.style.removeProperty('opacity');
+          label.style.removeProperty('filter');
+        }
+        if (track) {
+          track.style.removeProperty('transform');
+          track.style.removeProperty('opacity');
+        }
+        if (content) {
+          content.style.removeProperty('filter');
+        }
+      };
+
+      const setupInState = () => {
+        killTweens();
+        gsap.set(container, {
+          y: direction * 56,
+          opacity: 0,
+          scale: 0.985,
+          filter: 'blur(14px) saturate(0.82)',
+          '--ticker-accent-offset': `${direction * 32}%`,
+          '--ticker-accent-scale': 1.18,
+          '--ticker-accent-blur': '16px',
+          '--ticker-accent-sheen': accentSweepStart,
+          '--ticker-ambient-opacity': 0,
+          '--ticker-ambient-blur': '18px',
+          '--ticker-ambient-scale': 1.08
+        });
+        if (label) {
+          gsap.set(label, {
+            y: direction * 24,
+            opacity: 0,
+            scale: 0.96,
+            filter: 'blur(6px)',
+            transformOrigin: '50% 50%'
+          });
+        }
+        if (track) {
+          gsap.set(track, {
+            y: direction * 18,
+            opacity: 0
+          });
+        }
+        if (content) {
+          gsap.set(content, {
+            filter: 'blur(4px)'
+          });
+        }
+      };
+
+      const tlIn = gsap.timeline({ paused: true });
+      tlIn.call(() => {
+        setupInState();
+        container.classList.add('show');
+        container.classList.remove('is-hiding');
+      }, 0);
+      tlIn.to(container, {
+        y: 0,
+        opacity: 1,
+        scale: 1,
+        filter: 'none',
+        duration: 0.72,
+        ease: 'power3.out'
+      }, 0.02);
+      tlIn.to(container, {
+        '--ticker-accent-offset': '0%',
+        '--ticker-accent-scale': 1,
+        '--ticker-accent-blur': '0px',
+        '--ticker-accent-sheen': '120%'
+      }, 0.12);
+      tlIn.to(container, {
+        '--ticker-ambient-opacity': 0.22,
+        '--ticker-ambient-blur': '0px',
+        '--ticker-ambient-scale': 1,
+        duration: 0.68,
+        ease: 'power2.out'
+      }, 0.18);
+      if (label) {
+        tlIn.to(label, {
+          y: 0,
+          opacity: 1,
+          scale: 1,
+          filter: 'none',
+          duration: 0.62,
+          ease: 'power3.out'
+        }, 0.1);
+      }
+      if (track) {
+        tlIn.to(track, {
+          y: 0,
+          opacity: 1,
+          duration: 0.56,
+          ease: 'power3.out'
+        }, 0.16);
+      }
+      if (content) {
+        tlIn.to(content, {
+          filter: 'none',
+          duration: 0.52,
+          ease: 'power2.out'
+        }, 0.22);
+      }
+
+      const tlOut = gsap.timeline({ paused: true });
+      tlOut.call(() => {
+        killTweens();
+        container.classList.add('is-hiding');
+      }, 0);
+      tlOut.to(container, {
+        y: direction * 52,
+        opacity: 0,
+        scale: 0.97,
+        filter: 'blur(12px) saturate(0.82)',
+        duration: 0.55,
+        ease: 'power2.in'
+      }, 0);
+      tlOut.to(container, {
+        '--ticker-accent-offset': `${direction * -24}%`,
+        '--ticker-accent-scale': 0.94,
+        '--ticker-accent-blur': '14px',
+        '--ticker-accent-sheen': accentSweepExit,
+        duration: 0.55,
+        ease: 'power2.inOut'
+      }, 0);
+      tlOut.to(container, {
+        '--ticker-ambient-opacity': 0,
+        '--ticker-ambient-blur': '16px',
+        '--ticker-ambient-scale': 1.06,
+        duration: 0.55,
+        ease: 'power2.in'
+      }, 0);
+      if (label) {
+        tlOut.to(label, {
+          y: direction * 18,
+          opacity: 0,
+          scale: 0.96,
+          filter: 'blur(6px)',
+          duration: 0.45,
+          ease: 'power2.in'
+        }, 0.05);
+      }
+      if (track) {
+        tlOut.to(track, {
+          y: direction * 14,
+          opacity: 0,
+          duration: 0.42,
+          ease: 'power2.in'
+        }, 0.06);
+      }
+      if (content) {
+        tlOut.to(content, {
+          filter: 'blur(4px)',
+          duration: 0.4,
+          ease: 'power2.in'
+        }, 0.06);
+      }
+
+      const reset = () => {
+        tlIn.pause(0);
+        tlOut.pause(0);
+        killTweens();
+        clearInlineStyles();
+        clearCustomProps();
+        container.classList.remove('is-hiding');
+      };
+
+      const playIn = () => new Promise(resolve => {
+        tlOut.pause(0);
+        tlOut.progress(0);
+        tlIn.eventCallback('onComplete', () => {
+          clearInlineStyles();
+          clearCustomProps();
+          resolve();
+        });
+        tlIn.restart(true, false);
+      });
+
+      const playOut = (onComplete) => new Promise(resolve => {
+        tlIn.pause(0);
+        tlIn.progress(0);
+        tlOut.eventCallback('onComplete', () => {
+          clearInlineStyles();
+          clearCustomProps();
+          container.classList.remove('show');
+          container.classList.remove('is-hiding');
+          if (typeof onComplete === 'function') onComplete();
+          resolve();
+        });
+        tlOut.restart(true, false);
+      });
+
+      const kill = () => {
+        reset();
+        tlIn.kill();
+        tlOut.kill();
+        container.__tickerAnimator = null;
+      };
+
+      const animator = { playIn, playOut, reset, kill };
+      container.__tickerAnimator = animator;
+      return animator;
+    }
+
+    function resolveColorString(value, fallback) {
+      return value && typeof value === 'string' && value.trim() ? value.trim() : fallback;
+    }
+
+    let colorParserElement = null;
+    function ensureColorParserElement() {
+      if (colorParserElement || typeof document === 'undefined') return colorParserElement;
+      colorParserElement = document.createElement('span');
+      colorParserElement.style.position = 'absolute';
+      colorParserElement.style.opacity = '0';
+      colorParserElement.style.pointerEvents = 'none';
+      colorParserElement.style.left = '-9999px';
+      colorParserElement.style.top = '-9999px';
+      if (document.body) {
+        document.body.appendChild(colorParserElement);
+      }
+      return colorParserElement;
+    }
+
+    function colorStringToRgbArray(color, fallback = '#ffffff') {
+      const el = ensureColorParserElement();
+      if (!el) return [1, 1, 1, 1];
+      const target = resolveColorString(color, fallback);
+      el.style.color = target;
+      const computed = getComputedStyle(el).color || 'rgb(255, 255, 255)';
+      const match = computed.match(/rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)(?:,\s*(\d+(?:\.\d+)?))?\)/i);
+      if (!match) {
+        return [1, 1, 1, 1];
+      }
+      const r = Math.min(255, Math.max(0, parseFloat(match[1] || '0')));
+      const g = Math.min(255, Math.max(0, parseFloat(match[2] || '0')));
+      const b = Math.min(255, Math.max(0, parseFloat(match[3] || '0')));
+      const a = match[4] !== undefined ? Math.min(1, Math.max(0, parseFloat(match[4]))) : 1;
+      return [r / 255, g / 255, b / 255, a];
+    }
+
+    function colorStringToNumber(color, fallback = '#ffffff') {
+      const rgb = colorStringToRgbArray(color, fallback);
+      const r = Math.round(rgb[0] * 255);
+      const g = Math.round(rgb[1] * 255);
+      const b = Math.round(rgb[2] * 255);
+      return ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+    }
+
+    function accentValueFromDefaults(primary, fallback, ultimateFallback = '#38bdf8') {
+      if (primary && isSafeCssColor(primary)) {
+        return primary.trim();
+      }
+      if (fallback && isSafeCssColor(fallback)) {
+        return fallback.trim();
+      }
+      if (typeof ultimateFallback === 'string' && ultimateFallback.trim()) {
+        return ultimateFallback.trim();
+      }
+      return '#38bdf8';
+    }
+
+    function createMidnightPalette(primary, secondary) {
+      const base = resolveColorString(primary, '#38bdf8');
+      const alt = resolveColorString(secondary, base);
+      return [colorStringToNumber(base), colorStringToNumber(alt)];
+    }
+
+    function MidnightGlassEngine(container, options) {
+        if (!(this instanceof MidnightGlassEngine)) {
+            return new MidnightGlassEngine(container, options);
+        }
+        options = options || {};
+        this.name = 'midnight-glass';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.app = null;
+        this.orbs = [];
+        this.palette = createMidnightPalette(options.accent, options.accentSecondary);
+        if (!container || typeof PIXI === 'undefined') return;
+        try {
+          this.app = new PIXI.Application({
+            width: container.clientWidth || 1,
+            height: container.clientHeight || 1,
+            backgroundAlpha: 0,
+            antialias: true,
+            autoStart: !this.reducedMotion,
+            resolution: window.devicePixelRatio || 1
+          });
+          if (!this.app.renderer || !this.app.view) {
+            throw new Error('Pixi renderer unavailable');
+          }
+          this.app.renderer.view.style.width = '100%';
+          this.app.renderer.view.style.height = '100%';
+          this.app.renderer.view.style.pointerEvents = 'none';
+          container.appendChild(this.app.view);
+          this.blurFilter = new PIXI.filters.BlurFilter();
+          this.blurFilter.blur = 24;
+          this.blurFilter.quality = 4;
+          this.app.stage.filters = [this.blurFilter];
+          this.createOrbs();
+          this.app.ticker.add(this.tick, this);
+          if (this.reducedMotion) {
+            this.app.ticker.stop();
+          }
+        } catch (err) {
+          console.warn('[ticker] failed to initialise PixiJS background', err);
+          if (this.app) {
+            try {
+              this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+            } catch (destroyErr) {
+              console.warn('[ticker] Pixi cleanup failed', destroyErr);
+            }
+          }
+          this.app = null;
+          this.orbs = [];
+        }
+      }
+
+      MidnightGlassEngine.prototype.createOrbs = function() {
+        if (!this.app) return;
+        var width = this.app.renderer.width;
+        var height = this.app.renderer.height;
+        var count = Math.max(10, Math.round((width + height) / 160));
+        this.orbs = [];
+        for (var i = 0; i < count; i++) {
+          var graphic = new PIXI.Graphics();
+          var radius = this.randomBetween(70, 160);
+          var color = this.palette[i % this.palette.length];
+          graphic.beginFill(color, 0.12);
+          graphic.drawCircle(0, 0, radius);
+          graphic.endFill();
+          graphic.x = Math.random() * width;
+          graphic.y = Math.random() * height;
+          graphic.alpha = 0.85;
+          this.app.stage.addChild(graphic);
+          this.orbs.push({
+            sprite: graphic,
+            radius: radius,
+            vx: (Math.random() - 0.5) * 0.25,
+            vy: (Math.random() - 0.5) * 0.25,
+            drift: 0.4 + Math.random() * 0.6
+          });
+        }
+      };
+
+      MidnightGlassEngine.prototype.randomBetween = function(min, max) {
+        return min + Math.random() * (max - min);
+      };
+
+      MidnightGlassEngine.prototype.tick = function(delta) {
+        if (!this.app || this.reducedMotion) return;
+        var width = this.app.renderer.width;
+        var height = this.app.renderer.height;
+        var orb;
+        for (var i = 0; i < this.orbs.length; i++) {
+          orb = this.orbs[i];
+          orb.sprite.x += orb.vx * delta * orb.drift;
+          orb.sprite.y += orb.vy * delta * orb.drift;
+          if (orb.sprite.x < -orb.radius) orb.sprite.x = width + orb.radius;
+          if (orb.sprite.x > width + orb.radius) orb.sprite.x = -orb.radius;
+          if (orb.sprite.y < -orb.radius) orb.sprite.y = height + orb.radius;
+          if (orb.sprite.y > height + orb.radius) orb.sprite.y = -orb.radius;
+        }
+      };
+
+      MidnightGlassEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        this.palette = createMidnightPalette(colors.accent, colors.accentSecondary);
+        var self = this;
+        this.orbs.forEach(function(orb, index) {
+          var color = self.palette[index % self.palette.length];
+          orb.sprite.clear();
+          orb.sprite.beginFill(color, 0.12);
+          orb.sprite.drawCircle(0, 0, orb.radius);
+          orb.sprite.endFill();
+        });
+      };
+
+      MidnightGlassEngine.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.app) return;
+        if (this.reducedMotion) {
+          this.app.ticker.stop();
+        } else {
+          this.app.ticker.start();
+        }
+      };
+
+      MidnightGlassEngine.prototype.resize = function() {
+        if (!this.app || !this.container) return;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
+        this.app.renderer.resize(width, height);
+        this.createOrbs();
+        if (this.reducedMotion) {
+          this.app.render();
+        }
+      };
+
+      MidnightGlassEngine.prototype.destroy = function() {
+        if (this.app) {
+          this.app.ticker.remove(this.tick, this);
+          this.app.destroy(true, { children: true, texture: true, baseTexture: true });
+          this.app = null;
+        }
+        this.orbs = [];
+    }
+
+    function AuroraNightEngine(container, options) {
+        if (!(this instanceof AuroraNightEngine)) {
+            return new AuroraNightEngine(container, options);
+        }
+        options = options || {};
+        this.name = 'aurora-night';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.renderer = null;
+        this.scene = null;
+        this.camera = null;
+        this.mesh = null;
+        this.uniforms = null;
+        this.render = this.render.bind(this);
+        this.frameId = null;
+        
+        if (!container || typeof THREE === 'undefined') return;
+        
+        try {
+          this.initRenderer();
+          this.initScene();
+          if (!this.reducedMotion) {
+            this.animate();
+          } else {
+            this.render();
+          }
+        } catch (err) {
+          console.warn('[ticker] failed to initialise Three.js renderer', err);
+        }
+    }
+
+    AuroraNightEngine.prototype.initRenderer = function() {
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true, 
+            alpha: true 
+        });
+        
+        var context = this.renderer.getContext();
+        if (!context) {
+            throw new Error('WebGL context unavailable');
+        }
+
+        this.renderer.setPixelRatio(window.devicePixelRatio || 1);
+        this.renderer.setSize(
+            this.container.clientWidth || 1, 
+            this.container.clientHeight || 1
+        );
+        
+        this.renderer.domElement.style.width = '100%';
+        this.renderer.domElement.style.height = '100%';
+        this.renderer.domElement.style.pointerEvents = 'none';
+        
+        this.container.appendChild(this.renderer.domElement);
+      }
+
+    AuroraNightEngine.prototype.initScene = function() {
+        if (!this.container || !this.renderer) return;
+
+        this.scene = new THREE.Scene();
+        this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+        
+        this.uniforms = {
+            u_time: { value: 0 },
+            u_colorA: { value: new THREE.Color('#38bdf8') },
+            u_colorB: { value: new THREE.Color('#f472b6') }
+        };
+
+        try {
+            if (this.options.accent) {
+                this.uniforms.u_colorA.value.set(this.options.accent);
+            }
+            if (this.options.accentSecondary) {
+                this.uniforms.u_colorB.value.set(this.options.accentSecondary);
+            }
+        } catch (err) {
+            console.warn('[ticker] Failed to set initial colors', err);
+        }
+        
+        var geometry = new THREE.PlaneGeometry(2, 2);
+        var material = new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+            fragmentShader: 'precision highp float; varying vec2 vUv; uniform float u_time; uniform vec3 u_colorA; uniform vec3 u_colorB; float wave(vec2 uv, float shift) { return sin((uv.x * 6.2831) + shift + u_time * 0.3) * 0.35 + 0.5; } void main() { vec2 uv = vUv; float band1 = wave(uv * vec2(1.0, 1.6), 0.0); float band2 = wave(uv * vec2(1.2, 1.4), 1.57); float mixVal = clamp((band1 + band2) * 0.5, 0.0, 1.0); vec3 color = mix(u_colorB, u_colorA, mixVal); float alpha = smoothstep(0.0, 0.35, mixVal) * 0.7; gl_FragColor = vec4(color, alpha); }',
+            transparent: true
+        });
+
+        this.mesh = new THREE.Mesh(geometry, material);
+        this.scene.add(this.mesh);
+      }
+
+    AuroraNightEngine.prototype.animate = function() {
+        if (this.reducedMotion) return;
+        this.frameId = requestAnimationFrame(this.animate.bind(this));
+        this.render();
+    };
+
+    AuroraNightEngine.prototype.render = function() {
+        if (!this.renderer || !this.uniforms) return;
+        this.uniforms.u_time.value = performance.now() * 0.001;
+        this.renderer.render(this.scene, this.camera);
+    };
+
+    AuroraNightEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        if (!this.uniforms) return;
+        var primary = resolveColorString(colors.accent, '#38bdf8');
+        var secondary = resolveColorString(colors.accentSecondary, primary);
+        
+        try {
+            this.uniforms.u_colorA.value.set(primary);
+            this.uniforms.u_colorB.value.set(secondary);
+        } catch (err) {
+            console.warn('[ticker] color update failed', err);
+        }
+
+        if (this.reducedMotion) {
+            this.render();
+        }
+    };
+
+    AuroraNightEngine.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.renderer) return;
+
+        if (this.frameId) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+
+        if (this.reducedMotion) {
+            this.render();
+        } else {
+            this.animate();
+        }
+    };
+
+    AuroraNightEngine.prototype.resize = function() {
+        if (!this.renderer || !this.container) return;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
+        this.renderer.setSize(width, height);
+        if (this.reducedMotion) {
+            this.render();
+        }
+    };
+
+    AuroraNightEngine.prototype.destroy = function() {
+        if (this.frameId) {
+            cancelAnimationFrame(this.frameId);
+            this.frameId = null;
+        }
+
+        if (this.renderer) {
+            if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+                this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+            }
+            this.renderer.dispose();
+            this.renderer = null;
+        }
+
+        if (this.mesh) {
+            this.mesh.geometry.dispose();
+            this.mesh.material.dispose();
+        }
+
+        this.scene = null;
+        this.camera = null;
+        this.mesh = null;
+        this.uniforms = null;
+    };
+
+    function cleanupRenderer(renderer) {
+        if (!renderer) return;
+        
+        function safeDispose() {
+            try {
+                if (renderer.dispose) {
+                    renderer.dispose();
+                }
+            } catch (disposeErr) {
+                console.warn('[ticker] WebGL renderer dispose failed', disposeErr);
+            }
+        }
+        
+        function safeRemove() {
+            if (renderer.domElement && renderer.domElement.parentNode) {
+                renderer.domElement.parentNode.removeChild(renderer.domElement);
+            }
+        }
+        
+        try {
+            if (renderer.setAnimationLoop) renderer.setAnimationLoop(null);
+        } catch (loopErr) {
+            // ignore
+        }
+        
+    safeDispose();
+    safeRemove();
+  // Clean up properties
+  this.renderer = null;
+  this.scene = null;
+  this.camera = null;
+  this.mesh = null;
+  this.uniforms = null;
+
+    AuroraNightEngine.prototype.render = function(time) {
+        time = time || performance.now();
+        if (!this.renderer || !this.uniforms) return;
+        this.uniforms.u_time.value = time * 0.001;
+        this.renderer.render(this.scene, this.camera);
+    };
+
+    AuroraNightEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        if (!this.uniforms) return;
+        var primary = resolveColorString(colors.accent, '#38bdf8');
+        var secondary = resolveColorString(colors.accentSecondary, primary);
+        try {
+            this.uniforms.u_colorA.value.set(primary);
+            this.uniforms.u_colorB.value.set(secondary);
+        } catch (err) {
+            // ignore colour conversion errors
+        }
+        if (this.reducedMotion) {
+            this.render(performance.now());
+        }
+    };
+
+    AuroraNightEngine.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.renderer) return;
+        if (this.reducedMotion) {
+            this.renderer.setAnimationLoop(null);
+            this.render(performance.now());
+        } else {
+            this.renderer.setAnimationLoop(this.render);
+        }
+    };
+
+    AuroraNightEngine.prototype.resize = function() {
+        if (!this.renderer || !this.container) return;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
+        this.renderer.setSize(width, height);
+        if (this.reducedMotion) {
+            this.render(performance.now());
+        }
+    };
+
+    AuroraNightEngine.prototype.destroy = function() {
+        if (this.renderer) {
+            this.renderer.setAnimationLoop(null);
+          this.renderer.dispose();
+          if (this.renderer.domElement && this.renderer.domElement.parentNode) {
+            this.renderer.domElement.parentNode.removeChild(this.renderer.domElement);
+          }
+        }
+        this.renderer = null;
+        this.scene = null;
+        this.mesh = null;
+        this.uniforms = null;
+      };
+
+    function NexusGridEngine(container, options) {
+        if (!(this instanceof NexusGridEngine)) {
+            return new NexusGridEngine(container, options);
+        }
+        options = options || {};
+        this.name = 'nexus-grid';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, this.accent);
+        this.canvas = null;
+        this.ctx = null;
+        this.nodes = [];
+        this.animFrame = null;
+        if (!container) return;
+        this.canvas = document.createElement('canvas');
+        this.canvas.width = container.clientWidth || 1;
+        this.canvas.height = container.clientHeight || 1;
+        this.canvas.style.width = '100%';
+        this.canvas.style.height = '100%';
+        this.canvas.style.pointerEvents = 'none';
+        container.appendChild(this.canvas);
+        this.ctx = this.canvas.getContext('2d');
+        if (!this.ctx) {
+          console.warn('[ticker] 2D canvas context unavailable');
+          if (this.canvas.parentNode) {
+            this.canvas.parentNode.removeChild(this.canvas);
+          }
+          this.canvas = null;
+          return;
+        }
+        this.initNodes();
+        if (!this.reducedMotion) {
+          this.animate();
+        } else {
+          this.draw();
+        }
+      }
+
+    NexusGridEngine.prototype.initNodes = function() {
+        if (!this.canvas) return;
+        var width = this.canvas.width;
+        var height = this.canvas.height;
+        var count = Math.max(18, Math.round((width + height) / 80));
+        this.nodes = [];
+        for (var i = 0; i < count; i++) {
+            this.nodes.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: (Math.random() - 0.5) * 0.35,
+                pulse: Math.random() * Math.PI * 2
+            });
+        }
+    };
+
+    NexusGridEngine.prototype.animate = function() {
+        if (this.reducedMotion) return;
+        this.draw();
+        var self = this;
+        this.animFrame = requestAnimationFrame(function() { self.animate(); });
+    };
+
+    NexusGridEngine.prototype.draw = function() {
+        if (!this.ctx || !this.canvas) return;
+        var ctx = this.ctx;
+        var width = this.canvas.width;
+        var height = this.canvas.height;
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = 'rgba(8, 12, 20, 0.45)';
+        ctx.fillRect(0, 0, width, height);
+        const primary = colorStringToRgbArray(this.accent);
+        const secondary = colorStringToRgbArray(this.accentSecondary);
+        const strokeStyle = `rgba(${Math.round(primary[0] * 255)}, ${Math.round(primary[1] * 255)}, ${Math.round(primary[2] * 255)}, 0.32)`;
+        const secondaryStroke = `rgba(${Math.round(secondary[0] * 255)}, ${Math.round(secondary[1] * 255)}, ${Math.round(secondary[2] * 255)}, 0.24)`;
+        const nodeFill = `rgba(${Math.round(primary[0] * 255)}, ${Math.round(primary[1] * 255)}, ${Math.round(primary[2] * 255)}, 0.55)`;
+        const nodeFillSecondary = `rgba(${Math.round(secondary[0] * 255)}, ${Math.round(secondary[1] * 255)}, ${Math.round(secondary[2] * 255)}, 0.45)`;
+        for (let i = 0; i < this.nodes.length; i++) {
+          const node = this.nodes[i];
+          if (!this.reducedMotion) {
+            node.x += node.vx;
+            node.y += node.vy;
+            node.pulse += 0.01;
+            if (node.x < 0 || node.x > width) node.vx *= -1;
+            if (node.y < 0 || node.y > height) node.vy *= -1;
+          }
+          const radius = 2.4 + Math.sin(node.pulse) * 1.6;
+          ctx.beginPath();
+          ctx.fillStyle = i % 2 === 0 ? nodeFill : nodeFillSecondary;
+          ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          for (let j = i + 1; j < this.nodes.length; j++) {
+            const other = this.nodes[j];
+            const dx = node.x - other.x;
+            const dy = node.y - other.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < Math.min(width, height) * 0.25) {
+              const alpha = 0.35 - (dist / (Math.min(width, height) * 0.25)) * 0.35;
+              ctx.strokeStyle = j % 2 === 0 ? strokeStyle : secondaryStroke;
+              ctx.globalAlpha = Math.max(0.08, alpha);
+              ctx.beginPath();
+              ctx.moveTo(node.x, node.y);
+              ctx.lineTo(other.x, other.y);
+              ctx.stroke();
+              ctx.globalAlpha = 1;
+            }
+          }
+        }
+      }
+
+    NexusGridEngine.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        if (this.reducedMotion) {
+            this.draw();
+        }
+    };
+
+    NexusGridEngine.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (this.reducedMotion) {
+            if (this.animFrame) {
+                cancelAnimationFrame(this.animFrame);
+                this.animFrame = null;
+            }
+            this.draw();
+        } else {
+            this.animate();
+        }
+    };
+
+    NexusGridEngine.prototype.resize = function() {
+        if (!this.canvas || !this.container) return;
+        var width = this.container.clientWidth || 1;
+        var height = this.container.clientHeight || 1;
+        this.canvas.width = width;
+        this.canvas.height = height;
+        this.initNodes();
+        if (this.reducedMotion) {
+            this.draw();
+        }
+    };
+
+    NexusGridEngine.prototype.destroy = function() {
+        if (this.animFrame) {
+            cancelAnimationFrame(this.animFrame);
+            this.animFrame = null;
+        }
+        if (this.canvas && this.canvas.parentNode) {
+          this.canvas.parentNode.removeChild(this.canvas);
+        }
+        this.canvas = null;
+        this.ctx = null;
+        this.nodes = [];
+      };
+
+    const ZEN_FLOW_BASE_ANIMATION = {
+      v: '5.7.6',
+      fr: 60,
+      ip: 0,
+      op: 360,
+      w: 800,
+      h: 450,
+      nm: 'Zen Flow',
+      ddd: 0,
+      assets: [],
+      layers: [
+        {
+          ddd: 0,
+          ind: 1,
+          ty: 4,
+          nm: 'Blob A',
+          ks: {
+            o: { a: 0, k: 60 },
+            r: { a: 0, k: 0 },
+            p: {
+              a: 1,
+              k: [
+                { t: 0, s: [420, 240, 0], to: [30, -10, 0], ti: [-30, 10, 0] },
+                { t: 180, s: [380, 210, 0], to: [-30, 10, 0], ti: [30, -10, 0] },
+                { t: 360, s: [420, 240, 0] }
+              ]
+            },
+            a: { a: 0, k: [0, 0, 0] },
+            s: {
+              a: 1,
+              k: [
+                { t: 0, s: [115, 125, 100] },
+                { t: 180, s: [135, 95, 100] },
+                { t: 360, s: [115, 125, 100] }
+              ]
+            }
+          },
+          shapes: [
+            {
+              ty: 'gr',
+              nm: 'Blob A Group',
+              it: [
+                {
+                  ty: 'el',
+                  p: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [360, 360] },
+                  d: 1,
+                  nm: 'Ellipse Path 1',
+                  mn: 'ADBE Vector Shape - Ellipse',
+                  hd: false
+                },
+                {
+                  ty: 'fl',
+                  c: { a: 0, k: [0.2, 0.6, 0.9, 1] },
+                  o: { a: 0, k: 100 },
+                  r: 1,
+                  nm: 'Fill 1',
+                  mn: 'ADBE Vector Graphic - Fill',
+                  hd: false
+                },
+                {
+                  ty: 'tr',
+                  p: { a: 0, k: [0, 0] },
+                  a: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [100, 100] },
+                  r: { a: 0, k: 0 },
+                  o: { a: 0, k: 100 },
+                  sk: { a: 0, k: 0 },
+                  sa: { a: 0, k: 0 },
+                  nm: 'Transform'
+                }
+              ],
+              np: 2,
+              cix: 2,
+              bm: 0,
+              ix: 1,
+              mn: 'ADBE Vector Group',
+              hd: false
+            }
+          ],
+          ip: 0,
+          op: 360,
+          st: 0,
+          bm: 0
+        },
+        {
+          ddd: 0,
+          ind: 2,
+          ty: 4,
+          nm: 'Blob B',
+          ks: {
+            o: { a: 0, k: 48 },
+            r: { a: 0, k: 0 },
+            p: {
+              a: 1,
+              k: [
+                { t: 0, s: [360, 230, 0], to: [-20, 15, 0], ti: [20, -15, 0] },
+                { t: 180, s: [410, 270, 0], to: [20, -15, 0], ti: [-20, 15, 0] },
+                { t: 360, s: [360, 230, 0] }
+              ]
+            },
+            a: { a: 0, k: [0, 0, 0] },
+            s: {
+              a: 1,
+              k: [
+                { t: 0, s: [95, 105, 100] },
+                { t: 180, s: [120, 90, 100] },
+                { t: 360, s: [95, 105, 100] }
+              ]
+            }
+          },
+          shapes: [
+            {
+              ty: 'gr',
+              nm: 'Blob B Group',
+              it: [
+                {
+                  ty: 'el',
+                  p: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [300, 300] },
+                  d: 1,
+                  nm: 'Ellipse Path 1',
+                  mn: 'ADBE Vector Shape - Ellipse',
+                  hd: false
+                },
+                {
+                  ty: 'fl',
+                  c: { a: 0, k: [0.9, 0.35, 0.75, 1] },
+                  o: { a: 0, k: 100 },
+                  r: 1,
+                  nm: 'Fill 1',
+                  mn: 'ADBE Vector Graphic - Fill',
+                  hd: false
+                },
+                {
+                  ty: 'tr',
+                  p: { a: 0, k: [0, 0] },
+                  a: { a: 0, k: [0, 0] },
+                  s: { a: 0, k: [100, 100] },
+                  r: { a: 0, k: 0 },
+                  o: { a: 0, k: 100 },
+                  sk: { a: 0, k: 0 },
+                  sa: { a: 0, k: 0 },
+                  nm: 'Transform'
+                }
+              ],
+              np: 2,
+              cix: 2,
+              bm: 0,
+              ix: 1,
+              mn: 'ADBE Vector Group',
+              hd: false
+            }
+          ],
+          ip: 0,
+          op: 360,
+          st: 0,
+          bm: 0
+        }
+      ]
+    };
+
+    function buildZenFlowData(accent, accentSecondary) {
+      const data = JSON.parse(JSON.stringify(ZEN_FLOW_BASE_ANIMATION));
+      const primary = colorStringToRgbArray(accent, '#38bdf8');
+      const secondary = colorStringToRgbArray(accentSecondary, accent || '#f472b6');
+      const firstLayer = Array.isArray(data.layers) && data.layers.length > 0 ? data.layers[0] : null;
+      const secondLayer = Array.isArray(data.layers) && data.layers.length > 1 ? data.layers[1] : null;
+      const firstShape = firstLayer && Array.isArray(firstLayer.shapes) && firstLayer.shapes.length > 0
+        ? firstLayer.shapes[0]
+        : null;
+      const secondShape = secondLayer && Array.isArray(secondLayer.shapes) && secondLayer.shapes.length > 0
+        ? secondLayer.shapes[0]
+        : null;
+      const firstFill = firstShape && Array.isArray(firstShape.it) && firstShape.it.length > 1 ? firstShape.it[1] : null;
+      const secondFill = secondShape && Array.isArray(secondShape.it) && secondShape.it.length > 1 ? secondShape.it[1] : null;
+      if (firstFill && firstFill.c && firstFill.c.k) {
+        firstFill.c.k = primary;
+      }
+      if (secondFill && secondFill.c && secondFill.c.k) {
+        secondFill.c.k = secondary;
+      }
+      return data;
+    }
+
+    class ZenFlowEngine {
+      constructor(container, options = {}) {
+        this.name = 'zen-flow';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.node = null;
+        this.animation = null;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, this.accent);
+        if (!container || typeof lottie === 'undefined') return;
+        this.node = document.createElement('div');
+        this.node.style.position = 'absolute';
+        this.node.style.inset = '-30%';
+        this.node.style.pointerEvents = 'none';
+        this.node.style.filter = 'blur(80px)';
+        this.node.style.mixBlendMode = 'screen';
+        container.appendChild(this.node);
+        this.loadAnimation();
+      }
+
+      loadAnimation() {
+        if (!this.node || typeof lottie === 'undefined') return;
+        if (this.animation) {
+          this.animation.destroy();
+          this.animation = null;
+        }
+        const data = buildZenFlowData(this.accent, this.accentSecondary);
+        try {
+          this.animation = lottie.loadAnimation({
+            container: this.node,
+            renderer: 'svg',
+            loop: true,
+            autoplay: !this.reducedMotion,
+            animationData: data
+          });
+          if (this.reducedMotion && this.animation) {
+            this.animation.goToAndStop(90, true);
+          }
+        } catch (err) {
+          console.warn('[ticker] failed to initialise Lottie animation', err);
+          this.animation = null;
+        }
+      }
+
+      updateColors(colors = {}) {
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        this.loadAnimation();
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (!this.animation) return;
+        if (this.reducedMotion) {
+          this.animation.pause();
+          this.animation.goToAndStop(120, true);
+        } else {
+          this.animation.play();
+        }
+      }
+
+      resize() {
+        // SVG scales automatically within the container.
+      }
+
+      destroy() {
+        if (this.animation) {
+          this.animation.destroy();
+          this.animation = null;
+        }
+        if (this.node && this.node.parentNode) {
+          this.node.parentNode.removeChild(this.node);
+        }
+        this.node = null;
+      }
+    }
+
+    class DuotoneFusionEngine {
+      constructor(container, options = {}) {
+        this.name = 'duotone-fusion';
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.layer = null;
+        this.timeline = null;
+        this.accent = resolveColorString(options.accent, '#38bdf8');
+        this.accentSecondary = resolveColorString(options.accentSecondary, '#f472b6');
+        if (!container) return;
+        this.layer = document.createElement('div');
+        this.layer.style.position = 'absolute';
+        this.layer.style.inset = '-40%';
+        this.layer.style.pointerEvents = 'none';
+        this.layer.style.opacity = '0.55';
+        this.layer.style.filter = 'blur(140px)';
+        this.layer.style.mixBlendMode = 'screen';
+        container.appendChild(this.layer);
+        this.updateGradient();
+        if (!this.reducedMotion && typeof gsap !== 'undefined') {
+          try {
+            this.timeline = gsap.to(this.layer, {
+              duration: 16,
+              backgroundPosition: '200% 50%',
+              ease: 'none',
+              repeat: -1,
+              yoyo: true
+            });
+          } catch (err) {
+            console.warn('[ticker] failed to start gradient animation', err);
+            this.timeline = null;
+          }
+        }
+      }
+
+      updateGradient() {
+        if (!this.layer) return;
+        const primary = resolveColorString(this.accent, '#38bdf8');
+        const secondary = resolveColorString(this.accentSecondary, primary);
+        this.layer.style.background = `linear-gradient(135deg, ${primary}, ${secondary})`;
+        this.layer.style.backgroundSize = '200% 200%';
+      }
+
+      updateColors(colors = {}) {
+        this.accent = resolveColorString(colors.accent, this.accent);
+        this.accentSecondary = resolveColorString(colors.accentSecondary, this.accentSecondary);
+        this.updateGradient();
+      }
+
+      setReducedMotion(flag) {
+        this.reducedMotion = !!flag;
+        if (this.timeline) {
+          if (this.reducedMotion) {
+            this.timeline.pause();
+          } else {
+            this.timeline.play();
+          }
+        }
+      }
+
+      resize() {
+        // Layer covers the container automatically via CSS.
+      }
+
+      destroy() {
+        if (this.timeline) {
+          this.timeline.kill();
+          this.timeline = null;
+        }
+        if (this.layer && this.layer.parentNode) {
+          this.layer.parentNode.removeChild(this.layer);
+        }
+        this.layer = null;
+      }
+    }
+
+    function ThemeVisualController(container, options) {
+        if (!(this instanceof ThemeVisualController)) {
+            return new ThemeVisualController(container, options);
+        }
+        options = options || {};
+        this.container = container;
+        this.reducedMotion = !!options.reducedMotion;
+        this.current = null;
+    }
+
+    ThemeVisualController.factories = {
+        'midnight-glass': function(container, opts) { return new MidnightGlassEngine(container, opts); },
+        'aurora-night': function(container, opts) { return new AuroraNightEngine(container, opts); },
+        'nexus-grid': function(container, opts) { return new NexusGridEngine(container, opts); },
+        'zen-flow': function(container, opts) { return new ZenFlowEngine(container, opts); },
+        'duotone-fusion': function(container, opts) { return new DuotoneFusionEngine(container, opts); }
+    };
+
+    ThemeVisualController.prototype.instantiateEngine = function(themeKey, colors) {
+        colors = colors || {};
+        var factory = ThemeVisualController.factories[themeKey];
+        if (!factory) return null;
+        try {
+            return factory(this.container, { 
+                accent: colors.accent,
+                accentSecondary: colors.accentSecondary,
+                reducedMotion: this.reducedMotion 
+            });
+        } catch (error) {
+            console.warn('[ticker] failed to initialise ' + themeKey + ' visuals', error);
+            return null;
+        }
+    };
+
+    ThemeVisualController.prototype.setTheme = function(theme, colors) {
+        colors = colors || {};
+        if (!this.container) return;
+        var resolvedTheme = theme || 'aurora-night';
+
+        try {
+            this.current.updateColors(colors);
+        } catch (err) {
+            console.warn('[ticker] theme colour update failed', err);
+        }
+
+        if (typeof this.current.setReducedMotion === 'function') {
+            try {
+                this.current.setReducedMotion(this.reducedMotion);
+            } catch (err) {
+                console.warn('[ticker] theme reduced motion sync failed', err);
+            }
+        }
+        return;
+    }
+    if (this.current && typeof this.current.destroy === 'function') {
+        try {
+            this.current.destroy();
+        } catch (err) {
+            console.warn('[ticker] theme destroy failed', err);
+      this.current = null;
+      if (this.container) {
+        this.container.innerHTML = '';
+      }
+      const factory = factories[resolvedTheme];
+      if (!factory) {
+        return;
+      }
+      try {
+        const instance = factory(this.container, { ...colors, reducedMotion: this.reducedMotion });
+        this.current = instance || null;
+        if (this.current && typeof this.current.setReducedMotion === 'function') {
+          this.current.setReducedMotion(this.reducedMotion);
+        }
+      } catch (err) {
+        console.warn(`[ticker] failed to initialise ${resolvedTheme} visuals`, err);
+        this.current = null;
+        if (this.container) {
+          this.container.innerHTML = '';
+        }
+      };
+
+    ThemeVisualController.prototype.updateColors = function(colors) {
+        colors = colors || {};
+        if (this.current && typeof this.current.updateColors === 'function') {
+            try {
+                this.current.updateColors(colors);
+            } catch (err) {
+                console.warn('[ticker] theme colour refresh failed', err);
+            }
+        }
+    };
+
+    ThemeVisualController.prototype.setReducedMotion = function(flag) {
+        this.reducedMotion = !!flag;
+        if (this.current && typeof this.current.setReducedMotion === 'function') {
+            try {
+                this.current.setReducedMotion(this.reducedMotion);
+            } catch (err) {
+                console.warn('[ticker] theme reduced motion update failed', err);
+            }
+        }
+    };
+
+    ThemeVisualController.prototype.resize = function() {
+        if (this.current && typeof this.current.resize === 'function') {
+            try {
+                this.current.resize();
+            } catch (err) {
+                console.warn('[ticker] theme resize failed', err);
+            }
+        }
+    };
+
+    ThemeVisualController.prototype.destroy = function() {
+        if (this.current && typeof this.current.destroy === 'function') {
+            try {
+                this.current.destroy();
+            } catch (err) {
+                console.warn('[ticker] theme destroy failed', err);
+            }
+        }
+        this.current = null;
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+    };
+
+    function SlateManager() {
+        this.state = null;
+        this.titleFormatter = null;
+        this.subtitleFormatter = null;
+        this.metaFormatter = null;
+        this.dotsFormatter = null;
+        this.websocket = null;
+        this.container = document.createElement('div');
+        this.container.className = 'slate-widget';
+        this.container.style.cssText = [
+            'position: fixed',
+            'top: 24px',
+            'right: 24px',
+            'display: flex',
+            'flex-direction: column',
+            'gap: 12px',
+            'width: max-content',
+            'max-width: 420px',
+            'z-index: 1300',
+            'opacity: 0',
+            'visibility: hidden',
+            'pointer-events: none',
+            'transition: opacity 0.4s var(--ease-smooth), visibility 0.4s var(--ease-smooth)'
+        ].join(';');
+        document.body.appendChild(this.container);
+
+        this.stateManager = window.stateManager;
+        this.stateManager.registerHandler('slate', state => this.onStateUpdate(state));
+      }
+
+    SlateManager.prototype.onStateUpdate = function(state) {
+        var isVisible = state.visible && state.text && state.text.trim();
+        this.container.style.opacity = isVisible ? '1' : '0';
+        this.container.style.visibility = isVisible ? 'visible' : 'hidden';
+        this.container.style.pointerEvents = isVisible ? 'auto' : 'none';
+
+        if (isVisible) {
+            var formattedText = this.formatText(state.text);
+            this.container.innerHTML = 
+                '<div class="slate-content" style="' +
+                'padding: 14px 18px;' +
+                'background: var(--popup-surface-a);' +
+                'color: var(--popup-text-color);' +
+                'font-size: calc(14px * var(--ui-scale));' +
+                'font-weight: 600;' +
+                'line-height: 1.4;' +
+                'box-shadow: var(--popup-shadow);' +
+                'border: 1px solid var(--popup-border-color);' +
+                'border-radius: 6px;' +
+                'white-space: pre-line;' +
+                'animation: fadeSlideIn 0.5s var(--ease-premium) forwards;' +
+                '">' + formattedText + '</div>';
+        }
+    };
+
+    SlateManager.prototype.formatText = function(text) {
+        if (!text) return '';
+        return text
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\*(.*?)\*/g, '<em>$1</em>')
+            .replace(/_([^_]+)_/g, '<u>$1</u>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/\n/g, '<br>');
+    };
+
+    class TickerOverlay {
+      constructor() {
+        const params = new URLSearchParams(location.search);
+
+        const fallbackOrigin =
+          typeof location === 'object' && location && typeof location.origin === 'string' && location.origin
+            ? location.origin
+            : DEFAULT_SERVER_URL;
+        const serverParam = params.get('server');
+        const trimmedServerParam = typeof serverParam === 'string' ? serverParam.trim() : '';
+        let sanitisedServerParam = trimmedServerParam;
+
+        if (sanitisedServerParam) {
+          const lowerValue = sanitisedServerParam.toLowerCase();
+          if (lowerValue === 'undefined' || lowerValue === 'null') {
+            sanitisedServerParam = '';
+          } else if (/\/undefined\/?$/i.test(lowerValue)) {
+            sanitisedServerParam = sanitisedServerParam.replace(/\/undefined\/?$/i, '');
+          }
+        }
+
+        const normalisedServer = normaliseServerBase(sanitisedServerParam, fallbackOrigin);
+        this.server = normalisedServer;
+
+        if (params.has('server') && typeof history === 'object' && history && typeof history.replaceState === 'function') {
+          if (sanitisedServerParam !== normalisedServer) {
+            try {
+              const nextUrl = new URL(location.href);
+              nextUrl.searchParams.set('server', normalisedServer);
+              history.replaceState(null, '', nextUrl.toString());
+            } catch (error) {
+              console.warn('[ticker] failed to update server param', error);
+            }
+          }
+        }
+
+        this.overlay = { ...DEFAULT_OVERLAY };
+        this.overrides = {
+          label: false,
+          accent: false,
+          accentSecondary: false,
+          highlight: false,
+          scale: false,
+          popupScale: false,
+          position: false,
+          mode: false,
+          accentAnim: false,
+          sparkle: false,
+          theme: false
+        };
+
+        const labelParam = params.get('label');
+        if (labelParam) {
+          this.overlay.label = labelParam;
+          this.overrides.label = true;
+        }
+
+        const accentParam = params.get('accent');
+        if (accentParam !== null) {
+          const trimmed = accentParam.trim();
+          if (!trimmed) {
+            this.overlay.accent = '';
+            this.overrides.accent = true;
+          } else if (isSafeCssColor(trimmed)) {
+            this.overlay.accent = trimmed;
+            this.overrides.accent = true;
+          } else {
+            console.warn('[ticker] ignoring unsafe accent override', trimmed);
+          }
+        }
+
+        const accentSecondaryParam = params.get('accentSecondary');
+        if (accentSecondaryParam !== null) {
+          const trimmedSecondary = accentSecondaryParam.trim();
+          if (!trimmedSecondary) {
+            this.overlay.accentSecondary = '';
+            this.overrides.accentSecondary = true;
+          } else if (isSafeCssColor(trimmedSecondary)) {
+            this.overlay.accentSecondary = trimmedSecondary;
+            this.overrides.accentSecondary = true;
+          } else {
+            console.warn('[ticker] ignoring unsafe secondary accent override', trimmedSecondary);
+          }
+        }
+
+        const highlightParam = params.get('hl');
+        if (highlightParam) {
+          this.overlay.highlight = normaliseHighlightString(highlightParam);
+          this.overrides.highlight = true;
+        }
+
+        const scaleParam = parseFloat(params.get('scale'));
+        if (Number.isFinite(scaleParam)) {
+          this.overlay.scale = clampScale(scaleParam);
+          this.overrides.scale = true;
+        }
+
+        const popupScaleParam = parseFloat(params.get('popupScale'));
+        if (Number.isFinite(popupScaleParam)) {
+          this.overlay.popupScale = clampPopupScale(popupScaleParam);
+          this.overrides.popupScale = true;
+        }
+
+        const modeParam = params.get('mode');
+        if (modeParam) {
+          this.overlay.mode = normaliseMode(modeParam);
+          this.overrides.mode = true;
+        }
+
+        const positionParam = params.get('position');
+        if (positionParam) {
+          this.overlay.position = normalisePosition(positionParam);
+          this.overrides.position = true;
+        }
+
+        const themeParam = params.get('theme');
+        if (themeParam) {
+          const theme = normaliseTheme(themeParam);
+          if (theme) {
+            this.overlay.theme = theme;
+            this.overrides.theme = true;
+          }
+        }
+
+        const speed = parseFloat(params.get('speed'));
+        if (Number.isFinite(speed) && speed >= 40 && speed <= 400) {
+          document.documentElement.style.setProperty('--marquee-pps', String(speed));
+        }
+        const accentAnimParam = params.get('accentAnim');
+        if (accentAnimParam) {
+          this.overlay.accentAnim = !['0', 'false', 'off', 'no'].includes(accentAnimParam.toLowerCase());
+          this.overrides.accentAnim = true;
+        }
+        const sparkleParam = params.get('sparkle');
+        if (sparkleParam) {
+          this.overlay.sparkle = !['0', 'false', 'off', 'no'].includes(sparkleParam.toLowerCase());
+          this.overrides.sparkle = true;
+        }
+
+        this.debugEnabled = params.has('debug');
+        this.debugNodes = null;
+
+        this.container =
+          document.getElementById('ticker') ||
+          document.querySelector('.ticker');
+        this.labelNode = document.getElementById('tickerLabel');
+        this.contentNode = document.getElementById('tickerContent');
+        this.trackNode = document.getElementById('tickerTrack');
+        this.visualContainer = document.getElementById('tickerVisuals');
+        this.themeVisuals = this.visualContainer
+          ? new ThemeVisualController(this.visualContainer, {
+              reducedMotion: prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false
+            })
+          : null;
+        this.handleResize = () => {
+          if (this.themeVisuals) {
+            this.themeVisuals.resize();
+          }
+        };
+        window.addEventListener('resize', this.handleResize);
+        if (prefersReducedMotionQuery && this.themeVisuals) {
+          this.reducedMotionListener = event => {
+            const shouldReduce = event.matches || this.overlay.accentAnim === false;
+            this.themeVisuals.setReducedMotion(shouldReduce);
+          };
+          prefersReducedMotionQuery.addEventListener('change', this.reducedMotionListener);
+        } else {
+          this.reducedMotionListener = null;
+        }
+        this.popupNode = document.getElementById('popup');
+        this.popupInner = document.getElementById('popupContent');
+        this.brbNode = document.getElementById('brbBanner');
+        this.brbTextNode = document.getElementById('brbBannerText');
+        if (this.brbNode) {
+          this.brbNode.setAttribute('aria-hidden', 'true');
+        }
+        this.slateNode = document.getElementById('slate');
+        this.slateCard = document.getElementById('slateCard');
+        this.slatePill = document.getElementById('slatePill');
+        this.slateTitleNode = document.getElementById('slateTitle');
+        this.slateSubtitleNode = document.getElementById('slateSubtitle');
+        this.slateMetaNode = document.getElementById('slateMeta');
+        this.slateDotsNode = document.getElementById('slateDots');
+
+        this.customHighlights = [];
+        this.setCustomHighlights(this.overlay.highlight);
+        this.applyOverlayStyles();
+
+        this.messages = [];
+        this.isActive = false;
+        this.displayDuration = 5;
+        this.intervalSeconds = 0;
+        this.tickerUpdatedAt = null;
+        this.popup = { ...DEFAULT_POPUP };
+        this.brb = { ...DEFAULT_BRB };
+        this.brbUpdatedAt = null;
+        this.popupVisible = false;
+        this.popupRefreshTimer = null;
+        this.popupAutoHideTimer = null;
+        this.popupCountdownTimer = null;
+        this.popupAnimator = null;
+        this.slate = { ...DEFAULT_SLATE };
+        this.slateCards = [];
+        this.slateIndex = 0;
+        this.slateRotationTimer = null;
+        this.slateClockTimer = null;
+        this.slateDisplayTimer = null;
+        this.slateRefreshTimer = null;
+        this.slateUpdatedAt = null;
+        this.slateVisible = false;
+        this.slateAnimator = null;
+        this.tickerAnimator = null;
+        this.measureNode = null;
+        this.cachedLongestMessageWidth = null;
+
+        this.phase = 'idle';
+        this.stopTimer = null;
+        this.cooldownTimer = null;
+        this.chunkTimer = null;
+        this.fetchInFlight = false;
+        this.eventSource = null;
+        this.eventSourceListeners = [];
+        this.streamFallbackTimer = null;
+        this.streamReconnectTimer = null;
+        this.streamPrimed = false;
+        this.awaitingInitialStream = true;
+        this.lastStreamFallbackAt = 0;
+        this.streamRetryAttempt = 0;
+        this.streamState = STREAM_STATES.IDLE;
+        this.pollingTimer = null;
+        this.stateRequestQueue = createAsyncQueue({ concurrency: 1 });
+        this.rafId = null;
+        this.distance = 0;
+        this.marqueeOffset = 0;
+        this.marqueeLoopWidth = 0;
+        this.marqueeNeedsReset = true;
+        this.marqueePrepared = false;
+        this.lastMarqueeMarkup = '';
+
+        if (!this.container) {
+          console.error('[ticker] missing ticker container element');
+        }
+
+        if (document && document.body) {
+          this.measureNode = document.createElement('div');
+          this.measureNode.className = 'ticker-content ticker-measure';
+          this.measureNode.setAttribute('aria-hidden', 'true');
+          document.body.appendChild(this.measureNode);
+        }
+
+        this.refreshSlateCards({ animate: false });
+        this.connectStream();
+        this.triggerStreamFallback('manual');
+        window.addEventListener('beforeunload', () => this.dispose());
+      }
+
+      debugSet(key, value) {
+        if (!this.debugEnabled) return;
+        if (!this.debugNodes) {
+          this.debugNodes = {
+            Phase: document.getElementById('debugPhase') || null,
+            Status: document.getElementById('debugStatus') || null,
+            Msgs: document.getElementById('debugMsgs') || null,
+            Anim: document.getElementById('debugAnim') || null,
+            PX: document.getElementById('debugPx') || null
+          };
+        }
+        const node = this.debugNodes[key];
+        if (node) {
+          node.textContent = String(value);
+        }
+      }
+
+      dispose() {
+        this.disconnectStream();
+        this.stopPolling();
+        this.clearTimers();
+        if (this.measureNode && this.measureNode.parentNode) {
+          this.measureNode.parentNode.removeChild(this.measureNode);
+          this.measureNode = null;
+        }
+        if (this.handleResize) {
+          window.removeEventListener('resize', this.handleResize);
+          this.handleResize = null;
+        }
+        if (prefersReducedMotionQuery && this.reducedMotionListener) {
+          prefersReducedMotionQuery.removeEventListener('change', this.reducedMotionListener);
+          this.reducedMotionListener = null;
+        }
+        if (this.themeVisuals) {
+          this.themeVisuals.destroy();
+          this.themeVisuals = null;
+        }
+        if (document.body) {
+          document.body.classList.remove(...THEME_CLASSNAMES);
+          document.body.classList.remove('no-sparkle');
+        }
+        document.documentElement.style.removeProperty('--accent');
+        document.documentElement.style.removeProperty('--accent-secondary');
+      }
+
+      clearTimers() {
+        clearTimeout(this.stopTimer);
+        clearTimeout(this.cooldownTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+        if (this.popupRefreshTimer) {
+          clearTimeout(this.popupRefreshTimer);
+          this.popupRefreshTimer = null;
+        }
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        this.destroyPopupAnimator();
+        this.clearSlateTimers();
+        this.destroySlateAnimator();
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+      }
+
+      updateTickerState(data) {
+        if (!data || typeof data !== 'object') {
+          return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
+        }
+        const nextStampSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+        const nextStampRaw = Number(nextStampSource);
+        const hasStamp = Number.isFinite(nextStampRaw);
+        if (hasStamp && this.tickerUpdatedAt !== null && this.tickerUpdatedAt === nextStampRaw) {
+          return { messagesChanged: false, activeChanged: false, durationChanged: false, intervalChanged: false };
+        }
+
+        const newMessages = sanitiseMessages(data.messages || []);
+        const newActive = !!data.isActive;
+        const durationSource = data.displayDuration != null ? data.displayDuration : this.displayDuration;
+        const intervalSource = data.intervalBetween != null ? data.intervalBetween : this.intervalSeconds;
+        const newDuration = clampDuration(durationSource);
+        const newInterval = clampInterval(intervalSource);
+
+        const messagesChanged = JSON.stringify(this.messages) !== JSON.stringify(newMessages);
+        const activeChanged = this.isActive !== newActive;
+        const durationChanged = this.displayDuration !== newDuration;
+        const intervalChanged = this.intervalSeconds !== newInterval;
+
+        this.messages = newMessages;
+        this.isActive = newActive && this.messages.length > 0;
+        this.displayDuration = newDuration;
+        this.intervalSeconds = newInterval;
+        if (hasStamp) {
+          this.tickerUpdatedAt = nextStampRaw;
+        } else if (this.tickerUpdatedAt === null) {
+          this.tickerUpdatedAt = Date.now();
+        }
+        if (!this.messages.length) this.isActive = false;
+        if (messagesChanged) {
+          this.marqueeNeedsReset = true;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          this.marqueeOffset = 0;
+          this.cachedLongestMessageWidth = null;
+        }
+
+        this.debugSet('Msgs', this.messages.length);
+        this.updateLabel();
+
+        return { messagesChanged, activeChanged, durationChanged, intervalChanged };
+      }
+
+      handleTickerPayload(data) {
+        const changes = this.updateTickerState(data);
+        this.evaluate(changes);
+        this.debugSet('Status', this.isBrbActive() ? 'BRB active' : 'OK');
+      }
+
+      handlePopupPayload(data) {
+        const next = normalisePopupPayload(data);
+        const textChanged = this.popup.text !== next.text;
+        const visibilityChanged = this.popup.isActive !== next.isActive;
+        this.popup = next;
+        if (!this.popupNode) return;
+        this.updatePopupState({ textChanged, visibilityChanged });
+      }
+
+      updatePopupState({ textChanged = false, visibilityChanged = false, force = false } = {}) {
+        if (!this.popupNode) return;
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        if (this.isBrbActive()) {
+          this.hidePopup();
+          return;
+        }
+        if (this.popup.isActive) {
+          this.updatePopupContent(this.popup.text, textChanged || visibilityChanged || force);
+          this.showPopup();
+          if (this.popup.countdownEnabled && Number.isFinite(this.popup.countdownTarget)) {
+            this.startPopupCountdown();
+          }
+          this.schedulePopupAutoHide(this.popup.durationSeconds);
+        } else {
+          this.hidePopup();
+        }
+      }
+
+      isBrbActive() {
+        return !!(this.brb && this.brb.isActive && this.brb.text);
+      }
+
+      updateBrbBanner() {
+        if (!this.brbNode) return;
+        const active = this.isBrbActive();
+        const text = this.brb && this.brb.text ? this.brb.text : '';
+        if (this.brbTextNode) {
+          this.brbTextNode.textContent = text;
+        } else {
+          this.brbNode.textContent = text;
+        }
+        this.brbNode.classList.toggle('show', active);
+        this.brbNode.setAttribute('aria-hidden', active ? 'false' : 'true');
+      }
+
+      applyBrbOverlayState({ previouslyActive = false } = {}) {
+        const active = this.isBrbActive();
+        if (this.container) {
+          this.container.classList.toggle('brb-hidden', active);
+          this.container.setAttribute('aria-hidden', active ? 'true' : 'false');
+        }
+        if (this.popupNode) {
+          this.popupNode.classList.toggle('brb-hidden', active);
+          this.popupNode.setAttribute('aria-hidden', active ? 'true' : 'false');
+        }
+        if (active) {
+          this.hideTicker(true);
+          this.hidePopup();
+          this.debugSet('Status', 'BRB active');
+        } else if (previouslyActive) {
+          this.evaluate();
+          this.updatePopupState({ force: true });
+        }
+      }
+
+      handleBrbPayload(data) {
+        if (!data || typeof data !== 'object') return;
+        const next = normaliseBrbPayload(data);
+        const stampSource = data && data._updatedAt != null ? data._updatedAt : data && data.updatedAt;
+        const stamp = Number(stampSource);
+        if (Number.isFinite(stamp)) {
+          if (Number.isFinite(this.brbUpdatedAt) && this.brbUpdatedAt === stamp) {
+            return;
+          }
+          next.updatedAt = stamp;
+        }
+        const previouslyActive = this.isBrbActive();
+        this.brb = next;
+        this.brbUpdatedAt = next.updatedAt;
+        this.updateBrbBanner();
+        this.applyBrbOverlayState({ previouslyActive });
+      }
+
+      buildHighlightRegex() {
+        const merged = new Set(DEFAULT_HIGHLIGHTS);
+        for (const word of this.customHighlights) {
+          const trimmed = word.trim();
+          if (trimmed) merged.add(trimmed.toLowerCase());
+        }
+        if (!merged.size) return null;
+        const tokens = Array.from(merged)
+          .map(word => word.trim())
+          .filter(Boolean)
+          .sort((a, b) => b.length - a.length);
+        if (!tokens.length) return null;
+        const escaped = tokens
+          .map(word => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+          .join('|');
+        const boundaryClass = '[\\p{L}\\p{N}_]';
+        return escaped
+          ? new RegExp(`(?<!${boundaryClass})(${escaped})(?!${boundaryClass})`, 'giu')
+          : null;
+      }
+
+      setCustomHighlights(list) {
+        const normalised = normaliseHighlightString(list);
+        this.overlay.highlight = normalised;
+        this.customHighlights = normalised
+          ? normalised.split(',').map(part => part.trim())
+          : [];
+        this.highlightRegex = this.buildHighlightRegex();
+        this.cachedLongestMessageWidth = null;
+        if (this.popupVisible && this.popup.text) {
+          this.updatePopupContent(this.popup.text);
+        }
+      }
+
+      updatePopupContent(text, animate = false) {
+        if (!this.popupInner) return;
+        this.destroyPopupAnimator();
+        const html = formatMessage(text, this.highlightRegex);
+        this.popupInner.innerHTML = '';
+        let messageNode = null;
+        if (html) {
+          messageNode = document.createElement('div');
+          messageNode.className = 'popup-message';
+          messageNode.innerHTML = html;
+          this.popupInner.appendChild(messageNode);
+        }
+        if (this.popup.countdownEnabled && Number.isFinite(this.popup.countdownTarget)) {
+          const countdown = document.createElement('span');
+          countdown.className = 'popup-countdown';
+          countdown.dataset.popupCountdown = 'true';
+          this.popupInner.appendChild(countdown);
+        }
+        if (animate) {
+          this.popupInner.classList.remove('refresh');
+          // force reflow
+          void this.popupInner.offsetWidth;
+          this.popupInner.classList.add('refresh');
+          if (this.popupRefreshTimer) clearTimeout(this.popupRefreshTimer);
+          this.popupRefreshTimer = setTimeout(() => {
+            this.popupInner.classList.remove('refresh');
+            this.popupRefreshTimer = null;
+          }, 400);
+        }
+        this.updatePopupCountdownDisplay();
+        if (animate && messageNode) {
+          const animator = createTextAnimator(messageNode);
+          if (animator) {
+            this.popupAnimator = animator;
+            animator.playIn().catch(() => this.destroyPopupAnimator());
+          }
+        }
+      }
+
+    clearPopupAutoTimer() {
+      if (this.popupAutoHideTimer) {
+        clearTimeout(this.popupAutoHideTimer);
+        this.popupAutoHideTimer = null;
+      }
+    }
+
+    clearPopupCountdownTimer() {
+      if (this.popupCountdownTimer) {
+        clearInterval(this.popupCountdownTimer);
+        this.popupCountdownTimer = null;
+      }
+    }
+
+    destroyPopupAnimator() {
+      if (this.popupAnimator && typeof this.popupAnimator.kill === 'function') {
+        try {
+          this.popupAnimator.kill();
+        } catch (err) {
+          console.warn('[ticker] popup text animation cleanup failed', err);
+        }
+      }
+      this.popupAnimator = null;
+    }
+
+    updatePopupCountdownDisplay() {
+      if (!this.popupInner) return;
+      const countdownEl = this.popupInner.querySelector('[data-popup-countdown]');
+      if (!countdownEl) return;
+      if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) {
+        countdownEl.textContent = '';
+        return;
+      }
+      const label = formatCountdownLabel(this.popup.countdownTarget);
+      countdownEl.textContent = label;
+      if (label === 'now') {
+        this.clearPopupCountdownTimer();
+      }
+    }
+
+    startPopupCountdown() {
+      this.clearPopupCountdownTimer();
+      if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) return;
+      this.updatePopupCountdownDisplay();
+      this.popupCountdownTimer = setInterval(() => {
+        if (!this.popup.countdownEnabled || !Number.isFinite(this.popup.countdownTarget)) {
+          this.clearPopupCountdownTimer();
+          return;
+        }
+        this.updatePopupCountdownDisplay();
+      }, 1000);
+    }
+
+    clearSlateTimers() {
+      if (this.slateRotationTimer) {
+        clearTimeout(this.slateRotationTimer);
+        this.slateRotationTimer = null;
+      }
+      if (this.slateDisplayTimer) {
+        clearTimeout(this.slateDisplayTimer);
+        this.slateDisplayTimer = null;
+      }
+      this.stopSlateClock();
+      if (this.slateRefreshTimer) {
+        clearTimeout(this.slateRefreshTimer);
+        this.slateRefreshTimer = null;
+      }
+    }
+
+    destroySlateAnimator() {
+      if (this.slateAnimator && typeof this.slateAnimator.kill === 'function') {
+        try {
+          this.slateAnimator.kill();
+        } catch (err) {
+          console.warn('[ticker] slate text animation cleanup failed', err);
+        }
+      }
+      this.slateAnimator = null;
+    }
+
+    showSlate() {
+      if (!this.slateNode) return;
+      this.slateNode.classList.toggle('push-down', this.overlay.position === 'top');
+      this.slateNode.classList.add('show');
+      this.slateVisible = true;
+    }
+
+    concealSlate() {
+      if (!this.slateNode) return;
+      this.slateNode.classList.remove('show');
+      this.slateVisible = false;
+    }
+
+    hideSlate() {
+      if (!this.slateNode) return;
+      this.clearSlateTimers();
+      const finalize = () => {
+        this.concealSlate();
+        this.slateNode.classList.remove('push-down');
+        this.slateCurrentCard = null;
+        this.slateIndex = 0;
+        if (this.slateDotsNode) {
+          this.slateDotsNode.innerHTML = '';
+        }
+        this.destroySlateAnimator();
+      };
+      if (this.slateVisible && this.slateAnimator) {
+        this.slateAnimator.playOut().catch(() => {}).finally(finalize);
+      } else {
+        finalize();
+      }
+    }
+
+    updateSlateDots() {
+      if (!this.slateDotsNode) return;
+      if (!this.slate.isEnabled || this.slateCards.length <= 1) {
+        this.slateDotsNode.innerHTML = '';
+        return;
+      }
+      const dots = this.slateCards
+        .map((_, index) => `<span class="${index === this.slateIndex ? 'is-active' : ''}"></span>`)
+        .join('');
+      this.slateDotsNode.innerHTML = dots;
+    }
+
+    updateSlateClockDisplay(card = this.slateCurrentCard) {
+      if (!card) return;
+      const now = new Date();
+      if (this.slateTitleNode) {
+        const time = now.toLocaleTimeString('en-GB', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Europe/London'
+        });
+        this.slateTitleNode.textContent = time;
+      }
+      if (this.slateSubtitleNode) {
+        const subtitle = card.subtitle && typeof card.subtitle === 'string'
+          ? card.subtitle
+          : (DEFAULT_SLATE.clockSubtitle || 'UK time');
+        if (subtitle) {
+          this.slateSubtitleNode.textContent = subtitle;
+          this.slateSubtitleNode.classList.remove('is-hidden');
+        } else {
+          this.slateSubtitleNode.textContent = '';
+          this.slateSubtitleNode.classList.add('is-hidden');
+        }
+      }
+      if (this.slateMetaNode) {
+        const meta = card.meta && typeof card.meta === 'string' ? card.meta : '';
+        if (meta) {
+          this.slateMetaNode.textContent = meta;
+          this.slateMetaNode.classList.remove('is-hidden');
+        } else {
+          this.slateMetaNode.textContent = '';
+          this.slateMetaNode.classList.add('is-hidden');
+        }
+      }
+    }
+
+    startSlateClock(card) {
+      this.stopSlateClock();
+      this.updateSlateClockDisplay(card);
+      this.slateClockTimer = setInterval(() => {
+        this.updateSlateClockDisplay(card);
+      }, 1000);
+    }
+
+    stopSlateClock() {
+      if (this.slateClockTimer) {
+        clearInterval(this.slateClockTimer);
+        this.slateClockTimer = null;
+      }
+    }
+
+    applySlateCard(card, { animate = true } = {}) {
+      if (!this.slateNode || !this.slateCard) return;
+      this.destroySlateAnimator();
+      this.slateCurrentCard = card;
+      if (this.slateCard) {
+        this.slateCard.dataset.type = card.type || '';
+      }
+      if (this.slatePill) {
+        this.slatePill.textContent = card.pill || 'Segment';
+      }
+      if (this.slateTitleNode) {
+        this.slateTitleNode.textContent = card.title || '';
+      }
+      if (this.slateSubtitleNode) {
+        if (card.subtitle) {
+          this.slateSubtitleNode.textContent = card.subtitle;
+          this.slateSubtitleNode.classList.remove('is-hidden');
+        } else {
+          this.slateSubtitleNode.textContent = '';
+          this.slateSubtitleNode.classList.add('is-hidden');
+        }
+      }
+      if (this.slateMetaNode) {
+        if (card.meta) {
+          this.slateMetaNode.textContent = card.meta;
+          this.slateMetaNode.classList.remove('is-hidden');
+        } else {
+          this.slateMetaNode.textContent = '';
+          this.slateMetaNode.classList.add('is-hidden');
+        }
+      }
+      if (animate && this.slateCard) {
+        this.slateCard.classList.remove('refresh');
+        void this.slateCard.offsetWidth;
+        this.slateCard.classList.add('refresh');
+        if (this.slateRefreshTimer) clearTimeout(this.slateRefreshTimer);
+        this.slateRefreshTimer = setTimeout(() => {
+          if (this.slateCard) {
+            this.slateCard.classList.remove('refresh');
+          }
+          this.slateRefreshTimer = null;
+        }, 420);
+      }
+      if (card.type === 'clock') {
+        this.startSlateClock(card);
+      }
+      this.updateSlateDots();
+      if (animate && card.type !== 'clock') {
+        const headerEl = this.slateTitleNode && this.slateTitleNode.textContent.trim() ? this.slateTitleNode : null;
+        const bodyTargets = [];
+        if (this.slateSubtitleNode && !this.slateSubtitleNode.classList.contains('is-hidden') && this.slateSubtitleNode.textContent.trim()) {
+          bodyTargets.push(this.slateSubtitleNode);
+        }
+        if (this.slateMetaNode && !this.slateMetaNode.classList.contains('is-hidden') && this.slateMetaNode.textContent.trim()) {
+          bodyTargets.push(this.slateMetaNode);
+        }
+        if (headerEl) {
+          const animator = createTextAnimator(headerEl, bodyTargets);
+          if (animator) {
+            this.slateAnimator = animator;
+            animator.playIn().catch(() => this.destroySlateAnimator());
+          }
+        }
+      }
+    }
+
+    playSlateCard(index = this.slateIndex, { animate = true } = {}) {
+      if (!this.slateCards.length) return;
+      const rotationSeconds = clampSlateRotation(this.slate.rotationSeconds);
+      this.clearSlateTimers();
+      const nextIndex = index % this.slateCards.length;
+      this.slateIndex = nextIndex < 0 ? this.slateCards.length - 1 : nextIndex;
+      const card = this.slateCards[this.slateIndex];
+      this.applySlateCard(card, { animate });
+      this.showSlate();
+      const visibleSeconds = computeSlateVisibleSeconds(rotationSeconds);
+      if (visibleSeconds <= 0) {
+        this.scheduleNextSlateCard(rotationSeconds);
+        return;
+      }
+      this.slateDisplayTimer = setTimeout(() => {
+        this.slateDisplayTimer = null;
+        this.stopSlateClock();
+        const continueRotation = () => {
+          this.destroySlateAnimator();
+          this.concealSlate();
+          this.scheduleNextSlateCard(rotationSeconds);
+        };
+        if (this.slateAnimator) {
+          this.slateAnimator.playOut().catch(() => {}).finally(continueRotation);
+        } else {
+          continueRotation();
+        }
+      }, visibleSeconds * 1000);
+    }
+
+    scheduleNextSlateCard(rotationSeconds = clampSlateRotation(this.slate.rotationSeconds)) {
+      if (!this.slate.isEnabled || !this.slateCards.length) return;
+      const gapMs = computeSlateGapMs(rotationSeconds);
+      this.slateRotationTimer = setTimeout(() => {
+        this.slateRotationTimer = null;
+        if (!this.slate.isEnabled || !this.slateCards.length) return;
+        this.slateIndex = (this.slateIndex + 1) % this.slateCards.length;
+        this.playSlateCard(this.slateIndex, { animate: true });
+      }, gapMs > 0 ? gapMs : 1000);
+    }
+
+    refreshSlateCards({ animate = true } = {}) {
+      if (!this.slateNode) return;
+      this.clearSlateTimers();
+      const previousCard = this.slateCards[this.slateIndex] || null;
+      const previousType = previousCard && previousCard.type ? previousCard.type : null;
+      const cards = deriveSlateCards(this.slate, this.overlay);
+      this.slateCards = cards;
+      if (!this.slate.isEnabled || !cards.length) {
+        this.hideSlate();
+        return;
+      }
+      let nextIndex = 0;
+      if (previousType) {
+        const matchIndex = cards.findIndex(card => card.type === previousType);
+        if (matchIndex !== -1) {
+          nextIndex = matchIndex;
+        }
+      }
+      this.playSlateCard(nextIndex, { animate });
+    }
+
+    schedulePopupAutoHide(durationSeconds) {
+      this.clearPopupAutoTimer();
+      const numeric = Number(durationSeconds);
+      if (!Number.isFinite(numeric) || numeric <= 0) return;
+      const clamped = Math.max(1, Math.min(MAX_POPUP_SECONDS, Math.round(numeric)));
+      this.popupAutoHideTimer = setTimeout(() => {
+        this.popupAutoHideTimer = null;
+        this.hidePopup();
+      }, clamped * 1000);
+    }
+
+    showPopup() {
+      if (!this.popupNode) return;
+      if (!this.popupVisible) {
+        this.popupNode.classList.add('show');
+        this.popupVisible = true;
+        }
+      }
+
+      hidePopup() {
+        if (!this.popupNode) return;
+        this.clearPopupAutoTimer();
+        this.clearPopupCountdownTimer();
+        const finalize = () => {
+          if (this.popupNode) {
+            this.popupNode.classList.remove('show');
+          }
+          this.popupVisible = false;
+          if (this.popupInner) {
+            this.popupInner.classList.remove('refresh');
+          }
+          this.destroyPopupAnimator();
+        };
+        if (this.popupVisible && this.popupAnimator) {
+          this.popupAnimator.playOut().catch(() => {}).finally(finalize);
+        } else {
+          finalize();
+        }
+      }
+
+      applyOverlayStyles({ refreshContent = false } = {}) {
+        const theme = normaliseTheme(this.overlay.theme) || DEFAULT_OVERLAY.theme;
+        this.overlay.theme = theme;
+        if (this.container) {
+          this.container.classList.remove(...THEME_CLASSNAMES);
+          this.container.classList.add(`ticker--${theme}`);
+          this.container.classList.toggle('top', this.overlay.position === 'top');
+          this.container.classList.toggle('no-accent-anim', !this.overlay.accentAnim);
+        }
+        if (document.body) {
+          document.body.classList.remove(...THEME_CLASSNAMES);
+          document.body.classList.add(`ticker--${theme}`);
+          document.body.classList.toggle('no-sparkle', !this.overlay.sparkle);
+        }
+        this.labelNode.textContent = this.overlay.label;
+        const accentValue = accentValueFromDefaults(this.overlay.accent, DEFAULT_OVERLAY.accent);
+        const secondaryValue = accentValueFromDefaults(
+          this.overlay.accentSecondary,
+          DEFAULT_OVERLAY.accentSecondary,
+          accentValue
+        );
+        document.documentElement.style.setProperty('--overlay-accent', accentValue);
+        document.documentElement.style.setProperty('--overlay-accent-secondary', secondaryValue);
+        document.documentElement.style.setProperty('--accent', accentValue);
+        document.documentElement.style.setProperty('--accent-secondary', secondaryValue);
+        document.documentElement.style.setProperty('--ui-scale', String(this.overlay.scale));
+        document.documentElement.style.setProperty('--popup-scale', String(this.overlay.popupScale));
+        this.cachedLongestMessageWidth = null;
+        if (this.popupNode) {
+          this.popupNode.classList.toggle('push-down', this.overlay.position === 'top');
+        }
+        if (this.themeVisuals) {
+          const computed = getComputedStyle(document.documentElement);
+          const accentValue = resolveColorString(
+            computed.getPropertyValue('--overlay-accent') || computed.getPropertyValue('--accent'),
+            accentValueFromDefaults(this.overlay.accent, DEFAULT_OVERLAY.accent)
+          );
+          const secondaryValue = resolveColorString(
+            computed.getPropertyValue('--overlay-accent-secondary') || computed.getPropertyValue('--accent-secondary'),
+            accentValueFromDefaults(this.overlay.accentSecondary, DEFAULT_OVERLAY.accentSecondary, accentValue)
+          );
+          this.themeVisuals.setTheme(theme, { accent: accentValue, accentSecondary: secondaryValue });
+          const shouldReduce = (prefersReducedMotionQuery ? prefersReducedMotionQuery.matches : false) || this.overlay.accentAnim === false;
+          this.themeVisuals.setReducedMotion(shouldReduce);
+          this.themeVisuals.resize();
+        }
+        if (refreshContent && this.phase === 'visible') {
+          this.refreshVisible(true);
+        }
+      }
+
+    applyOverlayData(data) {
+      if (!data || typeof data !== 'object') return;
+      let refresh = false;
+      let slateNeedsRefresh = false;
+
+      if (!this.overrides.label && typeof data.label === 'string' && data.label.trim()) {
+        const trimmed = data.label.trim();
+        if (trimmed !== this.overlay.label) {
+          this.overlay.label = trimmed;
+          slateNeedsRefresh = true;
+        }
+      }
+
+        if (!this.overrides.accent && typeof data.accent === 'string') {
+          const accent = data.accent.trim();
+          if (!accent) {
+            if (this.overlay.accent) {
+              this.overlay.accent = '';
+            }
+          } else if (isSafeCssColor(accent)) {
+            if (accent !== this.overlay.accent) {
+              this.overlay.accent = accent;
+            }
+          } else {
+            console.warn('[ticker] ignoring unsafe accent update', accent);
+          }
+        }
+
+        if (!this.overrides.accentSecondary && typeof data.accentSecondary === 'string') {
+          const accentSecondary = data.accentSecondary.trim();
+          if (!accentSecondary) {
+            if (this.overlay.accentSecondary) {
+              this.overlay.accentSecondary = '';
+            }
+          } else if (isSafeCssColor(accentSecondary)) {
+            if (accentSecondary !== this.overlay.accentSecondary) {
+              this.overlay.accentSecondary = accentSecondary;
+            }
+          } else {
+            console.warn('[ticker] ignoring unsafe secondary accent update', accentSecondary);
+          }
+        }
+
+        if (!this.overrides.highlight && typeof data.highlight === 'string') {
+          const normalised = normaliseHighlightString(data.highlight);
+          if (normalised !== this.overlay.highlight) {
+            this.setCustomHighlights(normalised);
+            refresh = true;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        if (!this.overrides.scale && Number.isFinite(data.scale)) {
+          const clamped = clampScale(data.scale);
+          if (clamped !== this.overlay.scale) {
+            this.overlay.scale = clamped;
+            refresh = true;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        if (!this.overrides.popupScale && Number.isFinite(data.popupScale)) {
+          const clampedPopup = clampPopupScale(data.popupScale);
+          if (clampedPopup !== this.overlay.popupScale) {
+            this.overlay.popupScale = clampedPopup;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.position && typeof data.position === 'string') {
+          const position = normalisePosition(data.position);
+          if (position !== this.overlay.position) {
+            this.overlay.position = position;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        if (!this.overrides.mode && typeof data.mode === 'string') {
+          const mode = normaliseMode(data.mode);
+          if (mode !== this.overlay.mode) {
+            this.overlay.mode = mode;
+            refresh = true;
+          }
+        }
+
+        if (!this.overrides.accentAnim && typeof data.accentAnim === 'boolean') {
+          if (data.accentAnim !== this.overlay.accentAnim) {
+            this.overlay.accentAnim = data.accentAnim;
+          }
+        }
+
+        if (!this.overrides.sparkle && typeof data.sparkle === 'boolean') {
+          if (data.sparkle !== this.overlay.sparkle) {
+            this.overlay.sparkle = data.sparkle;
+          }
+        }
+
+        if (!this.overrides.theme && typeof data.theme === 'string') {
+          const theme = normaliseTheme(data.theme);
+          if (theme && theme !== this.overlay.theme) {
+            this.overlay.theme = theme;
+            slateNeedsRefresh = true;
+          }
+        }
+
+        this.applyOverlayStyles({ refreshContent: refresh });
+        if (this.slateNode && this.slateNode.classList) {
+          this.slateNode.classList.toggle('push-down', this.overlay.position === 'top');
+        }
+        if (slateNeedsRefresh) {
+          this.refreshSlateCards({ animate: false });
+        }
+        this.updateLabel();
+      }
+
+    handleSlatePayload(data) {
+      if (!data || typeof data !== 'object') return;
+      const next = normaliseSlateData(data);
+      const stampSource = data._updatedAt != null
+        ? data._updatedAt
+        : (data.updatedAt != null ? data.updatedAt : next.updatedAt);
+      const stamp = Number(stampSource);
+      if (Number.isFinite(stamp) && Number.isFinite(this.slateUpdatedAt) && this.slateUpdatedAt === stamp) {
+        return;
+      }
+      this.slate = next;
+      this.slateUpdatedAt = Number.isFinite(stamp) ? stamp : Date.now();
+      this.refreshSlateCards();
+    }
+
+      async fetchState() {
+        if (this.fetchInFlight) return;
+        this.fetchInFlight = true;
+        this.debugSet('Status', 'fetching state');
+        try {
+          await runQueued(this.stateRequestQueue, async () => {
+            let tickerPayload;
+            try {
+              tickerPayload = await requestJson(`${this.server}/ticker/state`, {
+                init: { cache: 'no-store' },
+                timeoutMs: 8000,
+                validate: validateTickerPayload
+              });
+            } catch (err) {
+              console.error('[ticker] failed to fetch ticker state', err);
+              this.debugSet('Status', 'ticker fetch failed');
+              if (this.awaitingInitialStream && !this.streamPrimed) {
+                this.scheduleStreamFallback();
+              }
+              return;
+            }
+
+            this.handleTickerPayload(tickerPayload);
+
+            if (!this.streamPrimed && this.awaitingInitialStream) {
+              this.awaitingInitialStream = false;
+              if (this.streamFallbackTimer) {
+                clearTimeout(this.streamFallbackTimer);
+                this.streamFallbackTimer = null;
+              }
+            }
+
+            const optionalFetches = [
+              {
+                name: 'overlay',
+                url: `${this.server}/ticker/overlay`,
+                handler: data => this.applyOverlayData(data),
+                validate: validateOverlayPayload
+              },
+              {
+                name: 'popup',
+                url: `${this.server}/popup/state`,
+                handler: data => this.handlePopupPayload(data),
+                validate: validatePopupPayload
+              },
+              {
+                name: 'brb',
+                url: `${this.server}/brb/state`,
+                handler: data => this.handleBrbPayload(data),
+                validate: validateBrbPayload
+              },
+              {
+                name: 'slate',
+                url: `${this.server}/slate/state`,
+                handler: data => this.handleSlatePayload(data),
+                validate: validateSlatePayload
+              }
+            ];
+
+            let optionalFailed = false;
+            await Promise.all(
+              optionalFetches.map(async ({ name, url, handler, validate }) => {
+                try {
+                  const payload = await requestJson(url, {
+                    init: { cache: 'no-store' },
+                    timeoutMs: 8000,
+                    validate
+                  });
+                  handler(payload);
+                } catch (err) {
+                  console.warn(`[ticker] optional ${name} fetch failed`, err);
+                  optionalFailed = true;
+                }
+              })
+            );
+
+            this.debugSet('Status', optionalFailed ? 'state synced (partial)' : 'state synced');
+          });
+        } finally {
+          this.fetchInFlight = false;
+        }
+      }
+
+      setStreamState(nextState) {
+        if (!Object.values(STREAM_STATES).includes(nextState)) return;
+        if (this.streamState === nextState) return;
+        this.streamState = nextState;
+        if (nextState === STREAM_STATES.OPEN) {
+          this.streamRetryAttempt = 0;
+        }
+      }
+
+      detachEventSourceListeners(source = this.eventSource) {
+        if (!source || !Array.isArray(this.eventSourceListeners)) {
+          this.eventSourceListeners = [];
+          return;
+        }
+        for (const entry of this.eventSourceListeners) {
+          const { type, handler } = entry || {};
+          if (!type || typeof handler !== 'function') continue;
+          try {
+            source.removeEventListener(type, handler);
+          } catch (err) {
+            // ignore listener removal errors
+          }
+        }
+        this.eventSourceListeners = [];
+      }
+
+      startPolling(reason = 'stream-error') {
+        const alreadyPolling = Boolean(this.pollingTimer);
+        if (!alreadyPolling) {
+          const poll = () => {
+            if (!this.fetchInFlight) {
+              this.fetchState();
+            }
+          };
+          poll();
+          this.pollingTimer = setInterval(poll, STREAM_POLL_INTERVAL_MS);
+        }
+        this.setStreamState(STREAM_STATES.POLLING);
+        this.debugSet('Status', `polling (${reason})`);
+      }
+
+      stopPolling() {
+        if (this.pollingTimer) {
+          clearInterval(this.pollingTimer);
+          this.pollingTimer = null;
+        }
+        if (this.streamState === STREAM_STATES.POLLING) {
+          this.setStreamState(STREAM_STATES.IDLE);
+        }
+      }
+
+      scheduleStreamFallback() {
+        if (this.streamPrimed || !this.awaitingInitialStream) return;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+        }
+        this.streamFallbackTimer = setTimeout(() => {
+          this.streamFallbackTimer = null;
+          this.triggerStreamFallback('timeout');
+        }, 2000);
+      }
+
+      markStreamPrimed() {
+        if (this.streamPrimed) return;
+        this.streamPrimed = true;
+        this.awaitingInitialStream = false;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+      }
+
+      triggerStreamFallback(reason, options = {}) {
+        const { force = false } = options;
+        if (!force && (this.streamPrimed || !this.awaitingInitialStream)) return;
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+        if (!force && this.fetchInFlight) return;
+        const now = Date.now();
+        if (!force && this.lastStreamFallbackAt && now - this.lastStreamFallbackAt < 1000) {
+          return;
+        }
+        this.lastStreamFallbackAt = now;
+        const status =
+          reason === 'timeout'
+            ? 'stream timeout; fetching'
+            : reason === 'manual'
+            ? 'initialising; fetching state'
+            : 'stream error; fetching';
+        this.debugSet('Status', status);
+        const shouldStartPolling = reason !== 'manual';
+        const wasPolling = Boolean(this.pollingTimer);
+        if (shouldStartPolling) {
+          const pollReason = reason === 'timeout' ? 'prime-timeout' : reason;
+          this.startPolling(pollReason);
+        }
+        this.fetchState();
+      }
+
+      handleStreamPayloadError(kind, error) {
+        console.warn(`[ticker] stream ${kind} payload error`, error);
+        if (!this.pollingTimer) {
+          this.startPolling(`${kind}-parse`);
+        }
+        this.disconnectStream({ preservePolling: true });
+        this.triggerStreamFallback('parse-error', { force: true });
+        this.scheduleStreamReconnect('parse-error');
+        this.fetchState();
+      }
+
+      processStreamPayload(kind, event, handler) {
+        if (!event || typeof event.data !== 'string') {
+          this.handleStreamPayloadError(kind, new Error('Missing event payload'));
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch (err) {
+          this.handleStreamPayloadError(kind, err);
+          return;
+        }
+        try {
+          const applied = handler(parsed);
+          if (applied !== false) {
+            this.markStreamPrimed();
+          }
+        } catch (err) {
+          this.handleStreamPayloadError(kind, err);
+        }
+      }
+
+      scheduleStreamReconnect(reason = 'error') {
+        if (this.streamReconnectTimer) return;
+        const attempt = Math.min(this.streamRetryAttempt + 1, 6);
+        this.streamRetryAttempt = attempt;
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+        this.streamReconnectTimer = setTimeout(() => {
+          this.streamReconnectTimer = null;
+          this.connectStream();
+        }, delay);
+        this.awaitingInitialStream = true;
+        this.setStreamState(STREAM_STATES.ERROR);
+        this.debugSet('Status', `stream reconnecting (${reason})`);
+      }
+
+      disconnectStream(options = {}) {
+        const { preservePolling = false } = options;
+        if (this.eventSource) {
+          this.detachEventSourceListeners(this.eventSource);
+          try {
+            this.eventSource.close();
+          } catch (err) {
+            // ignore close errors
+          }
+          this.eventSource = null;
+        }
+        if (this.streamFallbackTimer) {
+          clearTimeout(this.streamFallbackTimer);
+          this.streamFallbackTimer = null;
+        }
+        if (this.streamReconnectTimer) {
+          clearTimeout(this.streamReconnectTimer);
+          this.streamReconnectTimer = null;
+        }
+        this.awaitingInitialStream = false;
+        if (!preservePolling) {
+          this.stopPolling();
+          this.setStreamState(STREAM_STATES.IDLE);
+        } else if (this.pollingTimer) {
+          this.setStreamState(STREAM_STATES.POLLING);
+        } else {
+          this.setStreamState(STREAM_STATES.IDLE);
+        }
+      }
+
+      connectStream() {
+        this.disconnectStream({ preservePolling: true });
+        try {
+          const source = new EventSource(`${this.server}/ticker/stream`);
+          this.eventSource = source;
+          this.eventSourceListeners = [];
+          this.streamPrimed = false;
+          this.awaitingInitialStream = true;
+          this.setStreamState(STREAM_STATES.CONNECTING);
+          this.debugSet('Status', 'stream connecting');
+          this.scheduleStreamFallback();
+
+          const register = (type, handler) => {
+            if (!type || typeof handler !== 'function') return;
+            source.addEventListener(type, handler);
+            this.eventSourceListeners.push({ type, handler });
+          };
+
+          register('open', () => {
+            if (this.streamReconnectTimer) {
+              clearTimeout(this.streamReconnectTimer);
+              this.streamReconnectTimer = null;
+            }
+            this.setStreamState(STREAM_STATES.OPEN);
+            this.debugSet('Status', 'stream online');
+            this.stopPolling();
+          });
+
+          register('error', () => {
+            this.debugSet('Status', 'stream reconnecting');
+            if (this.eventSource === source) {
+              this.detachEventSourceListeners(source);
+              try {
+                source.close();
+              } catch (err) {
+                // ignore close errors
+              }
+              this.eventSource = null;
+            }
+            this.scheduleStreamFallback();
+            this.triggerStreamFallback('error', { force: true });
+            this.scheduleStreamReconnect('error');
+          });
+
+          register('ticker', event => {
+            this.processStreamPayload('ticker', event, payload => {
+              this.handleTickerPayload(payload);
+            });
+          });
+
+          register('overlay', event => {
+            this.processStreamPayload('overlay', event, payload => {
+              this.applyOverlayData(payload);
+            });
+          });
+
+          register('popup', event => {
+            this.processStreamPayload('popup', event, payload => {
+              this.handlePopupPayload(payload);
+            });
+          });
+
+          register('brb', event => {
+            this.processStreamPayload('brb', event, payload => {
+              this.handleBrbPayload(payload);
+            });
+          });
+
+          register('slate', event => {
+            this.processStreamPayload('slate', event, payload => {
+              this.handleSlatePayload(payload);
+            });
+          });
+        } catch (err) {
+          console.error('[ticker] failed to connect to stream', err);
+          this.debugSet('Status', 'stream error');
+          this.streamPrimed = false;
+          this.triggerStreamFallback('error');
+          this.startPolling('exception');
+          this.scheduleStreamReconnect('exception');
+        }
+      }
+
+      shouldUseMarquee() {
+        if (this.overlay.mode === 'marquee') return true;
+        if (this.overlay.mode === 'chunk') return false;
+
+        const messageCount = this.messages.length;
+        if (messageCount === 0) return false;
+
+        const trackWidth = this.trackNode ? this.trackNode.clientWidth : 0;
+        if (trackWidth > 0) {
+          const longestWidth = this.getLongestMessageWidth();
+          if (Number.isFinite(longestWidth) && longestWidth > 0) {
+            const limit = trackWidth * 0.9;
+            if (longestWidth <= limit && messageCount <= 6) {
+              return false;
+            }
+          }
+        }
+
+        const totalLength = this.messages.reduce((sum, message) => {
+          const cleaned = String(message || '').replace(/\s+/g, ' ').trim();
+          return sum + cleaned.length;
+        }, 0);
+        const averageLength = messageCount ? totalLength / messageCount : 0;
+
+        if (messageCount <= 2 && averageLength <= 48) return false;
+        if (totalLength <= 120 && messageCount <= 3) return false;
+
+        return true;
+      }
+
+      evaluate({ messagesChanged = false, activeChanged = false, durationChanged = false, intervalChanged = false } = {}) {
+        if (this.isBrbActive()) {
+          this.hideTicker(true);
+          this.debugSet('Status', 'BRB active');
+          return;
+        }
+        if (!this.isActive) {
+          this.hideTicker(true);
+          return;
+        }
+
+        if (this.phase === 'idle') {
+          this.showTicker();
+          return;
+        }
+
+        if (this.phase === 'visible') {
+          if (messagesChanged) {
+            this.refreshVisible();
+          }
+          if (durationChanged) {
+            this.startVisibleTimer();
+          }
+          if (intervalChanged) {
+            this.startVisibleTimer();
+          }
+        }
+
+        if (intervalChanged && this.phase === 'cooldown') {
+          this.scheduleCooldown(true);
+        }
+      }
+
+      showTicker() {
+        if (!this.container || !this.messages.length) return;
+        const animator = createTickerAnimator(this.container, { overlay: this.overlay });
+        this.tickerAnimator = animator;
+        this.container.classList.remove('is-hiding');
+        this.phase = 'visible';
+        this.refreshVisible();
+
+        if (animator && typeof animator.playIn === 'function') {
+          this.debugSet('Anim', 'ticker:timeline-in');
+          animator.playIn()
+            .then(() => {
+              this.startVisibleTimer();
+            })
+            .catch(() => {
+              this.container.classList.add('show');
+              this.startVisibleTimer();
+            });
+        } else {
+          this.debugSet('Anim', 'ticker:css-in');
+          this.container.classList.add('show');
+          this.startVisibleTimer();
+        }
+      }
+
+      refreshVisible(force = false) {
+        const marquee = this.shouldUseMarquee();
+        if (marquee) {
+          clearInterval(this.chunkTimer);
+          this.chunkTimer = null;
+          const shouldReset = force || this.marqueeNeedsReset;
+          this.prepareMarquee(shouldReset);
+          this.marqueeNeedsReset = false;
+          if (this.phase === 'visible') {
+            const duration = Math.max(1, Math.round(Number(this.displayDuration) || 0));
+            const status = (Number(this.intervalSeconds) || 0) > 0
+              ? `marquee ${duration}s`
+              : 'marquee';
+            this.debugSet('Status', status);
+          }
+        } else {
+          this.stopMarquee(true);
+          this.marqueeNeedsReset = true;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          this.marqueeOffset = 0;
+          this.marqueeLoopWidth = 0;
+          this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+          this.startChunkCycle(force);
+        }
+      }
+
+      startVisibleTimer() {
+        const marquee = this.shouldUseMarquee();
+        clearTimeout(this.stopTimer);
+        this.stopTimer = null;
+
+        const durationSeconds = Math.max(1, Math.round(Number(this.displayDuration) || 0));
+        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
+        const durationMs = Math.max(1000, durationSeconds * 1000);
+        this.stopTimer = setTimeout(() => this.completeRun(), durationMs);
+        if (marquee) {
+          const status = intervalSeconds > 0
+            ? `marquee ${durationSeconds}s`
+            : `marquee ${durationSeconds}s (loop)`;
+          this.debugSet('Status', status);
+        } else {
+          this.debugSet('Status', `visible ${durationSeconds}s`);
+        }
+      }
+
+      completeRun() {
+        this.hideTicker().then(() => {
+          this.scheduleCooldown();
+        });
+      }
+
+      scheduleCooldown(reset = false) {
+        if (reset) clearTimeout(this.cooldownTimer);
+        const intervalSeconds = Math.max(0, Math.round(Number(this.intervalSeconds) || 0));
+        if (intervalSeconds === 0) {
+          this.phase = 'idle';
+          this.debugSet('Status', 'cooldown 0s');
+          this.evaluate();
+          return;
+        }
+        this.phase = 'cooldown';
+        this.debugSet('Status', `cooldown ${intervalSeconds}s`);
+        const gap = intervalSeconds * 1000;
+        this.cooldownTimer = setTimeout(() => {
+          this.phase = 'idle';
+          this.evaluate();
+        }, gap);
+      }
+
+      hideTicker(immediate = false) {
+        clearTimeout(this.stopTimer);
+        clearInterval(this.chunkTimer);
+        this.stopMarquee();
+        if (!this.container || !this.container.classList.contains('show')) {
+          if (this.container) this.container.classList.remove('is-hiding');
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+
+        const animator = createTickerAnimator(this.container, { overlay: this.overlay });
+        this.tickerAnimator = animator;
+        this.phase = 'hiding';
+        if (!animator) {
+          this.container.classList.add('is-hiding');
+        }
+
+        if (immediate) {
+          if (animator && typeof animator.reset === 'function') {
+            animator.reset();
+          }
+          this.container.classList.remove('show');
+          this.container.classList.remove('is-hiding');
+          this.phase = 'idle';
+          return Promise.resolve();
+        }
+
+        if (animator && typeof animator.playOut === 'function') {
+          this.debugSet('Anim', 'ticker:timeline-out');
+          return animator.playOut(() => {
+            this.phase = 'idle';
+          });
+        }
+
+        return new Promise(resolve => {
+          const element = this.container;
+          if (!element) {
+            this.phase = 'idle';
+            resolve();
+            return;
+          }
+
+          let triggered = false;
+
+          const finalize = () => {
+            if (element) {
+              element.classList.remove('is-hiding');
+            }
+            this.phase = 'idle';
+            resolve();
+          };
+
+          const proceed = () => {
+            if (triggered) return;
+            triggered = true;
+            if (!element) {
+              finalize();
+              return;
+            }
+            element.classList.remove('show');
+            this.waitForTransition(element, HIDE_TRANSITION_FALLBACK_MS).then(finalize);
+          };
+
+          const onFirstTransition = event => {
+            if (!element || event.target !== element) return;
+            element.removeEventListener('transitionend', onFirstTransition);
+            clearTimeout(fallbackTimer);
+            proceed();
+          };
+
+          const fallbackTimer = setTimeout(() => {
+            if (element) {
+              element.removeEventListener('transitionend', onFirstTransition);
+            }
+            proceed();
+          }, HIDE_TRANSITION_FALLBACK_MS);
+
+          element.addEventListener('transitionend', onFirstTransition, { once: true });
+        });
+      }
+
+      waitForTransition(element, timeout = 500) {
+        return new Promise(resolve => {
+          let resolved = false;
+          const finish = () => {
+            if (!resolved) {
+              resolved = true;
+              element.removeEventListener('transitionend', onEnd);
+              resolve();
+            }
+          };
+          const onEnd = (event) => {
+            if (event.target === element) finish();
+          };
+          element.addEventListener('transitionend', onEnd);
+          setTimeout(finish, timeout);
+        });
+      }
+
+      prepareMarquee(options = {}) {
+        const params = typeof options === 'boolean' ? { resetOffset: options } : options || {};
+        const resetOffset = !!params.resetOffset;
+        const restart = !!params.restart;
+
+        const html = this.buildMarqueeHtml();
+        if (!html) {
+          this.stopMarquee(true);
+          this.distance = 0;
+          this.marqueeLoopWidth = 0;
+          this.marqueeOffset = 0;
+          this.marqueePrepared = false;
+          this.lastMarqueeMarkup = '';
+          if (this.contentNode) {
+            this.contentNode.innerHTML = '';
+            this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+          }
+          return false;
+        }
+
+        if (resetOffset) {
+          this.marqueeOffset = 0;
+        }
+
+        const needsMarkupRefresh =
+          restart ||
+          !this.marqueePrepared ||
+          this.lastMarqueeMarkup !== html;
+
+        this.stopMarquee();
+
+        if (needsMarkupRefresh && this.contentNode) {
+          this.contentNode.style.transition = 'none';
+          this.contentNode.innerHTML = html;
+          this.lastMarqueeMarkup = html;
+          void this.contentNode.offsetWidth;
+        }
+
+        if (this.contentNode) {
+          this.distance = Math.max(1, this.contentNode.scrollWidth / 2);
+          this.marqueeLoopWidth = this.distance;
+        } else {
+          this.distance = 0;
+          this.marqueeLoopWidth = 0;
+        }
+
+        this.marqueeOffset = this.normaliseMarqueeOffset(this.marqueeOffset);
+        this.applyMarqueeTransform();
+        this.startMarquee();
+        this.marqueePrepared = true;
+        this.marqueeNeedsReset = false;
+        return true;
+      }
+
+      normaliseMarqueeOffset(value) {
+        const loop = this.marqueeLoopWidth || this.distance || 0;
+        if (!loop) return 0;
+        let offset = Number(value);
+        if (!Number.isFinite(offset)) offset = 0;
+        offset %= loop;
+        if (offset < 0) offset += loop;
+        return offset;
+      }
+
+      applyMarqueeTransform() {
+        if (!this.contentNode) return;
+        const offset = this.normaliseMarqueeOffset(this.marqueeOffset);
+        this.marqueeOffset = offset;
+        this.contentNode.style.transform = `translate3d(${-offset}px, 0, 0)`;
+      }
+
+      startMarquee() {
+        if (!this.contentNode) return;
+        const distance = this.distance;
+        if (!distance) return;
+
+        cancelAnimationFrame(this.rafId);
+
+        const speed = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--marquee-pps')) || 110;
+        let offsetBase = this.normaliseMarqueeOffset(this.marqueeOffset);
+        let last = performance.now();
+
+        const step = now => {
+          const delta = (now - last) / 1000;
+          last = now;
+
+          if (this.phase !== 'visible' && this.phase !== 'showing') {
+            offsetBase = this.normaliseMarqueeOffset(offsetBase);
+            this.marqueeOffset = offsetBase;
+            this.rafId = requestAnimationFrame(step);
+            return;
+          }
+
+          if (delta > 0) {
+            offsetBase = this.normaliseMarqueeOffset(offsetBase + delta * speed);
+          }
+          this.marqueeOffset = offsetBase;
+          this.contentNode.style.transform = `translate3d(${-offsetBase}px, 0, 0)`;
+          this.rafId = requestAnimationFrame(step);
+        };
+
+        this.marqueeOffset = offsetBase;
+        this.contentNode.style.transform = `translate3d(${-offsetBase}px, 0, 0)`;
+        this.rafId = requestAnimationFrame(step);
+      }
+
+      stopMarquee(resetTransform = false) {
+        if (this.rafId) {
+          cancelAnimationFrame(this.rafId);
+          this.rafId = null;
+        }
+        if (resetTransform && this.contentNode) {
+          this.contentNode.style.transform = 'translate3d(0, 0, 0)';
+        }
+      }
+
+      startChunkCycle(reset = false) {
+        const items = this.messages.map(msg => formatMessage(msg, this.highlightRegex));
+        if (!items.length) {
+          this.contentNode.innerHTML = '';
+          return;
+        }
+        let index = 0;
+        const show = () => {
+          if (this.phase !== 'visible') return;
+          this.contentNode.style.transition = 'opacity 0.22s ease, transform 0.22s ease';
+          this.contentNode.style.opacity = '0';
+          this.contentNode.style.transform = 'translate3d(12px,0,0)';
+          setTimeout(() => {
+        var separator = '<span class="message-separator"></span>';
+            this.contentNode.style.opacity = '1';
+            this.contentNode.style.transform = 'translate3d(0,0,0)';
+          }, 120);
+          index = (index + 1) % items.length;
+        };
+        show();
+        clearInterval(this.chunkTimer);
+        const interval = Math.max(1600, Math.min(6000, this.displayDuration * 1000 / Math.max(1, items.length)));
+        this.chunkTimer = setInterval(() => {
+          if (this.phase !== 'visible') return;
+          show();
+        }, interval);
+      }
+
+      getLongestMessageWidth() {
+        if (this.cachedLongestMessageWidth !== null) {
+          return this.cachedLongestMessageWidth;
+        }
+        if (!this.measureNode || !this.messages.length) {
+          this.cachedLongestMessageWidth = 0;
+          return 0;
+        }
+
+        let maxWidth = 0;
+        for (const message of this.messages) {
+          const html = formatMessage(message, this.highlightRegex);
+          if (!html) continue;
+          this.measureNode.innerHTML = html;
+          const rect = this.measureNode.getBoundingClientRect();
+          if (rect && rect.width > maxWidth) {
+            maxWidth = rect.width;
+          }
+        }
+        this.measureNode.innerHTML = '';
+        this.cachedLongestMessageWidth = maxWidth;
+        return maxWidth;
+      }
+
+      buildMarqueeHtml() {
+        if (!this.messages.length) return '';
+        var separator = '<span class="message-separator"></span>';
+        var formatted = this.messages.map(function(msg) { 
+          return formatMessage(msg, this.highlightRegex); 
+        }.bind(this)).join(separator);
+        
+        // Duplicate content for seamless looping
+        return formatted + separator + formatted;
+      }
+
+      updateLabel() {
+        this.labelNode.textContent = this.overlay.label;
+        var combined = this.messages.join(' ').toLowerCase();
+        var isBreaking = /\b(breaking|urgent|alert)\b/.test(combined);
+        this.labelNode.classList.toggle('is-breaking', isBreaking);
+      }
+    }
+  
+    // Enhanced Ticker Effects
+    class TickerEffects {
+      constructor() {
+        this.initParticleSystem();
+        this.initPulseEffects();
+      }
+      
+      initParticleSystem() {
+        // Add subtle particle effects to ticker
+        const ticker = document.querySelector('.ticker');
+        if (ticker) {
+          const particles = document.createElement('div');
+          particles.className = 'ticker-particles';
+          ticker.appendChild(particles);
+          
+          for (let i = 0; i < 20; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 5 + 's';
+            particles.appendChild(particle);
+          }
+        }
+      }
+      
+      initPulseEffects() {
+        // Enhanced pulse effects for breaking news
+        document.addEventListener('ticker-message-update', (e) => {
+          const { type } = e.detail;
+          const ticker = document.querySelector('.ticker');
+          
+          if (type === 'breaking' && ticker) {
+            ticker.classList.add('breaking-pulse');
+            setTimeout(() => {
+              ticker.classList.remove('breaking-pulse');
+            }, 3000);
+          }
+        });
+      }
+    }
+  
+    // Initialize Modular State Manager (replaces inline state management)
+    window.stateManager = new ModularStateManager();
+    window.stateManager.enableDebug();
+    
+    // Add some test messages for demonstration
+    setTimeout(() => {
+      const tickerOverlay = window.tickerOverlay;
+      if (tickerOverlay) {
+        // Use the new modular state manager
+        window.stateManager.updateState('ticker', {
+          messages: [
+            "Breaking: Enhanced ticker system now live with modular architecture",
+            "Update: Widget settings fully operational with comprehensive controls", 
+            "News: Dashboard merge completed successfully with improved stability"
+          ],
+          isActive: true,
+          displayDuration: 5,
+          intervalBetween: 1
+        });
+      }
+    }, 1000);
+    
+    const tickerOverlay = new TickerOverlay();
+    window.tickerOverlay = tickerOverlay;
+    
+    // Initialize Modular Ticker Component (enhanced ticker logic)
+    const tickerContainer = document.querySelector('.ticker');
+    if (tickerContainer) {
+      window.modularTicker = new ModularTickerComponent(tickerContainer, window.stateManager);
+      
+      // Connect the modular ticker to state updates
+      window.stateManager.subscribe('ticker', (state) => {
+        console.log('[Modular] Ticker state updated:', state);
+      });
+    }
+
+    // Initialize GSAP Animation Controller FIRST
+    window.gsapAnimations = new GSAPAnimationController();
+    console.log('[Modular] GSAP animations initialized');
+
+    // Initialize Modular Theme Engine
+    window.themeEngine = new ModularThemeEngine(window.stateManager);
+    console.log('[Modular] Theme engine initialized');
+
+    // Initialize Modular Popup Overlay (now with GSAP available)
+    const popupContainer = document.getElementById('popup');
+    if (popupContainer) {
+      window.modularPopup = new ModularPopupOverlay(popupContainer, window.stateManager);
+      console.log('[Modular] Popup overlay initialized with GSAP integration');
+    }
+
+    // Initialize Modular BRB Overlay (now with GSAP available)
+    const brbContainer = document.getElementById('brbBanner');
+    if (brbContainer) {
+      window.modularBRB = new ModularBRBOverlay(brbContainer, window.stateManager);
+      console.log('[Modular] BRB overlay initialized with GSAP integration');
+    }
+
+    // Enhanced Integration: Ensure components reconnect to GSAP after initialization
+    setTimeout(() => {
+      console.log('[Integration] Verifying GSAP connections...');
+      
+      // Verify popup has GSAP controller
+      if (window.modularPopup && !window.modularPopup.animationController) {
+        window.modularPopup.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ Popup connected to GSAP');
+      }
+      
+      // Verify BRB has GSAP controller
+      if (window.modularBRB && !window.modularBRB.animationController) {
+        window.modularBRB.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ BRB connected to GSAP');
+      }
+      
+      // Verify ticker has GSAP controller
+      if (window.modularTicker && !window.modularTicker.animationController) {
+        window.modularTicker.animationController = window.gsapAnimations;
+        console.log('[Integration] ✅ Ticker connected to GSAP');
+      }
+      
+      // Test GSAP system with a sample animation
+      if (window.gsapAnimations && window.modularPopup) {
+        console.log('[Integration] 🎬 Testing GSAP integration...');
+        // This will run the demo animations from the original code
+      }
+    }, 500);
+
+    // Add demo controls for testing modular components with GSAP
+    setTimeout(() => {
+      // Test popup with GSAP animation after 3 seconds
+      setTimeout(() => {
+        if (window.modularPopup) {
+          window.modularPopup.showMessage('🎬 GSAP-powered popup with text materialization! Watch the characters appear one by one with elastic scaling!', { 
+            duration: 8,
+            typewriter: true,
+            glow: true,
+            effect: 'scale'
+          });
+        }
+      }, 3000);
+
+      // Test BRB with dramatic GSAP animation after 10 seconds
+      setTimeout(() => {
+        if (window.modularBRB) {
+          window.modularBRB.showPreset('coffee');
+          setTimeout(() => window.modularBRB.hideBRB(), 4000);
+        }
+      }, 10000);
+
+      // Test ticker message updates with staggered animations
+      setTimeout(() => {
+        if (window.stateManager) {
+          window.stateManager.updateState('ticker', {
+            messages: [
+              { type: 'breaking', text: '🚀 GSAP animations are now LIVE!' },
+              { type: 'update', text: '✨ Text materializes with elastic scaling' },
+              { type: 'normal', text: '🎭 Panels expand smoothly as words appear' }
+            ],
+            isActive: true
+          });
+        }
+      }, 15000);
+    }, 1000);
+    new SlateManager();
+    new TickerEffects();
+    
+    // Add message listener for testing
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.command) {
+        console.log('[TestMessage] Received:', event.data);
+        
+        switch(event.data.command) {
+          case 'ticker':
+            if (window.stateManager) {
+              window.stateManager.updateState('ticker', event.data.data);
+              console.log('[TestMessage] Updated ticker state');
+            }
+            break;
+            
+          case 'popup':
+            if (window.modularPopup) {
+              window.modularPopup.showMessage(event.data.data.text, event.data.data);
+              console.log('[TestMessage] Showed popup');
+            }
+            break;
+            
+          case 'brb':
+            if (window.stateManager) {
+              window.stateManager.updateState('brb', event.data.data);
+              console.log('[TestMessage] Updated BRB state');
+            }
+            break;
+            
+          case 'config':
+            // Apply configuration changes
+            const config = event.data.data;
+            if (config.overlay && window.stateManager) {
+              window.stateManager.updateState('overlay', config.overlay);
+            }
+            if (config.ticker && window.stateManager) {
+              window.stateManager.updateState('ticker', { ...window.stateManager.getState('ticker'), ...config.ticker });
+            }
+            console.log('[TestMessage] Applied config:', config);
+            break;
+            
+          case 'theme':
+            if (window.themeEngine && event.data.data.name) {
+              window.themeEngine.applyTheme(event.data.data.name);
+              console.log('[TestMessage] Applied theme:', event.data.data.name);
+            }
+            break;
+        }
+        
+        // Send status back to test window
+        event.source.postMessage({
+          type: 'widget-status',
+          status: {
+            ticker: window.modularTicker ? window.modularTicker.getDebugInfo() : null,
+            popup: window.modularPopup ? { active: true } : null,
+            brb: window.modularBRB ? window.modularBRB.getDebugInfo() : null
+          }
+        }, event.origin);
+      }
+    });
+  </script>
+  
+  <style>
+    /* Enhanced Modern Animations */
+    @keyframes enhancedGlassSweep {
+      0%, 100% { 
+        background-position: -200% 50%, 0% 0%;
+        filter: brightness(1) saturate(1);
+      }
+      50% { 
+        background-position: 200% 50%, 100% 100%;
+        filter: brightness(1.1) saturate(1.2);
+      }
+    }
+    
+    @keyframes tickerGlow {
+      0%, 100% { 
+        box-shadow: 
+          0 0 20px rgba(0, 255, 136, 0.3),
+          0 0 40px rgba(0, 255, 136, 0.1),
+          inset 0 0 20px rgba(0, 255, 136, 0.05);
+      }
+      50% { 
+        box-shadow: 
+          0 0 30px rgba(0, 255, 136, 0.5),
+          0 0 60px rgba(0, 255, 136, 0.2),
+          inset 0 0 30px rgba(0, 255, 136, 0.1);
+      }
+    }
+    
+    @keyframes breakingPulse {
+      0%, 100% { 
+        transform: scale(1);
+        filter: brightness(1) hue-rotate(0deg);
+      }
+      25% { 
+        transform: scale(1.02);
+        filter: brightness(1.1) hue-rotate(5deg);
+      }
+      75% { 
+        transform: scale(0.98);
+        filter: brightness(1.05) hue-rotate(-5deg);
+      }
+    }
+    
+    @keyframes particleFloat {
+      0%, 100% { 
+        transform: translateY(0px) scale(0);
+        opacity: 0;
+      }
+      50% { 
+        transform: translateY(-20px) scale(1);
+        opacity: 0.6;
+      }
+    }
+    
+    /* Enhanced Ticker Styling */
+    .ticker {
+      animation: tickerGlow 4s ease-in-out infinite;
+      border-radius: 0 0 8px 8px;
+      overflow: visible;
+    }
+    
+    .ticker.breaking-pulse {
+      animation: breakingPulse 0.8s ease-in-out 3;
+    }
+    
+    .ticker::before {
+      border-radius: 0 0 0 8px;
+    }
+    
+    .ticker-label {
+      text-shadow: 
+        0 0 15px rgba(0, 255, 136, 0.8),
+        0 2px 10px rgba(0, 0, 0, 0.7),
+        0 0 25px rgba(0, 255, 136, 0.4);
+      animation: labelPulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes labelPulse {
+      0%, 100% { 
+        text-shadow: 
+          0 0 15px rgba(0, 255, 136, 0.8),
+          0 2px 10px rgba(0, 0, 0, 0.7),
+          0 0 25px rgba(0, 255, 136, 0.4);
+      }
+      50% { 
+        text-shadow: 
+          0 0 20px rgba(0, 255, 136, 1),
+          0 2px 15px rgba(0, 0, 0, 0.8),
+          0 0 35px rgba(0, 255, 136, 0.6);
+      }
+    }
+    
+    .ticker-content {
+      font-size: calc(16px * var(--ui-scale));
+      font-weight: 600;
+      color: var(--text-bright);
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+    }
+    
+    /* Enhanced Particle System */
+    .ticker-particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      overflow: hidden;
+    }
+    
+    .particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: radial-gradient(circle, rgba(0, 255, 136, 0.8) 0%, transparent 70%);
+      border-radius: 50%;
+      animation: particleFloat 5s ease-in-out infinite;
+      top: 100%;
+    }
+    
+    .particle:nth-child(odd) {
+      background: radial-gradient(circle, rgba(255, 0, 128, 0.6) 0%, transparent 70%);
+      animation-duration: 6s;
+    }
+    
+    /* Enhanced Message Styling */
+    .message-separator {
+      background: linear-gradient(180deg, 
+        transparent 20%,
+        rgba(0, 255, 136, 0.4) 50%,
+        transparent 80%
+      );
+      box-shadow: 0 0 10px rgba(0, 255, 136, 0.3);
+    }
+    
+    /* Enhanced Breaking News Styling */
+    .ticker.show .ticker-label.is-breaking {
+      background: linear-gradient(135deg, 
+        rgba(255, 0, 128, 0.2) 0%,
+        rgba(255, 80, 0, 0.2) 100%
+      );
+      animation: breakingLabelPulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes breakingLabelPulse {
+      0%, 100% {
+        text-shadow: 
+          0 0 20px rgba(255, 0, 128, 0.8),
+          0 2px 15px rgba(0, 0, 0, 0.8),
+          0 0 30px rgba(255, 80, 0, 0.6);
+        filter: brightness(1);
+      }
+      50% {
+        text-shadow: 
+          0 0 30px rgba(255, 0, 128, 1),
+          0 2px 20px rgba(0, 0, 0, 0.9),
+          0 0 40px rgba(255, 80, 0, 0.8);
+        filter: brightness(1.2);
+      }
+    }
+  </style>
+</body>
+</html>

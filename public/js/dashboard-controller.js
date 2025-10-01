@@ -1,332 +1,294 @@
 class DashboardController {
   constructor() {
-    this.currentState = {};
+    this.currentTheme = 'dark';
     this.init();
   }
 
   init() {
-    this.setupEventHandlers();
+    this.setupEventListeners();
     this.setupWebSocketHandlers();
-    this.setupRangeInputs();
+    this.updateConnectionStatus();
   }
 
-  setupEventHandlers() {
+  setupEventListeners() {
     // Ticker controls
-    document.getElementById('ticker-start').addEventListener('click', () => {
-      this.updateTicker(true);
-    });
-
-    document.getElementById('ticker-stop').addEventListener('click', () => {
-      this.updateTicker(false);
+    document.getElementById('ticker-start').addEventListener('click', () => this.startTicker());
+    document.getElementById('ticker-stop').addEventListener('click', () => this.stopTicker());
+    document.getElementById('ticker-speed').addEventListener('input', (e) => {
+      document.getElementById('ticker-speed-value').textContent = e.target.value;
     });
 
     // Popup controls
-    document.getElementById('popup-show').addEventListener('click', () => {
-      this.showPopup();
-    });
-
-    document.getElementById('popup-hide').addEventListener('click', () => {
-      this.hidePopup();
+    document.getElementById('popup-show').addEventListener('click', () => this.showPopup());
+    document.getElementById('popup-hide').addEventListener('click', () => this.hidePopup());
+    document.getElementById('popup-duration').addEventListener('input', (e) => {
+      document.getElementById('popup-duration-value').textContent = e.target.value;
     });
 
     // BRB controls
-    document.getElementById('brb-toggle').addEventListener('click', () => {
-      this.toggleBRB();
-    });
+    document.getElementById('brb-show').addEventListener('click', () => this.showBRB());
+    document.getElementById('brb-hide').addEventListener('click', () => this.hideBRB());
 
     // Theme controls
-    document.getElementById('theme-apply').addEventListener('click', () => {
-      this.applyTheme();
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.selectTheme(e.target.dataset.theme));
     });
+    document.getElementById('apply-theme').addEventListener('click', () => this.applyTheme());
 
-    // State manager controls
-    document.getElementById('state-save').addEventListener('click', () => {
-      this.saveState();
-    });
+    // State management
+    document.getElementById('save-state').addEventListener('click', () => this.saveState());
+    document.getElementById('load-state').addEventListener('click', () => this.loadState());
+    document.getElementById('reset-state').addEventListener('click', () => this.resetState());
 
-    document.getElementById('state-load').addEventListener('click', () => {
-      this.loadState();
-    });
-
-    document.getElementById('state-reset').addEventListener('click', () => {
-      this.resetState();
-    });
-
-    // Animation controller
-    document.getElementById('test-animations').addEventListener('click', () => {
-      this.testAnimations();
-    });
+    // Connection
+    document.getElementById('reconnect').addEventListener('click', () => this.reconnect());
   }
 
   setupWebSocketHandlers() {
     window.wsClient.on('connected', () => {
-      this.updateConnectionStatus(true);
+      this.updateConnectionStatus('connected');
+      console.log('🔌 Dashboard connected to server');
     });
 
     window.wsClient.on('disconnected', () => {
-      this.updateConnectionStatus(false);
+      this.updateConnectionStatus('disconnected');
+      console.log('🔌 Dashboard disconnected from server');
     });
 
     window.wsClient.on('state_sync', (state) => {
-      this.currentState = state;
-      this.updateUIFromState(state);
-    });
-
-    window.wsClient.on('ticker_update', (data) => {
-      this.currentState.ticker = data;
-    });
-
-    window.wsClient.on('brb_update', (data) => {
-      this.currentState.brb = data;
-      this.updateBRBStatus(data.isActive);
+      console.log('📥 Received state sync:', state);
+      this.updateUI(state);
     });
   }
 
-  setupRangeInputs() {
-    // Speed slider
-    const speedSlider = document.getElementById('ticker-speed');
-    const speedValue = document.getElementById('speed-value');
-    speedSlider.addEventListener('input', (e) => {
-      speedValue.textContent = e.target.value;
-    });
-
-    // Animation speed slider
-    const animSpeedSlider = document.getElementById('animation-speed');
-    const animSpeedValue = document.getElementById('animation-speed-value');
-    animSpeedSlider.addEventListener('input', (e) => {
-      animSpeedValue.textContent = e.target.value + 'x';
-      gsap.globalTimeline.timeScale(parseFloat(e.target.value));
-    });
+  updateConnectionStatus(status = 'disconnected') {
+    const statusEl = document.getElementById('connection-status');
+    statusEl.textContent = status;
+    statusEl.className = `status ${status === 'connected' ? 'active' : 'inactive'}`;
   }
 
-  updateConnectionStatus(isConnected) {
-    const statusIndicator = document.getElementById('connection-status');
-    const statusText = document.getElementById('connection-text');
-    
-    if (isConnected) {
-      statusIndicator.className = 'status-indicator status-online';
-      statusText.textContent = 'Connected';
-    } else {
-      statusIndicator.className = 'status-indicator status-offline';
-      statusText.textContent = 'Disconnected';
-    }
-  }
-
-  updateUIFromState(state) {
+  updateUI(state) {
     // Update ticker UI
     if (state.ticker) {
-      if (state.ticker.messages) {
-        document.getElementById('ticker-messages').value = state.ticker.messages.join('\n');
-      }
-      if (state.ticker.speed) {
-        document.getElementById('ticker-speed').value = state.ticker.speed;
-        document.getElementById('speed-value').textContent = state.ticker.speed;
-      }
-      if (state.ticker.color) {
-        document.getElementById('ticker-color').value = state.ticker.color;
-      }
+      document.getElementById('ticker-messages').value = state.ticker.messages.join('\n');
+      document.getElementById('ticker-speed').value = state.ticker.speed;
+      document.getElementById('ticker-speed-value').textContent = state.ticker.speed;
+      document.getElementById('ticker-color').value = state.ticker.color;
+      this.updateStatus('ticker', state.ticker.isActive);
     }
 
-    // Update BRB status
+    // Update popup UI
+    if (state.popup) {
+      document.getElementById('popup-title').value = state.popup.title || '';
+      document.getElementById('popup-message').value = state.popup.message || '';
+      document.getElementById('popup-duration').value = state.popup.duration / 1000;
+      document.getElementById('popup-duration-value').textContent = state.popup.duration / 1000;
+      this.updateStatus('popup', state.popup.isVisible);
+    }
+
+    // Update BRB UI
     if (state.brb) {
-      this.updateBRBStatus(state.brb.isActive);
+      document.getElementById('brb-message').value = state.brb.customMessage || '';
+      this.updateStatus('brb', state.brb.isActive);
     }
 
-    // Update theme
+    // Update theme UI
     if (state.theme) {
-      if (state.theme.current) {
-        document.getElementById('theme-select').value = state.theme.current;
-      }
-      if (state.theme.accent) {
-        document.getElementById('accent-color').value = state.theme.accent;
-      }
+      this.currentTheme = state.theme.current;
+      document.getElementById('accent-color').value = state.theme.accent;
+      this.selectTheme(state.theme.current);
     }
-
-    this.updateLastUpdateTime();
   }
 
-  updateTicker(isActive) {
+  updateStatus(widget, isActive) {
+    const statusEl = document.getElementById(`${widget}-status`);
+    statusEl.textContent = isActive ? 'active' : 'inactive';
+    statusEl.className = `status ${isActive ? 'active' : 'inactive'}`;
+  }
+
+  // Ticker methods
+  startTicker() {
     const messages = document.getElementById('ticker-messages').value
       .split('\n')
       .filter(msg => msg.trim())
       .map(msg => msg.trim());
     
-    const speed = parseInt(document.getElementById('ticker-speed').value);
-    const color = document.getElementById('ticker-color').value;
+    if (messages.length === 0) {
+      alert('Please enter at least one ticker message');
+      return;
+    }
 
-    window.wsClient.updateTicker({
-      messages,
-      isActive,
-      speed,
-      color
-    });
+    const tickerData = {
+      messages: messages,
+      isActive: true,
+      speed: parseInt(document.getElementById('ticker-speed').value),
+      color: document.getElementById('ticker-color').value
+    };
+
+    window.wsClient.send('ticker_update', tickerData);
+    this.updateStatus('ticker', true);
   }
 
+  stopTicker() {
+    const tickerData = {
+      isActive: false
+    };
+
+    window.wsClient.send('ticker_update', tickerData);
+    this.updateStatus('ticker', false);
+  }
+
+  // Popup methods
   showPopup() {
     const title = document.getElementById('popup-title').value.trim();
     const message = document.getElementById('popup-message').value.trim();
     const duration = parseInt(document.getElementById('popup-duration').value) * 1000;
 
     if (!title || !message) {
-      alert('Please enter both title and message for the popup.');
+      alert('Please enter both title and message for the popup');
       return;
     }
 
-    window.wsClient.showPopup(title, message, duration);
+    const popupData = {
+      title: title,
+      message: message,
+      duration: duration,
+      isVisible: true
+    };
+
+    window.wsClient.send('popup_show', popupData);
+    this.updateStatus('popup', true);
+
+    // Auto-hide after duration
+    setTimeout(() => {
+      this.hidePopup();
+    }, duration);
   }
 
   hidePopup() {
-    window.wsClient.hidePopup();
+    window.wsClient.send('popup_hide', {});
+    this.updateStatus('popup', false);
   }
 
-  toggleBRB() {
-    const message = document.getElementById('brb-message').value.trim();
-    window.wsClient.toggleBRB(message);
-  }
-
-  updateBRBStatus(isActive) {
-    const statusEl = document.getElementById('brb-status');
-    const toggleBtn = document.getElementById('brb-toggle');
+  // BRB methods
+  showBRB() {
+    const customMessage = document.getElementById('brb-message').value.trim();
     
-    if (isActive) {
-      statusEl.textContent = 'Active';
-      statusEl.style.color = '#00ff88';
-      toggleBtn.textContent = 'Deactivate BRB';
-      toggleBtn.className = 'btn btn-danger';
-    } else {
-      statusEl.textContent = 'Inactive';
-      statusEl.style.color = '#b3b3b3';
-      toggleBtn.textContent = 'Activate BRB';
-      toggleBtn.className = 'btn btn-primary';
-    }
+    const brbData = {
+      isActive: true,
+      customMessage: customMessage || 'Taking a quick break...'
+    };
+
+    window.wsClient.send('brb_update', brbData);
+    this.updateStatus('brb', true);
+  }
+
+  hideBRB() {
+    const brbData = {
+      isActive: false
+    };
+
+    window.wsClient.send('brb_update', brbData);
+    this.updateStatus('brb', false);
+  }
+
+  // Theme methods
+  selectTheme(theme) {
+    this.currentTheme = theme;
+    
+    // Update UI
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`[data-theme="${theme}"]`).classList.add('active');
   }
 
   applyTheme() {
-    const theme = document.getElementById('theme-select').value;
-    const accent = document.getElementById('accent-color').value;
+    const themeData = {
+      current: this.currentTheme,
+      accent: document.getElementById('accent-color').value
+    };
 
-    window.wsClient.changeTheme({
-      current: theme,
-      accent: accent
-    });
-
-    // Apply theme locally for immediate feedback
-    this.applyLocalTheme(theme, accent);
+    window.wsClient.send('theme_change', themeData);
   }
 
-  applyLocalTheme(theme, accent) {
-    const root = document.documentElement;
-    root.style.setProperty('--accent-color', accent);
-
-    // Theme-specific adjustments could be added here
-    switch(theme) {
-      case 'light':
-        root.style.setProperty('--primary-bg', '#f5f5f5');
-        root.style.setProperty('--text-primary', '#333333');
-        break;
-      case 'blue':
-        root.style.setProperty('--secondary-bg', '#1e3a8a');
-        break;
-      case 'purple':
-        root.style.setProperty('--secondary-bg', '#7c3aed');
-        break;
-      default: // dark
-        root.style.setProperty('--primary-bg', '#0a0a0f');
-        root.style.setProperty('--text-primary', '#ffffff');
-    }
-  }
-
+  // State management methods
   saveState() {
-    // In a real implementation, this would save to localStorage or server
-    localStorage.setItem('m0-ticker-state', JSON.stringify(this.currentState));
-    this.showNotification('State saved successfully!');
+    const state = {
+      ticker: {
+        messages: document.getElementById('ticker-messages').value.split('\n').filter(msg => msg.trim()),
+        speed: parseInt(document.getElementById('ticker-speed').value),
+        color: document.getElementById('ticker-color').value
+      },
+      popup: {
+        title: document.getElementById('popup-title').value,
+        message: document.getElementById('popup-message').value,
+        duration: parseInt(document.getElementById('popup-duration').value) * 1000
+      },
+      brb: {
+        customMessage: document.getElementById('brb-message').value
+      },
+      theme: {
+        current: this.currentTheme,
+        accent: document.getElementById('accent-color').value
+      }
+    };
+
+    localStorage.setItem('m0_ticker_state', JSON.stringify(state));
+    alert('Configuration saved successfully!');
   }
 
   loadState() {
-    const savedState = localStorage.getItem('m0-ticker-state');
-    if (savedState) {
+    const savedState = localStorage.getItem('m0_ticker_state');
+    if (!savedState) {
+      alert('No saved configuration found');
+      return;
+    }
+
+    try {
       const state = JSON.parse(savedState);
-      this.updateUIFromState(state);
-      this.showNotification('State loaded successfully!');
-    } else {
-      this.showNotification('No saved state found.');
+      this.updateUI(state);
+      alert('Configuration loaded successfully!');
+    } catch (error) {
+      alert('Error loading configuration');
+      console.error('Error loading state:', error);
     }
   }
 
   resetState() {
-    if (confirm('Are you sure you want to reset all widgets to default state?')) {
-      // Reset all widgets
-      window.wsClient.updateTicker({ messages: [], isActive: false });
-      window.wsClient.hidePopup();
-      if (this.currentState.brb && this.currentState.brb.isActive) {
-        window.wsClient.toggleBRB();
-      }
-      
-      this.showNotification('All widgets reset to default state.');
+    if (!confirm('Are you sure you want to reset all widgets? This will stop all active widgets.')) {
+      return;
     }
+
+    // Reset UI
+    document.getElementById('ticker-messages').value = '';
+    document.getElementById('ticker-speed').value = 100;
+    document.getElementById('ticker-speed-value').textContent = '100';
+    document.getElementById('ticker-color').value = '#ffffff';
+
+    document.getElementById('popup-title').value = '';
+    document.getElementById('popup-message').value = '';
+    document.getElementById('popup-duration').value = 5;
+    document.getElementById('popup-duration-value').textContent = '5';
+
+    document.getElementById('brb-message').value = '';
+
+    document.getElementById('accent-color').value = '#00ff88';
+    this.selectTheme('dark');
+
+    // Stop all widgets
+    this.stopTicker();
+    this.hidePopup();
+    this.hideBRB();
+
+    // Clear saved state
+    localStorage.removeItem('m0_ticker_state');
+
+    alert('All widgets have been reset');
   }
 
-  testAnimations() {
-    // Test animation on all widget cards
-    const cards = document.querySelectorAll('.widget-card');
-    
-    gsap.fromTo(cards, 
-      { scale: 1, rotation: 0 },
-      { 
-        scale: 1.05, 
-        rotation: 2,
-        duration: 0.3,
-        stagger: 0.1,
-        yoyo: true,
-        repeat: 1,
-        ease: "power2.inOut"
-      }
-    );
-    
-    this.showNotification('Animation test completed!');
-  }
-
-  updateLastUpdateTime() {
-    const now = new Date().toLocaleTimeString();
-    document.getElementById('last-update').textContent = now;
-  }
-
-  showNotification(message) {
-    // Create a simple notification
-    const notification = document.createElement('div');
-    notification.textContent = message;
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: var(--glass-bg);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 1rem;
-      color: var(--text-primary);
-      z-index: 10000;
-      transform: translateX(100%);
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Animate in
-    gsap.to(notification, {
-      x: 0,
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-      gsap.to(notification, {
-        x: '100%',
-        duration: 0.3,
-        ease: 'power2.in',
-        onComplete: () => notification.remove()
-      });
-    }, 3000);
+  reconnect() {
+    window.wsClient.connect();
   }
 }
 
