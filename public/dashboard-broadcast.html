@@ -742,7 +742,7 @@
         <!-- Widgets Grid -->
         <div class="widgets-grid">
             <!-- Ticker Component Widget -->
-            <div class="widget-card glass-card">
+            <div class="widget-card glass-card" id="tickerWidget">
                 <div class="widget-header">
                     <div class="widget-icon">📺</div>
                     <h2 class="widget-title">Ticker Component</h2>
@@ -959,6 +959,67 @@ Perfect for live streaming"
             colorInput.addEventListener('input', function() {
                 colorDisplay.textContent = this.value.toUpperCase();
                 colorDisplay.style.color = this.value;
+            });
+
+            // Enhanced ticker functionality
+            document.getElementById('startTicker').addEventListener('click', function() {
+                const messages = document.getElementById('tickerMessages').value.split('\n').filter(msg => msg.trim());
+                const speed = parseInt(document.getElementById('tickerSpeed').value);
+                const color = document.getElementById('textColor').value;
+                
+                if (messages.length === 0) {
+                    alert('Please enter at least one ticker message');
+                    return;
+                }
+                
+                const tickerData = {
+                    messages: messages,
+                    isActive: true,
+                    speed: speed,
+                    color: color
+                };
+                
+                if (window.wsClient && wsClient.isConnected) {
+                    wsClient.updateTicker(tickerData);
+                    console.log('✅ Ticker started:', tickerData);
+                    
+                    // Update UI to show active state
+                    const tickerWidget = document.getElementById('tickerWidget');
+                    if (tickerWidget) {
+                        tickerWidget.classList.add('active');
+                        const statusElement = tickerWidget.querySelector('.widget-status');
+                        if (statusElement) {
+                            statusElement.className = 'widget-status status-active';
+                            statusElement.innerHTML = '<span class="status-dot"></span>ACTIVE';
+                        }
+                    }
+                } else {
+                    alert('WebSocket not connected. Please refresh the page.');
+                }
+            });
+
+            document.getElementById('stopTicker').addEventListener('click', function() {
+                const tickerData = {
+                    isActive: false
+                };
+                
+                if (window.wsClient && wsClient.isConnected) {
+                    wsClient.updateTicker(tickerData);
+                    console.log('⏹️ Ticker stopped');
+                    
+                    // Update UI to show inactive state
+                    const tickerWidget = document.getElementById('tickerWidget');
+                    if (tickerWidget) {
+                        tickerWidget.classList.remove('active');
+                        const statusElement = tickerWidget.querySelector('.widget-status');
+                        if (statusElement) {
+                            statusElement.className = 'widget-status status-inactive';
+                            statusElement.innerHTML = '<span class="status-dot"></span>INACTIVE';
+                        }
+                    }
+                } else {
+                    alert('WebSocket not connected. Please refresh the page.');
+                }
             });
 
             // Enhanced connection status
