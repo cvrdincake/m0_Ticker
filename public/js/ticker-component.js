@@ -56,8 +56,10 @@ class TickerComponent {
     if (config.isActive !== undefined) {
       this.isActive = config.isActive;
       if (this.isActive) {
+        this.container.classList.add('active');
         this.start();
       } else {
+        this.container.classList.remove('active');
         this.stop();
       }
     }

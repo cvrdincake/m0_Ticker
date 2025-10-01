@@ -117,20 +117,8 @@ class PopupComponent {
       clearTimeout(this.hideTimeout);
     }
     
-    // Show with GSAP animation
-    gsap.to(this.overlay, {
-      opacity: 1,
-      visibility: 'visible',
-      duration: 0.3,
-      ease: 'power2.out'
-    });
-    
-    gsap.to(this.popup, {
-      scale: 1,
-      duration: 0.3,
-      ease: 'back.out(1.7)',
-      delay: 0.1
-    });
+    // Show popup by adding active class
+    this.container.classList.add('active');
     
     // Auto-hide after duration
     if (duration > 0) {
@@ -146,22 +134,8 @@ class PopupComponent {
       this.hideTimeout = null;
     }
     
-    // Hide with GSAP animation
-    gsap.to(this.popup, {
-      scale: 0.8,
-      duration: 0.2,
-      ease: 'power2.in'
-    });
-    
-    gsap.to(this.overlay, {
-      opacity: 0,
-      duration: 0.3,
-      ease: 'power2.in',
-      delay: 0.1,
-      onComplete: () => {
-        this.overlay.style.visibility = 'hidden';
-      }
-    });
+    // Hide popup by removing active class
+    this.container.classList.remove('active');
   }
 
   updateConfig(config) {

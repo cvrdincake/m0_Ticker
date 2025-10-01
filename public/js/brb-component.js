@@ -108,47 +108,15 @@ class BRBComponent {
     const displayMessage = this.customMessage || this.message;
     this.messageEl.textContent = displayMessage;
     
-    // Show overlay with animation
-    gsap.to(this.overlay, {
-      opacity: 1,
-      visibility: 'visible',
-      duration: 0.5,
-      ease: 'power2.out'
-    });
-    
-    gsap.to(this.container.querySelector('.brb-content'), {
-      scale: 1,
-      duration: 0.6,
-      ease: 'back.out(1.7)',
-      delay: 0.2
-    });
-    
-    // Start pulse animation
-    this.startPulseAnimation();
+    // Show BRB by adding active class
+    this.container.classList.add('active');
   }
 
   hide() {
     this.isActive = false;
     
-    // Stop pulse animation
-    this.stopPulseAnimation();
-    
-    // Hide overlay with animation
-    gsap.to(this.container.querySelector('.brb-content'), {
-      scale: 0.8,
-      duration: 0.3,
-      ease: 'power2.in'
-    });
-    
-    gsap.to(this.overlay, {
-      opacity: 0,
-      duration: 0.4,
-      ease: 'power2.in',
-      delay: 0.1,
-      onComplete: () => {
-        this.overlay.style.visibility = 'hidden';
-      }
-    });
+    // Hide BRB by removing active class
+    this.container.classList.remove('active');
   }
 
   startPulseAnimation() {
