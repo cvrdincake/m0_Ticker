@@ -98,7 +98,7 @@
             letter-spacing: 0.025em;
         }
 
-        /* Connection status indicator */
+        /* Connection status indicator - Enhanced */
         .connection-status {
             position: fixed;
             top: var(--space-8);
@@ -109,29 +109,35 @@
             -webkit-backdrop-filter: var(--blur-2xl);
             border: 1px solid var(--border-medium);
             border-radius: var(--radius-full);
-            padding: var(--space-3) var(--space-5);
+            padding: var(--space-3) var(--space-6);
             display: flex;
             align-items: center;
             gap: var(--space-3);
             box-shadow: var(--shadow-medium);
             transition: all var(--transition-normal);
+            min-width: 140px;
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
         }
 
         .connection-status.connected {
             border-color: var(--border-accent);
+            background: rgba(0, 255, 136, 0.08);
             box-shadow: var(--shadow-medium), var(--shadow-glow-subtle);
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: var(--radius-full);
             background: var(--silver-dark);
+            transition: all var(--transition-normal);
+            flex-shrink: 0;
         }
 
         .status-dot.connected {
             background: var(--accent-primary);
-            box-shadow: 0 0 12px var(--accent-primary-glow);
+            box-shadow: 0 0 16px var(--accent-primary-glow);
             animation: pulse 2s ease-in-out infinite;
         }
 
@@ -141,26 +147,33 @@
             color: var(--white-dim);
             text-transform: uppercase;
             letter-spacing: 0.1em;
+            white-space: nowrap;
         }
 
-        /* Professional widgets grid */
+        .connection-status.connected .status-text {
+            color: var(--accent-primary);
+        }
+
+        /* Professional widgets grid - Enhanced */
         .widgets-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
             gap: var(--space-8);
+            padding: var(--space-8);
             max-width: 1400px;
             margin: 0 auto;
         }
 
+        /* Enhanced widget cards */
         .widget-card {
             background: var(--glass-medium);
-            backdrop-filter: var(--blur-2xl);
-            -webkit-backdrop-filter: var(--blur-2xl);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
             border: 1px solid var(--border-medium);
             border-radius: var(--radius-2xl);
             padding: var(--space-8);
-            box-shadow: var(--shadow-strong);
-            transition: all var(--transition-normal);
+            box-shadow: var(--shadow-medium), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transition: all var(--transition-smooth);
             position: relative;
             overflow: hidden;
         }
@@ -171,27 +184,39 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
-            opacity: 0;
-            transition: opacity var(--transition-normal);
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
         }
 
         .widget-card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-strong), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            border-color: var(--border-strong);
+        }
+
+        .widget-card.active {
             border-color: var(--border-accent);
-            box-shadow: var(--shadow-intense), var(--shadow-glow-medium);
+            background: rgba(0, 255, 136, 0.05);
+            box-shadow: var(--shadow-medium), var(--shadow-glow-subtle);
         }
 
-        .widget-card:hover::before {
-            opacity: 1;
-        }
-
+        /* Widget headers */
         .widget-header {
             display: flex;
             align-items: center;
-            gap: var(--space-4);
-            margin-bottom: var(--space-8);
+            justify-content: space-between;
+            margin-bottom: var(--space-6);
+            padding-bottom: var(--space-4);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .widget-title {
+            color: var(--white-pure);
+            font-size: var(--text-xl);
+            font-weight: var(--weight-semibold);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
         }
 
         .widget-icon {
@@ -228,57 +253,44 @@
         }
 
         /* Enhanced form styling */
+        /* Enhanced form styling */
         .form-group {
             margin-bottom: var(--space-6);
         }
 
         .form-label {
             display: block;
-            margin-bottom: var(--space-3);
             font-size: var(--text-sm);
             font-weight: var(--weight-semibold);
             color: var(--white-dim);
+            margin-bottom: var(--space-2);
             text-transform: uppercase;
-            letter-spacing: 0.075em;
+            letter-spacing: 0.05em;
         }
 
-        .form-control {
+        .form-input, .form-textarea, .form-select {
             width: 100%;
-            padding: var(--space-4);
-            background: var(--glass-light);
+            background: var(--glass-medium);
             backdrop-filter: var(--blur-lg);
             -webkit-backdrop-filter: var(--blur-lg);
-            border: 1px solid var(--border-subtle);
+            border: 1px solid var(--border-medium);
             border-radius: var(--radius-lg);
+            padding: var(--space-4) var(--space-5);
             color: var(--white-pure);
-            font-family: var(--font-primary);
             font-size: var(--text-base);
-            font-weight: var(--weight-normal);
             transition: all var(--transition-normal);
+            resize: vertical;
+        }
+
+        .form-input:focus, .form-textarea:focus, .form-select:focus {
             outline: none;
-        }
-
-        .form-control::placeholder {
-            color: var(--silver);
-            opacity: 0.7;
-        }
-
-        .form-control:focus {
-            background: var(--glass-medium);
             border-color: var(--border-accent);
-            box-shadow: 0 0 0 3px var(--accent-primary-glow);
-            transform: translateY(-1px);
+            background: rgba(0, 255, 136, 0.05);
+            box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
         }
 
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: var(--space-4);
-            margin-bottom: var(--space-6);
-        }
-
-        .form-row.single {
-            grid-template-columns: 1fr;
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: var(--silver);
         }
 
         /* Enhanced button styling */
@@ -667,7 +679,7 @@ Perfect for live streaming"
 
             // WebSocket status updates
             if (window.wsClient) {
-                wsClient.onStatusChange = function(connected) {
+                wsClient.onStatusChange(function(connected) {
                     updateConnectionStatus(connected);
                     const wsStatus = document.getElementById('wsStatus');
                     if (connected) {
@@ -677,7 +689,7 @@ Perfect for live streaming"
                         wsStatus.className = 'status-badge status-inactive';
                         wsStatus.innerHTML = '<span class="status-dot"></span>Disconnected';
                     }
-                };
+                });
             }
 
             // Refresh connection button

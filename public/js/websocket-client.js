@@ -6,6 +6,7 @@ class WebSocketClient {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
     this.eventHandlers = new Map();
+    this.statusCallbacks = [];
     
     this.connect();
   }
@@ -29,6 +30,7 @@ class WebSocketClient {
       this.isConnected = true;
       this.reconnectAttempts = 0;
       this.emit('connected');
+      this.notifyStatusChange(true);
       
       // Request current state
       this.send('state_sync', {});
@@ -47,6 +49,7 @@ class WebSocketClient {
       console.log('🔌 WebSocket disconnected');
       this.isConnected = false;
       this.emit('disconnected');
+      this.notifyStatusChange(false);
       this.scheduleReconnect();
     };
 
@@ -124,6 +127,29 @@ class WebSocketClient {
 
   changeTheme(theme) {
     return this.send('theme_change', theme);
+  }
+
+  // Status change notifications
+  onStatusChange(callback) {
+    this.statusCallbacks.push(callback);
+  }
+
+  notifyStatusChange(connected) {
+    this.statusCallbacks.forEach(callback => {
+      try {
+        callback(connected);
+      } catch (error) {
+        console.error('Status callback error:', error);
+      }
+    });
+  }
+
+  reconnect() {
+    if (this.ws) {
+      this.ws.close();
+    }
+    this.reconnectAttempts = 0;
+    this.connect();
   }
 }
 
