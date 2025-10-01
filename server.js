@@ -153,9 +153,9 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 M0 Ticker Server running on port ${PORT}`);
   console.log(`🎛️  Professional Dashboard: http://localhost:${PORT}/`);
   console.log(`🎬 Broadcast Output: http://localhost:${PORT}/output-broadcast.html`);
-  console.log(`📊 Legacy Dashboard: http://localhost:${PORT}/dashboard.html`);
-  console.log(`📡 API Status: http://localhost:${PORT}/api/status`);
+  console.log(` API Status: http://localhost:${PORT}/api/status`);
   console.log(`✨ Broadcast Ready Design System Enabled`);
+  console.log(`🧹 Consolidated & Optimized Codebase`);
 });
 
 server.on('error', (err) => {
