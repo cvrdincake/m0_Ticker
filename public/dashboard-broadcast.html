@@ -777,20 +777,32 @@ Perfect for live streaming"
                 }
             }
 
-            // WebSocket status updates
-            if (window.wsClient) {
-                wsClient.onStatusChange(function(connected) {
-                    updateConnectionStatus(connected);
-                    const wsStatus = document.getElementById('wsStatus');
-                    if (connected) {
-                        wsStatus.className = 'status-badge status-active';
-                        wsStatus.innerHTML = '<span class="status-dot"></span>Connected';
-                    } else {
-                        wsStatus.className = 'status-badge status-inactive';
-                        wsStatus.innerHTML = '<span class="status-dot"></span>Disconnected';
-                    }
-                });
+            // Initialize WebSocket connection with retry logic
+            function initializeWebSocketConnection() {
+                if (window.wsClient) {
+                    wsClient.onStatusChange(function(connected) {
+                        updateConnectionStatus(connected);
+                        const wsStatus = document.getElementById('wsStatus');
+                        if (connected) {
+                            wsStatus.className = 'status-badge status-active';
+                            wsStatus.innerHTML = '<span class="status-dot"></span>Connected';
+                        } else {
+                            wsStatus.className = 'status-badge status-inactive';
+                            wsStatus.innerHTML = '<span class="status-dot"></span>Disconnected';
+                        }
+                    });
+                    
+                    // Initial status update
+                    updateConnectionStatus(wsClient.isConnected);
+                    console.log('✅ WebSocket client initialized');
+                } else {
+                    // Retry in 100ms if WebSocket client isn't ready
+                    setTimeout(initializeWebSocketConnection, 100);
+                }
             }
+
+            // Initialize with retry logic
+            initializeWebSocketConnection();
 
             // Refresh connection button
             document.getElementById('refreshConnection').addEventListener('click', function() {
