@@ -45,9 +45,12 @@ class OutputController {
 
     // Handle individual widget updates
     window.wsClient.on('ticker_update', (data) => {
-      console.log('📰 Ticker update:', data);
+      console.log('📰 Ticker update received:', data);
       if (this.ticker) {
+        console.log('📰 Updating ticker component with:', data);
         this.ticker.updateConfig(data);
+      } else {
+        console.error('❌ Ticker component not found!');
       }
     });
 

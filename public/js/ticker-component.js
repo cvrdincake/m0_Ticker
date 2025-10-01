@@ -11,16 +11,25 @@ class TickerComponent {
   }
 
   init() {
-    this.container.innerHTML = `
-      <div class="ticker-wrapper">
-        <div class="ticker-content"></div>
-      </div>
-    `;
+    // Check if HTML structure already exists, if not create it
+    let wrapper = this.container.querySelector('.ticker-content');
+    let content = this.container.querySelector('.ticker-text') || this.container.querySelector('.ticker-content');
     
-    this.wrapper = this.container.querySelector('.ticker-wrapper');
-    this.content = this.container.querySelector('.ticker-content');
-    
-    this.setupStyles();
+    if (!wrapper) {
+      // Create structure if it doesn't exist
+      this.container.innerHTML = `
+        <div class="ticker-wrapper">
+          <div class="ticker-content"></div>
+        </div>
+      `;
+      this.wrapper = this.container.querySelector('.ticker-wrapper');
+      this.content = this.container.querySelector('.ticker-content');
+      this.setupStyles();
+    } else {
+      // Use existing structure
+      this.wrapper = wrapper.parentElement || this.container;
+      this.content = content;
+    }
   }
 
   setupStyles() {
@@ -47,18 +56,26 @@ class TickerComponent {
   }
 
   updateConfig(config) {
-    if (config.messages) this.messages = config.messages;
+    console.log('🎬 Ticker updateConfig called with:', config);
+    
+    if (config.messages) {
+      console.log('📝 Setting messages:', config.messages);
+      this.messages = config.messages;
+    }
     if (config.speed) this.speed = config.speed;
     if (config.color) {
       this.color = config.color;
       this.content.style.color = this.color;
     }
     if (config.isActive !== undefined) {
+      console.log('🔄 Setting isActive:', config.isActive);
       this.isActive = config.isActive;
       if (this.isActive) {
+        console.log('✅ Adding active class and starting ticker');
         this.container.classList.add('active');
         this.start();
       } else {
+        console.log('❌ Removing active class and stopping ticker');
         this.container.classList.remove('active');
         this.stop();
       }
@@ -86,18 +103,25 @@ class TickerComponent {
     this.content.textContent = messageText;
     
     // Calculate animation duration based on speed
-    const duration = (this.content.scrollWidth + this.wrapper.offsetWidth) / this.speed;
+    const containerWidth = this.container.offsetWidth || window.innerWidth;
+    const contentWidth = this.content.scrollWidth || this.content.offsetWidth;
+    const duration = (contentWidth + containerWidth) / this.speed;
     
-    // Create GSAP animation
-    this.animation = gsap.fromTo(this.content, 
-      { x: '100%' },
-      {
-        x: `-${this.content.scrollWidth}px`,
-        duration: duration,
-        ease: 'none',
-        repeat: -1,
-        repeatDelay: 0
-      }
-    );
+    // Create GSAP animation if available, otherwise use CSS animation
+    if (typeof gsap !== 'undefined') {
+      this.animation = gsap.fromTo(this.content, 
+        { x: '100%' },
+        {
+          x: `-${contentWidth}px`,
+          duration: duration,
+          ease: 'none',
+          repeat: -1,
+          repeatDelay: 0
+        }
+      );
+    } else {
+      // Fallback to CSS animation
+      this.content.style.animation = `scroll-left ${duration}s linear infinite`;
+    }
   }
 }

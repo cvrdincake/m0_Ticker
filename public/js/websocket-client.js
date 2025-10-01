@@ -66,11 +66,13 @@ class WebSocketClient {
     }
   }
 
-  send(type, payload) {
+  send(event, data) {
     if (this.isConnected && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify({ type, payload }));
+      this.ws.send(JSON.stringify({ event, data }));
+      console.log('📤 Sending WebSocket message:', { event, data });
       return true;
     }
+    console.warn('❌ WebSocket not connected, cannot send:', { event, data });
     return false;
   }
 
