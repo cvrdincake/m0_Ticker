@@ -146,10 +146,11 @@ const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 M0 Ticker Server running on port ${PORT}`);
-  console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
-  console.log(`🎬 Output: http://localhost:${PORT}/output.html`);
-  console.log(`📡 API Status: http://localhost:${PORT}/api/status`);
-  console.log(`✨ Professional Design System Enabled`);
+  console.log(`🎛️  Professional Dashboard: http://localhost:${PORT}/dashboard-broadcast.html`);
+  console.log(`🎬 Broadcast Output: http://localhost:${PORT}/output-broadcast.html`);
+  console.log(`� Legacy Dashboard: http://localhost:${PORT}/dashboard.html`);
+  console.log(`�📡 API Status: http://localhost:${PORT}/api/status`);
+  console.log(`✨ Broadcast Ready Design System Enabled`);
 });
 
 server.on('error', (err) => {

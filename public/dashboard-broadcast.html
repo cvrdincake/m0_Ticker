@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M0 Ticker Control - Broadcast Ready</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/broadcast-ready-design.css">
+    <style>
+        /* ===== BROADCAST READY DASHBOARD STYLES ===== */
+        body {
+            background: radial-gradient(ellipse at top, var(--charcoal-dark) 0%, var(--black-void) 70%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        /* Professional ambient background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 255, 136, 0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .dashboard-container {
+            min-height: 100vh;
+            padding: var(--space-8);
+            position: relative;
+        }
+
+        /* Professional header design */
+        .dashboard-header {
+            text-align: center;
+            margin-bottom: var(--space-16);
+            position: relative;
+        }
+
+        .brand-logo {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-3);
+            margin-bottom: var(--space-6);
+            padding: var(--space-4) var(--space-6);
+            background: var(--glass-medium);
+            backdrop-filter: var(--blur-2xl);
+            -webkit-backdrop-filter: var(--blur-2xl);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-strong);
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-dark));
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: var(--weight-black);
+            color: var(--black-void);
+            box-shadow: var(--shadow-glow-subtle);
+        }
+
+        .brand-text {
+            font-size: var(--text-xl);
+            font-weight: var(--weight-bold);
+            color: var(--white-pure);
+            letter-spacing: -0.025em;
+        }
+
+        .dashboard-title {
+            font-size: var(--text-5xl);
+            font-weight: var(--weight-black);
+            background: linear-gradient(135deg, var(--white-pure) 0%, var(--silver-bright) 50%, var(--accent-primary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--space-4);
+            letter-spacing: -0.05em;
+            line-height: var(--leading-tight);
+        }
+
+        .dashboard-subtitle {
+            font-size: var(--text-lg);
+            font-weight: var(--weight-medium);
+            color: var(--silver-bright);
+            opacity: 0.9;
+            letter-spacing: 0.025em;
+        }
+
+        /* Connection status indicator */
+        .connection-status {
+            position: fixed;
+            top: var(--space-8);
+            right: var(--space-8);
+            z-index: var(--z-banner);
+            background: var(--glass-strong);
+            backdrop-filter: var(--blur-2xl);
+            -webkit-backdrop-filter: var(--blur-2xl);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-full);
+            padding: var(--space-3) var(--space-5);
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            box-shadow: var(--shadow-medium);
+            transition: all var(--transition-normal);
+        }
+
+        .connection-status.connected {
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-medium), var(--shadow-glow-subtle);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            background: var(--silver-dark);
+        }
+
+        .status-dot.connected {
+            background: var(--accent-primary);
+            box-shadow: 0 0 12px var(--accent-primary-glow);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-text {
+            font-size: var(--text-sm);
+            font-weight: var(--weight-semibold);
+            color: var(--white-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Professional widgets grid */
+        .widgets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: var(--space-8);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .widget-card {
+            background: var(--glass-medium);
+            backdrop-filter: var(--blur-2xl);
+            -webkit-backdrop-filter: var(--blur-2xl);
+            border: 1px solid var(--border-medium);
+            border-radius: var(--radius-2xl);
+            padding: var(--space-8);
+            box-shadow: var(--shadow-strong);
+            transition: all var(--transition-normal);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .widget-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+            opacity: 0;
+            transition: opacity var(--transition-normal);
+        }
+
+        .widget-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--border-accent);
+            box-shadow: var(--shadow-intense), var(--shadow-glow-medium);
+        }
+
+        .widget-card:hover::before {
+            opacity: 1;
+        }
+
+        .widget-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            margin-bottom: var(--space-8);
+        }
+
+        .widget-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--glass-strong);
+            backdrop-filter: var(--blur-lg);
+            -webkit-backdrop-filter: var(--blur-lg);
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: var(--text-xl);
+            color: var(--accent-primary);
+            box-shadow: var(--shadow-soft);
+        }
+
+        .widget-title {
+            font-size: var(--text-xl);
+            font-weight: var(--weight-bold);
+            color: var(--white-pure);
+            flex: 1;
+            letter-spacing: -0.025em;
+        }
+
+        .widget-status {
+            padding: var(--space-2) var(--space-4);
+            border-radius: var(--radius-full);
+            font-size: var(--text-xs);
+            font-weight: var(--weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        /* Enhanced form styling */
+        .form-group {
+            margin-bottom: var(--space-6);
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: var(--space-3);
+            font-size: var(--text-sm);
+            font-weight: var(--weight-semibold);
+            color: var(--white-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.075em;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: var(--space-4);
+            background: var(--glass-light);
+            backdrop-filter: var(--blur-lg);
+            -webkit-backdrop-filter: var(--blur-lg);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            color: var(--white-pure);
+            font-family: var(--font-primary);
+            font-size: var(--text-base);
+            font-weight: var(--weight-normal);
+            transition: all var(--transition-normal);
+            outline: none;
+        }
+
+        .form-control::placeholder {
+            color: var(--silver);
+            opacity: 0.7;
+        }
+
+        .form-control:focus {
+            background: var(--glass-medium);
+            border-color: var(--border-accent);
+            box-shadow: 0 0 0 3px var(--accent-primary-glow);
+            transform: translateY(-1px);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+
+        .form-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        /* Enhanced button styling */
+        .btn-group {
+            display: flex;
+            gap: var(--space-3);
+            flex-wrap: wrap;
+            margin-top: var(--space-6);
+        }
+
+        .btn-group .btn {
+            flex: 1;
+            min-width: 140px;
+        }
+
+        /* Color picker styling */
+        .color-picker-group {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+
+        .color-input {
+            width: 60px !important;
+            height: 48px !important;
+            padding: var(--space-1) !important;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            background: var(--glass-light);
+            border: 1px solid var(--border-medium);
+        }
+
+        .color-input::-webkit-color-swatch {
+            border: none;
+            border-radius: var(--radius-md);
+        }
+
+        /* Range slider styling */
+        .range-input {
+            width: 100%;
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: var(--glass-light);
+            border-radius: var(--radius-full);
+            outline: none;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .range-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: var(--accent-primary);
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            box-shadow: var(--shadow-glow-subtle);
+            border: 2px solid var(--white-pure);
+        }
+
+        .range-input::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: var(--accent-primary);
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            border: 2px solid var(--white-pure);
+            box-shadow: var(--shadow-glow-subtle);
+        }
+
+        .range-value {
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+            padding: var(--space-2) var(--space-3);
+            background: var(--glass-light);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+            font-weight: var(--weight-semibold);
+            color: var(--accent-primary);
+        }
+
+        /* Professional animations */
+        .widget-card {
+            animation: slideInUp 0.6s ease-out;
+        }
+
+        .widget-card:nth-child(1) { animation-delay: 0.1s; }
+        .widget-card:nth-child(2) { animation-delay: 0.2s; }
+        .widget-card:nth-child(3) { animation-delay: 0.3s; }
+        .widget-card:nth-child(4) { animation-delay: 0.4s; }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .dashboard-container {
+                padding: var(--space-4);
+            }
+
+            .widgets-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-6);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: var(--space-3);
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .btn-group .btn {
+                min-width: unset;
+            }
+
+            .dashboard-title {
+                font-size: var(--text-3xl);
+            }
+
+            .connection-status {
+                top: var(--space-4);
+                right: var(--space-4);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Connection Status -->
+        <div class="connection-status" id="connectionStatus">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">Disconnected</span>
+        </div>
+
+        <!-- Dashboard Header -->
+        <div class="dashboard-header animate-fade-in">
+            <div class="brand-logo">
+                <div class="brand-icon">M0</div>
+                <div class="brand-text">Professional Control</div>
+            </div>
+            <h1 class="dashboard-title">Ticker Control</h1>
+            <p class="dashboard-subtitle">Professional streaming widget management</p>
+        </div>
+
+        <!-- Widgets Grid -->
+        <div class="widgets-grid">
+            <!-- Ticker Component Widget -->
+            <div class="widget-card glass-card">
+                <div class="widget-header">
+                    <div class="widget-icon">📺</div>
+                    <h2 class="widget-title">Ticker Component</h2>
+                    <div class="widget-status status-active">
+                        <span class="status-dot"></span>
+                        ACTIVE
+                    </div>
+                </div>
+
+                <form id="tickerForm">
+                    <div class="form-group">
+                        <label class="form-label" for="tickerMessages">Messages (one per line)</label>
+                        <textarea 
+                            id="tickerMessages" 
+                            class="form-control textarea" 
+                            placeholder="Enter your ticker messages here...
+Each line will be a separate message
+Perfect for live streaming"
+                            rows="4"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="tickerSpeed">Speed</label>
+                            <div class="flex items-center gap-4">
+                                <input 
+                                    type="range" 
+                                    id="tickerSpeed" 
+                                    class="range-input" 
+                                    min="1" 
+                                    max="100" 
+                                    value="50"
+                                >
+                                <span class="range-value" id="speedValue">50</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" for="textColor">Text Color</label>
+                            <div class="color-picker-group">
+                                <input 
+                                    type="color" 
+                                    id="textColor" 
+                                    class="color-input" 
+                                    value="#ffffff"
+                                >
+                                <span class="form-control" style="flex: 1; background: var(--glass-ultra-light);">#ffffff</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="startTicker">Start Ticker</button>
+                        <button type="button" class="btn btn-secondary" id="stopTicker">Stop Ticker</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Popup Overlay Widget -->
+            <div class="widget-card glass-card">
+                <div class="widget-header">
+                    <div class="widget-icon">💬</div>
+                    <h2 class="widget-title">Popup Overlay</h2>
+                    <div class="widget-status status-inactive">
+                        <span class="status-dot"></span>
+                        INACTIVE
+                    </div>
+                </div>
+
+                <form id="popupForm">
+                    <div class="form-group">
+                        <label class="form-label" for="popupTitle">Popup Title</label>
+                        <input 
+                            type="text" 
+                            id="popupTitle" 
+                            class="form-control" 
+                            placeholder="Enter popup title..."
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="popupMessage">Message</label>
+                        <textarea 
+                            id="popupMessage" 
+                            class="form-control textarea" 
+                            placeholder="Enter your popup message..."
+                            rows="3"></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="popupDuration">Duration (seconds)</label>
+                            <div class="flex items-center gap-4">
+                                <input 
+                                    type="range" 
+                                    id="popupDuration" 
+                                    class="range-input" 
+                                    min="1" 
+                                    max="30" 
+                                    value="5"
+                                >
+                                <span class="range-value" id="durationValue">5</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="showPopup">Show Popup</button>
+                        <button type="button" class="btn btn-ghost" id="hidePopup">Hide Popup</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- BRB Component Widget -->
+            <div class="widget-card glass-card">
+                <div class="widget-header">
+                    <div class="widget-icon">⏸️</div>
+                    <h2 class="widget-title">BRB Component</h2>
+                    <div class="widget-status status-inactive">
+                        <span class="status-dot"></span>
+                        INACTIVE
+                    </div>
+                </div>
+
+                <form id="brbForm">
+                    <div class="form-group">
+                        <label class="form-label" for="brbMessage">BRB Message</label>
+                        <input 
+                            type="text" 
+                            id="brbMessage" 
+                            class="form-control" 
+                            placeholder="Be Right Back..."
+                            value="Be Right Back"
+                        >
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label" for="brbSubtext">Subtext (optional)</label>
+                            <input 
+                                type="text" 
+                                id="brbSubtext" 
+                                class="form-control" 
+                                placeholder="Taking a quick break..."
+                            >
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" id="showBRB">Show BRB</button>
+                        <button type="button" class="btn btn-secondary" id="hideBRB">Hide BRB</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- System Status Widget -->
+            <div class="widget-card glass-card">
+                <div class="widget-header">
+                    <div class="widget-icon">⚙️</div>
+                    <h2 class="widget-title">System Status</h2>
+                    <div class="widget-status status-active">
+                        <span class="status-dot"></span>
+                        ONLINE
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Server Status</label>
+                    <div class="status-badge status-active">
+                        <span class="status-dot"></span>
+                        Connected
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">WebSocket</label>
+                    <div class="status-badge" id="wsStatus">
+                        <span class="status-dot"></span>
+                        Connecting...
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="button" class="btn btn-secondary" id="refreshConnection">Refresh</button>
+                    <a href="/output-v2.html" target="_blank" class="btn btn-primary">Open Output</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/js/websocket-client.js"></script>
+    <script src="/js/dashboard-controller.js"></script>
+    <script>
+        // Enhanced dashboard initialization
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize range sliders
+            const speedSlider = document.getElementById('tickerSpeed');
+            const speedValue = document.getElementById('speedValue');
+            const durationSlider = document.getElementById('popupDuration');
+            const durationValue = document.getElementById('durationValue');
+
+            speedSlider.addEventListener('input', function() {
+                speedValue.textContent = this.value;
+            });
+
+            durationSlider.addEventListener('input', function() {
+                durationValue.textContent = this.value;
+            });
+
+            // Color picker updates
+            const colorInput = document.getElementById('textColor');
+            const colorDisplay = colorInput.nextElementSibling;
+
+            colorInput.addEventListener('input', function() {
+                colorDisplay.textContent = this.value.toUpperCase();
+                colorDisplay.style.color = this.value;
+            });
+
+            // Enhanced connection status
+            function updateConnectionStatus(connected) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const connectionStatus = document.getElementById('connectionStatus');
+
+                if (connected) {
+                    statusDot.classList.add('connected');
+                    statusText.textContent = 'Connected';
+                    connectionStatus.classList.add('connected');
+                } else {
+                    statusDot.classList.remove('connected');
+                    statusText.textContent = 'Disconnected';
+                    connectionStatus.classList.remove('connected');
+                }
+            }
+
+            // WebSocket status updates
+            if (window.wsClient) {
+                wsClient.onStatusChange = function(connected) {
+                    updateConnectionStatus(connected);
+                    const wsStatus = document.getElementById('wsStatus');
+                    if (connected) {
+                        wsStatus.className = 'status-badge status-active';
+                        wsStatus.innerHTML = '<span class="status-dot"></span>Connected';
+                    } else {
+                        wsStatus.className = 'status-badge status-inactive';
+                        wsStatus.innerHTML = '<span class="status-dot"></span>Disconnected';
+                    }
+                };
+            }
+
+            // Refresh connection button
+            document.getElementById('refreshConnection').addEventListener('click', function() {
+                if (window.wsClient) {
+                    wsClient.reconnect();
+                }
+            });
+
+            console.log('🚀 M0 Ticker Dashboard - Broadcast Ready');
+        });
+    </script>
+</body>
+</html>
