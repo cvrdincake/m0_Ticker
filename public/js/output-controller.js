@@ -88,14 +88,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updatePopup(popupState) {
-        if (!elements.popupOverlay) return;
+        if (!elements.popupOverlay || !popupState) return;
 
         if (popupState.isVisible) {
             elements.popupTitle.textContent = popupState.title || '';
             elements.popupMessage.textContent = popupState.message || '';
-            elements.popupOverlay.classList.add('visible-pro');
+            elements.popupOverlay.classList.add('visible-pro', 'modal-enter');
         } else {
-            elements.popupOverlay.classList.remove('visible-pro');
+            elements.popupOverlay.classList.remove('visible-pro', 'modal-enter');
         }
     }
 

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M0 Ticker - Professional Dashboard</title>
+    <link rel="stylesheet" href="/css/broadcast-ready-design.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body class="dashboard-body">
+    <!-- Connection Status Indicator -->
+    <div id="connectionStatus" class="connection-status">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="statusText">Connecting...</span>
+    </div>
+
+    <!-- Professional Dashboard Container -->
+    <div class="dashboard-container">
+        <header class="dashboard-header">
+            <h1 class="dashboard-title">
+                M0 Ticker 
+                <span class="dashboard-subtitle">Professional Control</span>
+            </h1>
+        </header>
+
+        <!-- Ticker Management Widget -->
+        <section id="tickerWidget" class="widget-pro">
+            <div class="widget-header">
+                <h2 class="widget-title">📺 Ticker Control</h2>
+                <div id="tickerStatusBadge" class="status-badge inactive">
+                    <span id="tickerStatusText">Stopped</span>
+                </div>
+            </div>
+            
+            <form id="tickerForm" class="widget-form">
+                <div class="form-group">
+                    <label for="tickerMessages" class="form-label">Messages</label>
+                    <textarea 
+                        id="tickerMessages" 
+                        class="form-input" 
+                        placeholder="Enter ticker messages (one per line)"
+                        rows="4"
+                    ></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tickerSpeed" class="form-label">Speed</label>
+                        <div class="slider-container">
+                            <input 
+                                type="range" 
+                                id="tickerSpeed" 
+                                class="form-slider" 
+                                min="10" 
+                                max="100" 
+                                value="50"
+                            >
+                            <span id="tickerSpeedValue" class="slider-value">50</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="textColor" class="form-label">Text Color</label>
+                        <input 
+                            type="color" 
+                            id="textColor" 
+                            class="form-color" 
+                            value="#ffffff"
+                        >
+                    </div>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" id="startTicker" class="btn-pro btn-success">
+                        ▶️ Start Ticker
+                    </button>
+                    <button type="button" id="stopTicker" class="btn-pro btn-danger">
+                        ⏹️ Stop Ticker
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Popup Management Widget -->
+        <section id="popupWidget" class="widget-pro">
+            <div class="widget-header">
+                <h2 class="widget-title">💬 Popup Control</h2>
+                <div id="popupStatusBadge" class="status-badge inactive">
+                    <span id="popupStatusText">Hidden</span>
+                </div>
+            </div>
+            
+            <form id="popupForm" class="widget-form">
+                <div class="form-group">
+                    <label for="popupTitle" class="form-label">Title</label>
+                    <input 
+                        type="text" 
+                        id="popupTitle" 
+                        class="form-input" 
+                        placeholder="Popup title"
+                        maxlength="100"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="popupMessage" class="form-label">Message</label>
+                    <textarea 
+                        id="popupMessage" 
+                        class="form-input" 
+                        placeholder="Popup message content"
+                        rows="3"
+                        maxlength="500"
+                    ></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" id="showPopup" class="btn-pro btn-primary">
+                        🎯 Show Popup
+                    </button>
+                    <button type="button" id="hidePopup" class="btn-pro btn-secondary">
+                        ❌ Hide Popup
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- BRB Management Widget -->
+        <section id="brbWidget" class="widget-pro">
+            <div class="widget-header">
+                <h2 class="widget-title">⏸️ BRB Control</h2>
+                <div id="brbStatusBadge" class="status-badge inactive">
+                    <span id="brbStatusText">Hidden</span>
+                </div>
+            </div>
+            
+            <form id="brbForm" class="widget-form">
+                <div class="form-group">
+                    <label for="brbMessage" class="form-label">BRB Message</label>
+                    <input 
+                        type="text" 
+                        id="brbMessage" 
+                        class="form-input" 
+                        placeholder="Be Right Back message"
+                        value="Be Right Back"
+                        maxlength="200"
+                    >
+                </div>
+                
+                <div id="brbPreview" class="brb-preview">
+                    Preview: Be Right Back
+                </div>
+                
+                <div class="button-group">
+                    <button type="button" id="showBrb" class="btn-pro btn-warning">
+                        ⏸️ Show BRB
+                    </button>
+                    <button type="button" id="hideBrb" class="btn-pro btn-secondary">
+                        ▶️ Hide BRB
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Theme Management Widget -->
+        <section id="themeWidget" class="widget-pro">
+            <div class="widget-header">
+                <h2 class="widget-title">🎨 Theme Control</h2>
+            </div>
+            
+            <form id="themeForm" class="widget-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="accentColor" class="form-label">Accent Color</label>
+                        <input 
+                            type="color" 
+                            id="accentColor" 
+                            class="form-color" 
+                            value="#00ff88"
+                        >
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="backgroundOpacity" class="form-label">Background Opacity</label>
+                        <div class="slider-container">
+                            <input 
+                                type="range" 
+                                id="backgroundOpacity" 
+                                class="form-slider" 
+                                min="0" 
+                                max="100" 
+                                value="80"
+                            >
+                            <span id="backgroundOpacityValue" class="slider-value">80%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" id="applyTheme" class="btn-pro btn-accent">
+                    ✨ Apply Theme
+                </button>
+            </form>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+        <p class="footer-text">
+            M0 Ticker Professional v2.0 
+            <span class="footer-separator">|</span>
+            <a href="/output.html" target="_blank" class="footer-link">View Output</a>
+        </p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="/js/websocket-client.js"></script>
+    <script src="/js/components/dashboard-controller.js"></script>
+</body>
+</html>

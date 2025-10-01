@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M0 Ticker - Broadcast Output</title>
+    <link rel="stylesheet" href="/css/broadcast-ready-design.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body class="output-body">
+    <!-- Ticker Component -->
+    <div id="tickerComponent" class="ticker-container ticker-hidden">
+        <div class="ticker-accent-line"></div>
+        <div class="ticker-content">
+            <div id="tickerText" class="ticker-text"></div>
+        </div>
+        <div class="ticker-accent-line"></div>
+    </div>
+
+    <!-- Popup Component -->
+    <div id="popupComponent" class="popup-overlay popup-hidden">
+        <div class="popup-container">
+            <div class="popup-content">
+                <h2 id="popupTitle" class="popup-title"></h2>
+                <p id="popupMessage" class="popup-message"></p>
+            </div>
+            <div class="popup-accent-glow"></div>
+        </div>
+    </div>
+
+    <!-- BRB Component -->
+    <div id="brbComponent" class="brb-overlay brb-hidden">
+        <div class="brb-background">
+            <div class="brb-content">
+                <div class="brb-icon">⏸️</div>
+                <h1 id="brbMessage" class="brb-message">Be Right Back</h1>
+                <div class="brb-subtitle">Stream will resume shortly</div>
+            </div>
+            <div class="brb-particles">
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+                <div class="particle"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Status (Debug) -->
+    <div id="connectionDebug" class="connection-debug">
+        <div id="connectionStatus" class="connection-indicator">
+            <div id="statusDot" class="status-dot"></div>
+            <span id="statusText">Connecting...</span>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/websocket-client.js"></script>
+    <script src="/js/output-controller.js"></script>
+</body>
+</html>

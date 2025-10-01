@@ -4,7 +4,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
-const wsInstance = expressWs(app);
+expressWs(app); // Initialize WebSocket support
 
 // Middleware
 app.use(cors());
