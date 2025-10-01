@@ -8,10 +8,26 @@
 </head>
 <body>
     <div id="background-animation"></div>
-    <div id="ticker-container-pro">
-        <div id="ticker-track-pro"></div>
+    
+    <!-- Ticker Component -->
+    <div id="ticker-container-pro" class="ticker-container-pro">
+        <div id="ticker-tape-pro" class="ticker-tape-pro"></div>
     </div>
-    <div id="popup-container-pro"></div>
+    
+    <!-- Popup Overlay -->
+    <div id="popup-overlay-pro" class="popup-overlay-pro">
+        <div class="popup-content-pro">
+            <h2 id="popup-title-pro" class="popup-title-pro"></h2>
+            <p id="popup-message-pro" class="popup-message-pro"></p>
+        </div>
+    </div>
+    
+    <!-- BRB Overlay -->
+    <div id="brb-overlay-pro" class="brb-overlay-pro">
+        <div class="brb-content-pro">
+            <div id="brb-message-display-pro" class="brb-message-pro"></div>
+        </div>
+    </div>
 
     <script src="/js/websocket-client.js"></script>
     <script src="/js/output-controller.js"></script>

@@ -28,6 +28,14 @@ let globalState = {
     isVisible: false,
     title: '',
     message: ''
+  },
+  brb: {
+    isVisible: false,
+    message: 'Be Right Back'
+  },
+  theme: {
+    accentColor: '#00ff88',
+    backgroundOpacity: 80
   }
 };
 
@@ -77,6 +85,21 @@ app.ws('/ws', (ws) => {
         case 'popup_hide':
           globalState.popup.isVisible = false;
           broadcast('popup_state_change', globalState.popup);
+          break;
+
+        case 'brb_show':
+          globalState.brb = { ...globalState.brb, ...data, isVisible: true };
+          broadcast('brb_state_change', globalState.brb);
+          break;
+          
+        case 'brb_hide':
+          globalState.brb.isVisible = false;
+          broadcast('brb_state_change', globalState.brb);
+          break;
+
+        case 'theme_change':
+          globalState.theme = { ...globalState.theme, ...data };
+          broadcast('theme_change', globalState.theme);
           break;
           
         case 'state_sync_request':

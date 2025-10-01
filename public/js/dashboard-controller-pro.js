@@ -33,6 +33,25 @@ document.addEventListener('DOMContentLoaded', () => {
         hidePopup: document.getElementById('hidePopup'),
         popupStatusBadge: document.getElementById('popupStatusBadge'),
         popupStatusText: document.getElementById('popupStatusText'),
+
+        // BRB Widget
+        brbWidget: document.getElementById('brbWidget'),
+        brbForm: document.getElementById('brbForm'),
+        brbMessage: document.getElementById('brbMessage'),
+        brbPreview: document.getElementById('brbPreview'),
+        showBrb: document.getElementById('showBrb'),
+        hideBrb: document.getElementById('hideBrb'),
+        brbStatusBadge: document.getElementById('brbStatusBadge'),
+        brbStatusText: document.getElementById('brbStatusText'),
+
+        // Theme Widget
+        themeWidget: document.getElementById('themeWidget'),
+        themeForm: document.getElementById('themeForm'),
+        accentColor: document.getElementById('accentColor'),
+        backgroundOpacity: document.getElementById('backgroundOpacity'),
+        backgroundOpacityValue: document.getElementById('backgroundOpacityValue'),
+        applyTheme: document.getElementById('applyTheme'),
+        resetTheme: document.getElementById('resetTheme'),
     };
 
     // --- State Management ---
@@ -47,6 +66,14 @@ document.addEventListener('DOMContentLoaded', () => {
             title: '',
             message: '',
             isVisible: false,
+        },
+        brb: {
+            message: 'Be Right Back',
+            isVisible: false,
+        },
+        theme: {
+            accentColor: '#00ff88',
+            backgroundOpacity: 80,
         }
     };
 
@@ -74,6 +101,16 @@ document.addEventListener('DOMContentLoaded', () => {
     ws.on('popup_state_change', (popupState) => {
         localState.popup.isVisible = popupState.isVisible;
         updatePopupStatusUI();
+    });
+
+    ws.on('brb_state_change', (brbState) => {
+        localState.brb = { ...localState.brb, ...brbState };
+        updateBrbStatusUI();
+    });
+
+    ws.on('theme_change', (themeState) => {
+        localState.theme = { ...localState.theme, ...themeState };
+        updateThemeUI();
     });
 
 
@@ -111,6 +148,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateBrbStatusUI() {
+        if (localState.brb.isVisible) {
+            elements.brbStatusBadge.classList.add('active-pro');
+            elements.brbStatusText.textContent = 'Active';
+        } else {
+            elements.brbStatusBadge.classList.remove('active-pro');
+            elements.brbStatusText.textContent = 'Inactive';
+        }
+    }
+
+    function updateThemeUI() {
+        if (elements.accentColor) {
+            elements.accentColor.value = localState.theme.accentColor;
+        }
+        if (elements.backgroundOpacity) {
+            elements.backgroundOpacity.value = localState.theme.backgroundOpacity;
+            elements.backgroundOpacityValue.textContent = localState.theme.backgroundOpacity;
+        }
+    }
+
     function updateUIFromState() {
         // Ticker
         elements.tickerMessages.value = localState.ticker.messages.join('\n');
@@ -123,6 +180,16 @@ document.addEventListener('DOMContentLoaded', () => {
         elements.popupTitle.value = localState.popup.title;
         elements.popupMessage.value = localState.popup.message;
         updatePopupStatusUI();
+
+        // BRB
+        if (elements.brbMessage) {
+            elements.brbMessage.value = localState.brb.message;
+            elements.brbPreview.textContent = localState.brb.message;
+        }
+        updateBrbStatusUI();
+
+        // Theme
+        updateThemeUI();
     }
 
 
@@ -161,6 +228,55 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.hidePopup.addEventListener('click', () => {
         ws.send('popup_hide');
     });
+
+    // BRB Controls
+    if (elements.showBrb) {
+        elements.showBrb.addEventListener('click', () => {
+            const brbData = {
+                message: elements.brbMessage.value,
+            };
+            ws.send('brb_show', brbData);
+        });
+    }
+
+    if (elements.hideBrb) {
+        elements.hideBrb.addEventListener('click', () => {
+            ws.send('brb_hide');
+        });
+    }
+
+    if (elements.brbMessage) {
+        elements.brbMessage.addEventListener('input', (e) => {
+            elements.brbPreview.textContent = e.target.value;
+        });
+    }
+
+    // Theme Controls
+    if (elements.applyTheme) {
+        elements.applyTheme.addEventListener('click', () => {
+            const themeData = {
+                accentColor: elements.accentColor.value,
+                backgroundOpacity: parseInt(elements.backgroundOpacity.value, 10),
+            };
+            ws.send('theme_change', themeData);
+        });
+    }
+
+    if (elements.resetTheme) {
+        elements.resetTheme.addEventListener('click', () => {
+            const defaultTheme = {
+                accentColor: '#00ff88',
+                backgroundOpacity: 80,
+            };
+            ws.send('theme_change', defaultTheme);
+        });
+    }
+
+    if (elements.backgroundOpacity) {
+        elements.backgroundOpacity.addEventListener('input', (e) => {
+            elements.backgroundOpacityValue.textContent = e.target.value;
+        });
+    }
 
 
     // --- Utility Functions ---

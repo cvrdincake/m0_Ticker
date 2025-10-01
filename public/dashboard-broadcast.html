@@ -112,6 +112,84 @@
                     </div>
                 </form>
             </div>
+
+            <!-- BRB (Be Right Back) Widget -->
+            <div class="glass-card-pro brb-widget-pro" id="brbWidget">
+                <div class="widget-header-pro">
+                    <h2 class="widget-title-pro">Be Right Back</h2>
+                    <div class="status-badge-pro" id="brbStatusBadge">
+                        <div class="status-dot-pro"></div>
+                        <span id="brbStatusText">Inactive</span>
+                    </div>
+                </div>
+
+                <form id="brbForm">
+                    <div class="form-group-pro">
+                        <label class="form-label-pro" for="brbMessage">BRB Message</label>
+                        <input 
+                            type="text" 
+                            id="brbMessage" 
+                            class="form-input-pro" 
+                            placeholder="Be Right Back..."
+                            value="Be Right Back"
+                        >
+                    </div>
+
+                    <div class="brb-preview-pro" id="brbPreview">
+                        Be Right Back
+                    </div>
+
+                    <div class="btn-group-pro">
+                        <button type="button" class="btn-pro btn-pro-primary" id="showBrb">Show BRB</button>
+                        <button type="button" class="btn-pro btn-pro-secondary" id="hideBrb">Hide BRB</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Theme Control Widget -->
+            <div class="glass-card-pro" id="themeWidget">
+                <div class="widget-header-pro">
+                    <h2 class="widget-title-pro">Theme & Style</h2>
+                    <div class="status-badge-pro active-pro">
+                        <div class="status-dot-pro"></div>
+                        <span>Active</span>
+                    </div>
+                </div>
+
+                <form id="themeForm">
+                    <div class="form-row-pro">
+                        <div class="form-group-pro">
+                            <label class="form-label-pro" for="accentColor">Accent Color</label>
+                            <input 
+                                type="color" 
+                                id="accentColor" 
+                                class="form-color-input-pro" 
+                                value="#00ff88"
+                            >
+                        </div>
+                        
+                        <div class="form-group-pro">
+                            <label class="form-label-pro" for="backgroundOpacity">Background Opacity</label>
+                            <div class="range-container-pro">
+                                <input 
+                                    type="range" 
+                                    id="backgroundOpacity" 
+                                    class="form-range-pro" 
+                                    min="0" 
+                                    max="100" 
+                                    value="80"
+                                >
+                                <span class="range-value-pro" id="backgroundOpacityValue">80</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group-pro">
+                        <button type="button" class="btn-pro btn-pro-primary" id="applyTheme">Apply Theme</button>
+                        <button type="button" class="btn-pro btn-pro-glass" id="resetTheme">Reset</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
