@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>M0 Ticker - Output Overlay</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Scripts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/design-system.css">
+  <link rel="stylesheet" href="css/widgets.css">
+</head>
+<body>
+  <!-- Ticker Widget Container -->
+  <div id="ticker-container" class="ticker-overlay">
+    <div class="ticker-container">
+      <div class="ticker-content" id="ticker-text">
+        Welcome to M0 Ticker - Professional Streaming Widgets
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Widget Container -->
+  <div id="popup-container" class="popup-overlay">
+    <div class="popup-container">
+      <div class="popup-close" onclick="hidePopup()">×</div>
+      <h2 class="popup-title" id="popup-title">Notification</h2>
+      <p class="popup-message" id="popup-message">This is a sample popup message.</p>
+    </div>
+  </div>
+
+  <!-- BRB Widget Container -->
+  <div id="brb-container" class="brb-overlay">
+    <div class="brb-content">
+      <div class="brb-icon" id="brb-icon">☕</div>
+      <h1 class="brb-title" id="brb-title">Be Right Back</h1>
+      <p class="brb-message" id="brb-message">Taking a quick break, back soon!</p>
+    </div>
+    <div class="brb-pulse"></div>
+    <div class="brb-pulse"></div>
+    <div class="brb-pulse"></div>
+  </div>
+
+  <!-- Debug Info (hidden by default) -->
+  <div id="debug-info" style="position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; z-index: 10000; display: none;">
+    <div>Status: <span id="debug-status">Initializing...</span></div>
+    <div>WebSocket: <span id="debug-ws">Connecting...</span></div>
+    <div>Last Message: <span id="debug-message">None</span></div>
+  </div>
+
+  <!-- Component Scripts -->
+  <script src="js/websocket-client.js"></script>
+  <script src="js/ticker-component.js"></script>
+  <script src="js/popup-component.js"></script>
+  <script src="js/brb-component.js"></script>
+  <script src="js/output-controller.js"></script>
+
+  <script>
+    // Initialize output overlay
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('🎬 Output overlay initializing...');
+      
+      // Show debug info if needed (for development)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('debug') === 'true') {
+        document.getElementById('debug-info').style.display = 'block';
+        updateDebugStatus('Debug mode enabled');
+      }
+      
+      // Initialize WebSocket client
+      if (typeof WebSocketClient !== 'undefined') {
+        window.wsClient = new WebSocketClient();
+        console.log('✅ WebSocket client initialized');
+        updateDebugWS('Initialized');
+      } else {
+        console.error('❌ WebSocketClient not found');
+        updateDebugWS('Error: Client not found');
+      }
+      
+      // Initialize output controller
+      if (typeof OutputController !== 'undefined') {
+        window.outputController = new OutputController(window.wsClient);
+        console.log('✅ Output controller initialized');
+        updateDebugStatus('Controller ready');
+      } else {
+        console.error('❌ OutputController not found');
+        updateDebugStatus('Error: Controller not found');
+      }
+      
+      // Test GSAP
+      if (typeof gsap !== 'undefined') {
+        console.log('✅ GSAP loaded');
+        // Test animation
+        gsap.set('#ticker-container', { y: 100, opacity: 0 });
+      } else {
+        console.error('❌ GSAP not loaded');
+      }
+      
+      console.log('🎬 Output overlay ready');
+    });
+    
+    // Debug functions
+    function updateDebugStatus(status) {
+      const el = document.getElementById('debug-status');
+      if (el) el.textContent = status;
+    }
+    
+    function updateDebugWS(status) {
+      const el = document.getElementById('debug-ws');
+      if (el) el.textContent = status;
+    }
+    
+    function updateDebugMessage(message) {
+      const el = document.getElementById('debug-message');
+      if (el) el.textContent = JSON.stringify(message).substring(0, 50) + '...';
+    }
+    
+    // Global widget control functions (for popup close button)
+    function hidePopup() {
+      if (window.outputController) {
+        window.outputController.hidePopup();
+      }
+    }
+    
+    // Keyboard shortcuts for testing
+    document.addEventListener('keydown', function(e) {
+      // Only respond to shortcuts if debug mode is enabled
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('debug') !== 'true') return;
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case 't':
+            e.preventDefault();
+            // Test ticker
+            if (window.outputController) {
+              window.outputController.showTicker('Test ticker message');
+            }
+            break;
+          case 'p':
+            e.preventDefault();
+            // Test popup
+            if (window.outputController) {
+              window.outputController.showPopup('Test Title', 'This is a test popup message');
+            }
+            break;
+          case 'b':
+            e.preventDefault();
+            // Test BRB
+            if (window.outputController) {
+              window.outputController.showBRB('Testing', 'BRB screen test');
+            }
+            break;
+          case 'h':
+            e.preventDefault();
+            // Hide all
+            if (window.outputController) {
+              window.outputController.hideAll();
+            }
+            break;
+        }
+      }
+    });
+    
+    // Window focus handler for better performance
+    let isVisible = true;
+    document.addEventListener('visibilitychange', function() {
+      isVisible = !document.hidden;
+      if (isVisible) {
+        console.log('🎬 Output overlay became visible');
+      } else {
+        console.log('🎬 Output overlay hidden');
+      }
+    });
+    
+    // Error handler
+    window.addEventListener('error', function(e) {
+      console.error('❌ Output overlay error:', e.error);
+      updateDebugStatus(`Error: ${e.error.message}`);
+    });
+    
+    // Unhandled promise rejection handler
+    window.addEventListener('unhandledrejection', function(e) {
+      console.error('❌ Unhandled promise rejection:', e.reason);
+      updateDebugStatus(`Promise Error: ${e.reason}`);
+    });
+  </script>
+</body>
+</html>

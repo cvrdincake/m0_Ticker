@@ -149,6 +149,7 @@ const server = app.listen(PORT, () => {
   console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
   console.log(`🎬 Output: http://localhost:${PORT}/output.html`);
   console.log(`📡 API Status: http://localhost:${PORT}/api/status`);
+  console.log(`✨ Professional Design System Enabled`);
 });
 
 server.on('error', (err) => {

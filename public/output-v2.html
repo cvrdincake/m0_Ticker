@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M0 Ticker Output</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/design-system.css">
+    <style>
+        /* Output overlay styles with professional glassmorphism */
+        body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: var(--font-primary);
+            overflow: hidden;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        /* Ultra-professional ticker design */
+        #ticker-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.9) 0%, 
+                rgba(26, 26, 26, 0.95) 50%, 
+                rgba(0, 0, 0, 0.9) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 2px solid rgba(0, 255, 136, 0.3);
+            box-shadow: 
+                0 -8px 32px rgba(0, 0, 0, 0.4),
+                0 0 40px rgba(0, 255, 136, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            opacity: 0;
+            transform: translateY(100%);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: var(--z-overlay);
+        }
+        
+        #ticker-container.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #ticker-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--accent-secondary) 50%, 
+                transparent 100%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        #ticker-content {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            padding: 0 var(--space-xl);
+        }
+        
+        #ticker-text {
+            white-space: nowrap;
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--primary-white);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            letter-spacing: 0.02em;
+            transform: translateX(100%);
+        }
+        
+        /* Professional popup design */
+        #popup-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 600px;
+            width: 90%;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.1) 0%, 
+                rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-xl);
+            padding: var(--space-xxl);
+            box-shadow: 
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 80px rgba(0, 255, 136, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: var(--z-modal);
+            text-align: center;
+        }
+        
+        #popup-container.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        
+        #popup-container::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, 
+                var(--accent-secondary), 
+                transparent, 
+                var(--accent-secondary));
+            border-radius: var(--radius-xl);
+            z-index: -1;
+            opacity: 0;
+            animation: borderGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes borderGlow {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.6; }
+        }
+        
+        #popup-title {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: var(--primary-white);
+            margin-bottom: var(--space-lg);
+            background: linear-gradient(135deg, var(--primary-white), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        #popup-message {
+            font-size: 1.125rem;
+            line-height: 1.6;
+            color: var(--silver);
+            margin: 0;
+        }
+        
+        /* Ultra-professional BRB overlay */
+        #brb-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.95) 0%, 
+                rgba(26, 26, 26, 0.98) 50%, 
+                rgba(0, 0, 0, 0.95) 100%);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            opacity: 0;
+            transform: scale(1.1);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: var(--z-modal);
+        }
+        
+        #brb-container.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        #brb-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(0, 255, 136, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+            animation: float 8s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
+        #brb-content {
+            position: relative;
+            z-index: 2;
+            max-width: 800px;
+            padding: var(--space-xxl);
+        }
+        
+        #brb-title {
+            font-size: 4rem;
+            font-weight: 900;
+            background: linear-gradient(135deg, 
+                var(--primary-white) 0%, 
+                var(--accent-secondary) 50%, 
+                var(--primary-white) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: var(--space-lg);
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+            letter-spacing: -0.02em;
+            animation: titlePulse 3s ease-in-out infinite;
+        }
+        
+        @keyframes titlePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+        }
+        
+        #brb-subtitle {
+            font-size: 1.5rem;
+            font-weight: 400;
+            color: var(--silver);
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        /* Loading spinner for BRB */
+        .brb-spinner {
+            position: absolute;
+            bottom: 15%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--accent-secondary);
+            border-radius: 50%;
+            animation: spin 2s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            100% { transform: translateX(-50%) rotate(360deg); }
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            #ticker-container {
+                height: 60px;
+            }
+            
+            #ticker-text {
+                font-size: 1.25rem;
+            }
+            
+            #popup-container {
+                width: 95%;
+                padding: var(--space-xl);
+            }
+            
+            #popup-title {
+                font-size: 1.5rem;
+            }
+            
+            #popup-message {
+                font-size: 1rem;
+            }
+            
+            #brb-title {
+                font-size: 2.5rem;
+            }
+            
+            #brb-subtitle {
+                font-size: 1.25rem;
+            }
+        }
+        
+        /* High-performance optimizations */
+        .gpu-accelerated {
+            transform: translateZ(0);
+            will-change: transform, opacity;
+        }
+        
+        /* Custom scrollbar for any scrollable content */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-secondary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary-white);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+</head>
+<body>
+    <!-- Ticker Widget -->
+    <div id="ticker-container" class="gpu-accelerated">
+        <div id="ticker-content">
+            <div id="ticker-text">Welcome to M0 Ticker</div>
+        </div>
+    </div>
+
+    <!-- Popup Widget -->
+    <div id="popup-container" class="gpu-accelerated">
+        <h2 id="popup-title">Notification</h2>
+        <p id="popup-message">This is a sample popup message</p>
+    </div>
+
+    <!-- BRB Overlay -->
+    <div id="brb-container" class="gpu-accelerated">
+        <div id="brb-content">
+            <h1 id="brb-title">Be Right Back</h1>
+            <p id="brb-subtitle">Taking a quick break...</p>
+        </div>
+        <div class="brb-spinner"></div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/js/websocket-client.js"></script>
+    <script src="/js/ticker-component.js"></script>
+    <script src="/js/popup-component.js"></script>
+    <script src="/js/brb-component.js"></script>
+    <script src="/js/output-controller.js"></script>
+    <script>
+        // Enhanced output initialization with professional GSAP animations
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎬 Professional M0 Ticker Output initialized');
+            
+            // Initialize with GSAP timeline for smooth entrance
+            const initTimeline = gsap.timeline();
+            
+            // Pre-load animations
+            gsap.set(['#ticker-container', '#popup-container', '#brb-container'], {
+                opacity: 0
+            });
+            
+            // Professional entrance animation
+            initTimeline
+                .to('body', {duration: 0.5, opacity: 1, ease: 'power2.out'})
+                .fromTo('#ticker-container', 
+                    {y: 100, opacity: 0}, 
+                    {y: 0, opacity: 1, duration: 0.8, ease: 'power3.out'}, 
+                    '-=0.3')
+                .set('#ticker-container', {opacity: 0, y: 100}); // Reset for future use
+            
+            // Enhanced ticker animation function
+            window.animateTicker = function(text, speed = 'medium') {
+                const tickerText = document.getElementById('ticker-text');
+                const container = document.getElementById('ticker-container');
+                
+                if (tickerText && text) {
+                    tickerText.textContent = text;
+                    
+                    const speedMap = {
+                        slow: 60,
+                        medium: 40,
+                        fast: 25
+                    };
+                    
+                    const duration = speedMap[speed] || 40;
+                    
+                    // Professional ticker animation with GSAP
+                    const tl = gsap.timeline({repeat: -1});
+                    
+                    tl.set(tickerText, {x: '100%'})
+                      .to(tickerText, {
+                          x: '-100%',
+                          duration: duration,
+                          ease: 'none'
+                      });
+                    
+                    return tl;
+                }
+            };
+            
+            // Enhanced popup animation
+            window.showPopupProfessional = function(title, message, duration = 5000) {
+                const container = document.getElementById('popup-container');
+                const titleEl = document.getElementById('popup-title');
+                const messageEl = document.getElementById('popup-message');
+                
+                if (titleEl) titleEl.textContent = title;
+                if (messageEl) messageEl.textContent = message;
+                
+                // Professional popup entrance
+                const tl = gsap.timeline();
+                
+                tl.set(container, {scale: 0.8, opacity: 0, display: 'block'})
+                  .to(container, {
+                      scale: 1,
+                      opacity: 1,
+                      duration: 0.6,
+                      ease: 'back.out(1.7)'
+                  })
+                  .to(container, {
+                      scale: 0.95,
+                      opacity: 0,
+                      duration: 0.4,
+                      ease: 'power2.in',
+                      delay: duration / 1000
+                  })
+                  .set(container, {display: 'none'});
+            };
+            
+            // Enhanced BRB animation
+            window.showBRBProfessional = function(title, subtitle) {
+                const container = document.getElementById('brb-container');
+                const titleEl = document.getElementById('brb-title');
+                const subtitleEl = document.getElementById('brb-subtitle');
+                
+                if (titleEl) titleEl.textContent = title;
+                if (subtitleEl) subtitleEl.textContent = subtitle;
+                
+                // Professional BRB entrance with multiple layers
+                const tl = gsap.timeline();
+                
+                tl.set(container, {scale: 1.1, opacity: 0, display: 'flex'})
+                  .to(container, {
+                      scale: 1,
+                      opacity: 1,
+                      duration: 1,
+                      ease: 'power3.out'
+                  })
+                  .fromTo(titleEl, 
+                      {y: 50, opacity: 0}, 
+                      {y: 0, opacity: 1, duration: 0.8, ease: 'power3.out'}, 
+                      '-=0.5')
+                  .fromTo(subtitleEl, 
+                      {y: 30, opacity: 0}, 
+                      {y: 0, opacity: 1, duration: 0.6, ease: 'power3.out'}, 
+                      '-=0.4');
+            };
+            
+            window.hideBRBProfessional = function() {
+                const container = document.getElementById('brb-container');
+                
+                gsap.to(container, {
+                    scale: 1.1,
+                    opacity: 0,
+                    duration: 0.8,
+                    ease: 'power3.in',
+                    onComplete: () => {
+                        container.style.display = 'none';
+                    }
+                });
+            };
+            
+            // Initialize output controller
+            if (window.OutputController) {
+                window.outputController = new OutputController();
+            }
+            
+            console.log('✨ Professional animations system loaded');
+        });
+    </script>
+</body>
+</html>
