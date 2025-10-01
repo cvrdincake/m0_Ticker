@@ -11,6 +11,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Default route - serve broadcast-ready dashboard
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'dashboard-broadcast.html'));
+});
+
 // Global state for all widgets
 let globalState = {
   ticker: {
@@ -146,10 +151,10 @@ const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 M0 Ticker Server running on port ${PORT}`);
-  console.log(`🎛️  Professional Dashboard: http://localhost:${PORT}/dashboard-broadcast.html`);
+  console.log(`🎛️  Professional Dashboard: http://localhost:${PORT}/`);
   console.log(`🎬 Broadcast Output: http://localhost:${PORT}/output-broadcast.html`);
-  console.log(`� Legacy Dashboard: http://localhost:${PORT}/dashboard.html`);
-  console.log(`�📡 API Status: http://localhost:${PORT}/api/status`);
+  console.log(`📊 Legacy Dashboard: http://localhost:${PORT}/dashboard.html`);
+  console.log(`📡 API Status: http://localhost:${PORT}/api/status`);
   console.log(`✨ Broadcast Ready Design System Enabled`);
 });
 

@@ -35,9 +35,10 @@ node server.js
 ```
 
 ### Access Broadcast Interfaces
-- **🎛️ Professional Dashboard**: http://localhost:3000/dashboard-broadcast.html
+- **🎛️ Professional Dashboard**: http://localhost:3000/ (default)
 - **🎬 Broadcast Output**: http://localhost:3000/output-broadcast.html
-- **📊 API Status**: http://localhost:3000/api/status
+- **📊 Legacy Dashboard**: http://localhost:3000/dashboard.html
+- **📡 API Status**: http://localhost:3000/api/status
 
 ### Demo Setup
 ```bash
