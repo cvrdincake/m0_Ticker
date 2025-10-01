@@ -37,48 +37,43 @@ node server.js
 ### Access Broadcast Interfaces
 - **🎛️ Professional Dashboard**: http://localhost:3000/ (default)
 - **🎬 Broadcast Output**: http://localhost:3000/output-broadcast.html
-- **📊 Legacy Dashboard**: http://localhost:3000/dashboard.html
-- **📡 API Status**: http://localhost:3000/api/status
+- ** API Status**: http://localhost:3000/api/status
 
 ### Demo Setup
 ```bash
 ./demo-broadcast.sh
 ```
 
-## 📁 Broadcast Ready Project Structure
+## 📁 Consolidated Project Structure
 
 ```
 m0_Ticker/
-├── 🎛️ BROADCAST READY FILES
+├── 🎛️ BROADCAST READY INTERFACES
 │   ├── dashboard-broadcast.html         # Professional control dashboard
-│   ├── output-broadcast.html            # Broadcast-ready overlay
+│   └── output-broadcast.html            # Broadcast-ready overlay
+├── 🎨 DESIGN SYSTEM
 │   └── css/
-│       └── broadcast-ready-design.css   # Complete design system
+│       └── broadcast-ready-design.css   # Complete glass morphism design system
+├── ⚙️ CORE JAVASCRIPT
+│   └── js/
+│       ├── websocket-client.js          # WebSocket connection & state management
+│       └── output-controller.js         # Output overlay logic
 ├── 📖 DOCUMENTATION
-│   ├── README.md                        # Main documentation
-│   ├── BROADCAST_DESIGN.md              # Design system guide
-│   └── DESIGN_SYSTEM.md                 # Legacy design docs
-├── 🚀 DEMO & SETUP
-│   └── demo-broadcast.sh                # One-click demo setup
+│   ├── README.md                        # Main documentation (this file)
+│   └── BROADCAST_DESIGN.md              # Complete design system guide
+├── 🚀 SCRIPTS & SETUP
+│   ├── demo-broadcast.sh                # One-click demo setup
+│   └── run-and-open.sh                  # Development server script
 ├── 🏗️ CORE SYSTEM
-│   ├── server.js                        # Node.js server with WebSocket
-│   ├── package.json                     # Dependencies
-│   └── public/
-│       ├── 📱 INTERFACES
-│       │   ├── dashboard.html           # Legacy dashboard
-│       │   ├── dashboard-v2.html        # Enhanced dashboard
-│       │   ├── output.html              # Legacy output
-│       │   └── output-v2.html           # Enhanced output
-│       ├── 🎨 STYLES
-│       │   ├── design-system.css        # Legacy design
-│       │   ├── design-system-v2.css     # Enhanced design
-│       │   ├── main.css                 # Legacy styles
-│       │   └── widgets.css              # Widget styles
-│       └── ⚙️ JAVASCRIPT
-│           ├── websocket-client.js      # WebSocket connection
-│           ├── dashboard-controller.js   # Dashboard logic
-│           ├── output-controller.js     # Output logic
-│           ├── ticker-component.js      # Ticker widget
+│   ├── server.js                        # Node.js Express server with WebSocket
+│   ├── package.json                     # Dependencies and scripts
+│   └── package-lock.json               # Dependency lock file
+└── 🧪 TESTING
+    └── tests/                           # Test suite
+        ├── client-normalisers.test.js
+        ├── server.integration.test.js
+        └── [additional test files]
+```
 │           ├── popup-component.js       # Popup widget
 │           ├── brb-component.js         # BRB widget
 │           └── state-manager.js         # State management
