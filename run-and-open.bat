@@ -1,6 +1,11 @@
 @echo off
 echo Starting M0 Ticker Server...
 
+REM Kill any existing processes on port 3000
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :3000') do (
+    taskkill /F /PID %%a >nul 2>&1
+)
+
 REM Start the server in the background
 start /min node server.js
 

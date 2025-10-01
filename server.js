@@ -144,9 +144,21 @@ app.post('/api/theme', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 M0 Ticker Server running on port ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard.html`);
   console.log(`🎬 Output: http://localhost:${PORT}/output.html`);
   console.log(`📡 API Status: http://localhost:${PORT}/api/status`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use. Please:`);
+    console.error(`   1. Kill the existing process using port ${PORT}`);
+    console.error(`   2. Or set a different port: PORT=3001 node server.js`);
+    process.exit(1);
+  } else {
+    console.error('❌ Server error:', err);
+    process.exit(1);
+  }
 });

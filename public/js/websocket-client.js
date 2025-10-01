@@ -12,7 +12,7 @@ class WebSocketClient {
 
   connect() {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
     try {
       this.ws = new WebSocket(wsUrl);
@@ -31,13 +31,13 @@ class WebSocketClient {
       this.emit('connected');
       
       // Request current state
-      this.send('state_request', {});
+      this.send('state_sync', {});
     };
 
     this.ws.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
-        this.emit(message.type, message.data);
+        this.emit(message.event, message.data);
       } catch (error) {
         console.error('WebSocket message parse error:', error);
       }
