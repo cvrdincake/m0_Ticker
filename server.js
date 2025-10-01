@@ -20,24 +20,14 @@ app.get('/', (req, res) => {
 let globalState = {
   ticker: {
     messages: [],
-    isActive: false,
-    speed: 100,
-    color: '#ffffff'
+    isRunning: false,
+    speed: 50,
+    textColor: '#ffffff'
   },
   popup: {
     isVisible: false,
     title: '',
-    message: '',
-    duration: 5000
-  },
-  brb: {
-    isActive: false,
-    message: 'Be Right Back',
-    customMessage: ''
-  },
-  theme: {
-    current: 'dark',
-    accent: '#00ff88'
+    message: ''
   }
 };
 
@@ -46,53 +36,56 @@ const clients = new Set();
 
 // Broadcast to all connected clients
 function broadcast(event, data) {
+  const message = JSON.stringify({ event, data });
   clients.forEach(ws => {
     if (ws.readyState === ws.OPEN) {
-      ws.send(JSON.stringify({ event, data }));
+      ws.send(message);
     }
   });
+  console.log('📢 Broadcasting:', { event, data });
 }
 
 // WebSocket endpoint
-app.ws('/ws', (ws, req) => {
+app.ws('/ws', (ws) => {
   clients.add(ws);
+  console.log(`🔌 Client connected. Total clients: ${clients.size}`);
   
   // Send current state on connection
-  ws.send(JSON.stringify({ event: 'state_sync', data: globalState }));
+  ws.send(JSON.stringify({ event: 'state_update', data: globalState }));
   
   ws.on('message', (message) => {
     try {
       const { event, data } = JSON.parse(message);
+      console.log('📥 Received message:', { event, data });
       
       switch (event) {
-        case 'ticker_update':
-          globalState.ticker = { ...globalState.ticker, ...data };
-          broadcast('ticker_update', globalState.ticker);
+        case 'ticker_start':
+          globalState.ticker = { ...globalState.ticker, ...data, isRunning: true };
+          broadcast('ticker_state_change', globalState.ticker);
           break;
           
+        case 'ticker_stop':
+          globalState.ticker.isRunning = false;
+          broadcast('ticker_state_change', globalState.ticker);
+          break;
+
         case 'popup_show':
           globalState.popup = { ...globalState.popup, ...data, isVisible: true };
-          broadcast('popup_show', globalState.popup);
+          broadcast('popup_state_change', globalState.popup);
           break;
           
         case 'popup_hide':
           globalState.popup.isVisible = false;
-          broadcast('popup_hide', globalState.popup);
+          broadcast('popup_state_change', globalState.popup);
           break;
           
-        case 'brb_update':
-          globalState.brb = { ...globalState.brb, ...data };
-          broadcast('brb_update', globalState.brb);
+        case 'state_sync_request':
+        case 'state_sync': // Handle old client event for compatibility
+          ws.send(JSON.stringify({ event: 'state_update', data: globalState }));
           break;
-          
-        case 'theme_change':
-          globalState.theme = { ...globalState.theme, ...data };
-          broadcast('theme_change', globalState.theme);
-          break;
-          
-        case 'state_sync':
-          ws.send(JSON.stringify({ event: 'state_sync', data: globalState }));
-          break;
+
+        default:
+            console.warn(`Unknown event type: ${event}`);
       }
     } catch (error) {
       console.error('WebSocket message error:', error);
@@ -101,10 +94,11 @@ app.ws('/ws', (ws, req) => {
   
   ws.on('close', () => {
     clients.delete(ws);
+    console.log(`🔌 Client disconnected. Total clients: ${clients.size}`);
   });
 });
 
-// API endpoints
+// API endpoints for status checks
 app.get('/api/status', (req, res) => {
   res.json({
     status: 'running',
@@ -118,44 +112,13 @@ app.get('/api/state', (req, res) => {
   res.json(globalState);
 });
 
-app.post('/api/ticker', (req, res) => {
-  globalState.ticker = { ...globalState.ticker, ...req.body };
-  broadcast('ticker_update', globalState.ticker);
-  res.json(globalState.ticker);
-});
-
-app.post('/api/popup', (req, res) => {
-  if (req.body.action === 'show') {
-    globalState.popup = { ...globalState.popup, ...req.body, isVisible: true };
-    broadcast('popup_show', globalState.popup);
-  } else if (req.body.action === 'hide') {
-    globalState.popup.isVisible = false;
-    broadcast('popup_hide', globalState.popup);
-  }
-  res.json(globalState.popup);
-});
-
-app.post('/api/brb', (req, res) => {
-  globalState.brb = { ...globalState.brb, ...req.body };
-  broadcast('brb_update', globalState.brb);
-  res.json(globalState.brb);
-});
-
-app.post('/api/theme', (req, res) => {
-  globalState.theme = { ...globalState.theme, ...req.body };
-  broadcast('theme_change', globalState.theme);
-  res.json(globalState.theme);
-});
-
 const PORT = process.env.PORT || 3000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 M0 Ticker Server running on port ${PORT}`);
   console.log(`🎛️  Professional Dashboard: http://localhost:${PORT}/`);
-  console.log(`🎬 Broadcast Output: http://localhost:${PORT}/output-broadcast.html`);
-  console.log(` API Status: http://localhost:${PORT}/api/status`);
-  console.log(`✨ Broadcast Ready Design System Enabled`);
-  console.log(`🧹 Consolidated & Optimized Codebase`);
+  console.log(`🎬 Broadcast Output: http://localhost:${PORT}/output-pro.html`);
+  console.log(`✨ API Status: http://localhost:${PORT}/api/status`);
 });
 
 server.on('error', (err) => {

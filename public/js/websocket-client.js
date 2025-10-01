@@ -33,7 +33,7 @@ class WebSocketClient {
       this.notifyStatusChange(true);
       
       // Request current state
-      this.send('state_sync', {});
+      this.send('state_sync_request', {});
     };
 
     this.ws.onmessage = (event) => {

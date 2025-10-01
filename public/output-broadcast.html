@@ -384,87 +384,15 @@
 
     <!-- JavaScript -->
     <script src="/js/websocket-client.js"></script>
-    <script src="/js/ticker-component.js"></script>
-    <script src="/js/popup-component.js"></script>
-    <script src="/js/brb-component.js"></script>
     <script src="/js/output-controller.js"></script>
     <script>
         // Enhanced output controller initialization
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🎬 M0 Ticker Output - Broadcast Ready');
-            
-            // Initialize professional animations
-            const tickerContainer = document.getElementById('ticker-container');
-            const popupContainer = document.getElementById('popup-container');
-            const brbContainer = document.getElementById('brb-container');
-
-            // Enhanced fade in animation for initial load
+            // Fade in animation for initial load
             setTimeout(() => {
                 document.body.style.opacity = '1';
             }, 100);
-
-            // Professional ticker animations
-            let tickerAnimationId;
-            
-            function animateTicker(element, speed = 50) {
-                const containerWidth = element.parentElement.offsetWidth;
-                const textWidth = element.offsetWidth;
-                let position = containerWidth;
-
-                function animate() {
-                    position -= speed / 10;
-                    
-                    if (position < -textWidth) {
-                        position = containerWidth;
-                    }
-                    
-                    element.style.transform = `translateX(${position}px)`;
-                    tickerAnimationId = requestAnimationFrame(animate);
-                }
-                
-                return animate;
-            }
-
-            // Enhanced component visibility management
-            window.showComponent = function(component, duration = null) {
-                const element = document.getElementById(component + '-container');
-                if (element) {
-                    element.classList.add('active');
-                    
-                    if (duration && duration > 0) {
-                        setTimeout(() => {
-                            element.classList.remove('active');
-                        }, duration * 1000);
-                    }
-                }
-            };
-
-            window.hideComponent = function(component) {
-                const element = document.getElementById(component + '-container');
-                if (element) {
-                    element.classList.remove('active');
-                }
-            };
-
-            // Professional error handling
-            window.addEventListener('error', function(e) {
-                console.error('🚨 Output Error:', e);
-            });
-
-            // Professional resize handling
-            let resizeTimer;
-            window.addEventListener('resize', function() {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(() => {
-                    // Recalculate ticker animation if active
-                    const tickerText = document.getElementById('ticker-text');
-                    if (tickerText && tickerContainer.classList.contains('active')) {
-                        cancelAnimationFrame(tickerAnimationId);
-                        const animateFunction = animateTicker(tickerText);
-                        animateFunction();
-                    }
-                }, 250);
-            });
         });
     </script>
 </body>
