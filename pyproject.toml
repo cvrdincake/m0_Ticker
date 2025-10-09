@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=67", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "m0-ticker"
+version = "0.1.0"
+description = "Broadcast-ready ticker widgets and highlight tooling."
+readme = "README.md"
+authors = [{ name = "M0 Ticker Maintainers" }]
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent"
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["highlights*", "highlighter*"]
+exclude = [
+    "tests",
+    "tests.*",
+    "public",
+    "public.*",
+    "node_modules",
+    "node_modules.*",
+    "archive",
+    "archive.*"
+]
