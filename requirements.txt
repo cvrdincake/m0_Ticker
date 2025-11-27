@@ -1,0 +1,5 @@
+# Node project dependencies
+express@4.18.2
+ws@8.14.2
+eslint@9.38.0
+vitest@1.5.0

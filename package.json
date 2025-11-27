@@ -1,28 +1,40 @@
 {
-  "name": "void-ticker",
-  "version": "1.0.0",
-  "private": true,
-  "type": "commonjs",
+  "name": "obs-lux-widgets",
+  "version": "2.1.0",
+  "description": "Luxury OBS widgets dashboard and overlay system with ticker marquee and persistent pop-up widgets",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test",
-    "lint": "eslint --config eslint.config.cjs \"server.js\" \"tests/**/*.js\" \"public/**/*.js\"",
-    "lint:fix": "npm run lint -- --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "dev": "node server.js",
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "playwright:install": "playwright install --with-deps"
   },
+  "keywords": [
+    "obs",
+    "overlay",
+    "streaming",
+    "ticker",
+    "broadcast",
+    "twitch",
+    "youtube",
+    "websocket"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "express-ws": "^5.0.2",
-    "lodash": "^4.17.21",
-    "ws": "^8.18.3"
+    "ws": "^8.14.2",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-html": "^7.1.0",
-    "prettier": "^3.2.5"
+    "@playwright/test": "^1.48.2",
+    "eslint": "^9.38.0",
+    "vitest": "^1.5.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>m0BS Widgets - Control Suite</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/dashboard.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">OBS Luxe</div>
+      <nav class="nav">
+        <div class="nav-item active" data-tab="overlay">
+          <span class="nav-icon">📺</span>
+          <span>Overlay</span>
+          <span class="hotkey-badge">1</span>
+        </div>
+        <div class="nav-item" data-tab="ticker">
+          <span class="nav-icon">📰</span>
+          <span>Ticker</span>
+          <span class="hotkey-badge">2</span>
+        </div>
+        <div class="nav-item" data-tab="popup">
+          <span class="nav-icon">💬</span>
+          <span>Pop-up</span>
+          <span class="hotkey-badge">3</span>
+        </div>
+        <div class="nav-item" data-tab="scenes">
+          <span class="nav-icon">🎬</span>
+          <span>Scenes</span>
+          <span class="hotkey-badge">4</span>
+        </div>
+        <div class="nav-item" data-tab="theme">
+          <span class="nav-icon">🎨</span>
+          <span>Theme</span>
+          <span class="hotkey-badge">5</span>
+        </div>
+        <div class="nav-item" data-tab="system">
+          <span class="nav-icon">⚙️</span>
+          <span>System</span>
+          <span class="hotkey-badge">6</span>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="header">
+        <h1>Control Suite</h1>
+        <div class="connection-status">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Connecting...</span>
+        </div>
+      </div>
+
+      <!-- OVERLAY TAB -->
+      <div class="tab-content active" id="tab-overlay" data-module="overlay">
+        <!-- Global Scale Control -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Global Scale</div>
+              <div class="panel-subtitle">Quick resolution presets and custom scaling</div>
+            </div>
+          </div>
+          <div class="pill-group" style="margin-bottom: 20px;">
+            <div class="pill" data-action="overlay:set-scale-preset" data-scale="0.8">4K (0.8x)</div>
+            <div class="pill" data-action="overlay:set-scale-preset" data-scale="1.2">1440p (1.2x)</div>
+            <div class="pill active" data-action="overlay:set-scale-preset" data-scale="1.75">1080p (1.75x)</div>
+            <div class="pill" data-action="overlay:set-scale-preset" data-scale="2.5">720p (2.5x)</div>
+          </div>
+          <div class="scale-widget">
+            <div class="scale-widget-icon">🎯</div>
+            <div class="scale-widget-content">
+              <div class="form-label">Custom Scale</div>
+              <input type="range" class="slider" id="globalScale" data-action="overlay:scale-slider" min="0.5" max="3" step="0.05" value="1.75">
+              <div class="slider-labels">
+                <span>0.5x</span>
+                <span>3.0x</span>
+              </div>
+            </div>
+            <div class="scale-widget-value" id="globalScaleValue">1.75x</div>
+          </div>
+        </div>
+
+        <!-- Live Preview -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Live Preview</div>
+              <div class="panel-subtitle">Real-time overlay with current settings</div>
+            </div>
+          </div>
+          <div class="theme-preview" data-overlay-preview>
+            <iframe src="/overlay" id="overlayFrame" data-overlay-frame></iframe>
+          </div>
+          <div style="margin-top: 16px; display: flex; gap: 12px;">
+            <button class="btn btn-secondary" data-action="overlay:reload-preview">🔄 Reload</button>
+            <button class="btn btn-secondary" data-action="overlay:copy-url">📋 Copy URL</button>
+            <button class="btn btn-secondary" data-action="overlay:toggle-safe-zones">🎯 Safe Zones</button>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Quick Actions</div>
+              <div class="panel-subtitle">Instant controls for live streaming</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" data-action="overlay:show-ticker">
+              ▶️ Show Ticker
+              <span class="hotkey-badge" style="margin-left: auto;">Space</span>
+            </button>
+            <button class="btn btn-secondary" data-action="overlay:hide-ticker">⏸️ Hide Ticker</button>
+            <button class="btn btn-secondary" data-action="overlay:toggle-popup">
+              💬 Toggle Pop-up
+              <span class="hotkey-badge" style="margin-left: auto;">P</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TICKER TAB -->
+      <div class="tab-content" id="tab-ticker">
+        <!-- Timing & Behavior -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Timing & Behavior</div>
+              <div class="panel-subtitle">Control rotation and display patterns</div>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Display Duration</label>
+              <input type="number" class="input" id="tickerDuration" value="10" min="1" max="300">
+              <div class="panel-subtitle" style="margin-top: 4px;">Seconds ticker stays visible</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Rotation Interval</label>
+              <input type="number" class="input" id="tickerInterval" value="5" min="0" max="60">
+              <div class="panel-subtitle" style="margin-top: 4px;">Minutes between shows (0 = continuous)</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scroll Speed</label>
+            <input type="range" class="slider" id="tickerSpeed" min="30" max="150" value="60">
+            <div class="slider-value">
+              <span id="tickerSpeedValue">60 px/s</span>
+              <span class="panel-subtitle">Standard broadcast pace</span>
+            </div>
+            <div class="slider-labels">
+              <span>Slow (30)</span>
+              <span>Fast (150)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Rotation Mode</label>
+            <div class="pill-group" id="tickerRotationPills">
+              <div class="pill active" data-mode="continuous" onclick="setRotationMode(this)">Continuous</div>
+              <div class="pill" data-mode="sequential" onclick="setRotationMode(this)">Sequential</div>
+              <div class="pill" data-mode="random" onclick="setRotationMode(this)">Random</div>
+              <div class="pill" data-mode="weighted" onclick="setRotationMode(this)">Weighted</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle active" id="autoRotate" onclick="toggleAutoRotate(this)">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Auto-rotate messages (respects interval)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle active" id="easingOnWrap" onclick="toggleEasing(this)">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Smooth easing on loop wrap</span>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveTickerSettings()">💾 Save Settings</button>
+        </div>
+
+        <!-- Text Modifiers Help -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">✨ Text Modifiers</div>
+              <div class="panel-subtitle">Use inline formatting in your messages</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Standard Formatting</label>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px; color: #b8b8ba;">
+              <div><code style="color: #d4af37;">**text**</code> → Bold</div>
+              <div><code style="color: #d4af37;">*text*</code> → Italic</div>
+              <div><code style="color: #d4af37;">__text__</code> → Underline</div>
+              <div><code style="color: #d4af37;">~~text~~</code> → Strikethrough</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Animated Effects</label>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px; color: #b8b8ba;">
+              <div><code style="color: #d4af37;">***text***</code> → 🌈 Rainbow</div>
+              <div><code style="color: #d4af37;">^^^^text^^^^</code> → ✨ Glow</div>
+              <div><code style="color: #d4af37;">~~~~text~~~~</code> → ⚡ Shimmer</div>
+              <div><code style="color: #d4af37;">@@text@@</code> → 💫 Pulse</div>
+              <div><code style="color: #d4af37;">##text##</code> → 🎨 Highlight</div>
+              <div><code style="color: #d4af37;">%%text%%</code> → 👻 Fade</div>
+              <div><code style="color: #d4af37;">$$text$$</code> → ✨ Sparkle</div>
+              <div><code style="color: #d4af37;">===text===</code> → 🌑 Shadow</div>
+              <div><code style="color: #d4af37;">+++text+++</code> → 💙 Neon</div>
+              <div><code style="color: #d4af37;">~~~text~~~</code> → 🌊 Wave</div>
+            </div>
+          </div>
+          <div class="panel-subtitle" style="margin-top: 12px;">
+            <strong>Example:</strong> <code>***BREAKING*** news - @@Subscribe@@ now!</code>
+          </div>
+        </div>
+
+        <!-- Message Management -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Message Queue</div>
+              <div class="panel-subtitle">Manage ticker content with inline editing</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Add New Message</label>
+            <textarea class="textarea" id="newMessage" placeholder="Enter your ticker message..." maxlength="500"></textarea>
+            <div class="char-counter" id="charCounter">0 / 500</div>
+          </div>
+
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Accent Words</label>
+              <input type="text" class="input" id="accentWords" placeholder="breaking, live, exclusive">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select class="input" id="messageCategory">
+                <option value="general">General</option>
+                <option value="breaking">Breaking News</option>
+                <option value="update">Update</option>
+                <option value="sponsor">Sponsor</option>
+                <option value="event">Event</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Priority (for weighted rotation)</label>
+              <input type="range" class="slider" id="messagePriority" min="1" max="5" value="1">
+              <div class="slider-value" id="priorityValue">Normal (1x)</div>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="addMessage()">➕ Add Message</button>
+            <button class="btn btn-secondary" onclick="clearMessages()">🗑️ Clear All</button>
+          </div>
+
+          <div class="messages-list" id="messagesList">
+            <div class="empty-state">
+              <div class="empty-state-icon">📝</div>
+              <p>No messages yet. Add your first ticker message above.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Message Templates Section -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Quick Templates</div>
+              <div class="panel-subtitle">Pre-built messages for common scenarios</div>
+            </div>
+          </div>
+          <div id="templatesList"></div>
+        </div>
+
+        <!-- Bulk Operations Section -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Bulk Operations</div>
+              <div class="panel-subtitle">Manage multiple messages at once</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="bulkEnableAll()">✅ Enable All</button>
+            <button class="btn btn-secondary" onclick="bulkDisableAll()">⏸️ Disable All</button>
+            <button class="btn btn-danger" onclick="bulkDeleteDisabled()">🗑️ Delete Disabled</button>
+          </div>
+          <div class="panel-subtitle" style="margin-top: 12px;">
+            Or filter by category:
+          </div>
+          <div class="pill-group" style="margin-top: 12px;">
+            <div class="pill" onclick="bulkEnableAll('general')">Enable General</div>
+            <div class="pill" onclick="bulkEnableAll('breaking')">Enable Breaking</div>
+            <div class="pill" onclick="bulkEnableAll('sponsor')">Enable Sponsor</div>
+            <div class="pill" onclick="bulkDisableAll('general')">Disable General</div>
+            <div class="pill" onclick="bulkDisableAll('breaking')">Disable Breaking</div>
+            <div class="pill" onclick="bulkDisableAll('sponsor')">Disable Sponsor</div>
+          </div>
+        </div>
+
+        <!-- Message Presets -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Message Presets</div>
+              <div class="panel-subtitle">Save frequently used message sets</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Preset Name</label>
+              <input type="text" class="input" id="presetName" placeholder="Gaming Stream, News Updates, etc.">
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="savePreset()">💾 Save Current Messages</button>
+          </div>
+          <div id="presetsList" style="margin-top: 20px;"></div>
+        </div>
+      </div>
+
+      <!-- POPUP TAB -->
+      <div class="tab-content" id="tab-popup">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Pop-up Configuration</div>
+              <div class="panel-subtitle">Persistent notification card with positioning and styling</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Position on Screen</label>
+            <div class="pill-group">
+              <div class="pill active" data-position="top-left" onclick="setPopupPosition(this)">Top Left</div>
+              <div class="pill" data-position="top-center" onclick="setPopupPosition(this)">Top Center</div>
+              <div class="pill" data-position="top-right" onclick="setPopupPosition(this)">Top Right</div>
+              <div class="pill" data-position="bottom-left" onclick="setPopupPosition(this)">Bottom Left</div>
+              <div class="pill" data-position="bottom-center" onclick="setPopupPosition(this)">Bottom Center</div>
+              <div class="pill" data-position="bottom-right" onclick="setPopupPosition(this)">Bottom Right</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Visual Style</label>
+            <div class="pill-group">
+              <div class="pill" data-variant="minimal" onclick="setPopupVariant(this)">Minimal</div>
+              <div class="pill active" data-variant="standard" onclick="setPopupVariant(this)">Standard</div>
+              <div class="pill" data-variant="elevated" onclick="setPopupVariant(this)">Elevated</div>
+              <div class="pill" data-variant="alert" onclick="setPopupVariant(this)">Alert</div>
+              <div class="pill" data-variant="success" onclick="setPopupVariant(this)">Success</div>
+            </div>
+            <div class="panel-subtitle" style="margin-top: 8px;">
+              <strong>Minimal:</strong> Subtle, low opacity •
+              <strong>Standard:</strong> Balanced presence •
+              <strong>Elevated:</strong> Maximum impact •
+              <strong>Alert:</strong> Urgent red pulsing •
+              <strong>Success:</strong> Positive cyan accent
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Message Content</label>
+            <textarea class="textarea" id="popupMessage" placeholder="Coming Up Next: Stream Activity" maxlength="300"></textarea>
+            <div class="char-counter" id="popupCharCounter">0 / 300</div>
+            <div class="panel-subtitle" style="margin-top: 4px;">
+              💡 Use text modifiers: <code style="color: #d4af37;">**bold**</code>, <code style="color: #d4af37;">***rainbow***</code>, <code style="color: #d4af37;">@@pulse@@</code>, etc.
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Call-to-Action Button (optional)</label>
+              <input type="text" class="input" id="popupCtaLabel" placeholder="Learn More, Subscribe, Join Now">
+            </div>
+            <div class="form-group">
+              <label class="form-label">CTA URL (optional)</label>
+              <input type="text" class="input" id="popupCtaUrl" placeholder="https://your-link.com">
+            </div>
+          </div>
+
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Auto-dismiss Timer</label>
+              <input type="number" class="input" id="popupAutoDismiss" value="0" min="0" max="300">
+              <div class="panel-subtitle" style="margin-top: 4px;">Seconds before auto-hide (0 = stays visible)</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pop-up Scale</label>
+              <input type="range" class="slider" id="popupScale" min="0.5" max="2" step="0.1" value="1">
+              <div class="slider-value">
+                <span id="popupScaleValue">1.0x</span>
+                <span style="color: #9a9a9d;">Resize independently</span>
+              </div>
+              <div class="slider-labels">
+                <span>Small (0.5x)</span>
+                <span>Large (2x)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle" id="popupPinned" onclick="togglePin()">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Pin to screen (ignores auto-dismiss)</span>
+            </div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="saveAndShowPopup()">💬 Save & Show</button>
+            <button class="btn btn-secondary" onclick="hidePopup()">✖ Hide Current</button>
+            <button class="btn btn-secondary" onclick="queuePopup()">➕ Queue for Later</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Quick Templates</div>
+              <div class="panel-subtitle">Pre-configured messages for common scenarios</div>
+            </div>
+          </div>
+          <div class="pill-group" style="flex-wrap: wrap;">
+            <div class="pill" onclick="loadPopupTemplate('coming-up')">Coming Up Next</div>
+            <div class="pill" onclick="loadPopupTemplate('breaking')">Breaking News</div>
+            <div class="pill" onclick="loadPopupTemplate('sponsor')">Sponsor Callout</div>
+            <div class="pill" onclick="loadPopupTemplate('social')">Social Media</div>
+            <div class="pill" onclick="loadPopupTemplate('giveaway')">Giveaway Alert</div>
+            <div class="pill" onclick="loadPopupTemplate('intermission')">Intermission</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Popup Queue</div>
+              <div class="panel-subtitle">Manage queued popups for later playback</div>
+            </div>
+          </div>
+          <div id="popupQueue">
+            <div class="empty-state">
+              <div class="empty-state-icon">📬</div>
+              <p>No queued popups</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCENES TAB -->
+      <div class="tab-content" id="tab-scenes">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Save Scene</div>
+              <div class="panel-subtitle">Snapshot current ticker, popup, and theme settings</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Scene Name</label>
+            <input type="text" class="input" id="sceneName" placeholder="Show Opening, Intermission, etc.">
+          </div>
+          <button class="btn btn-primary" onclick="saveScene()">💾 Save Scene</button>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Saved Scenes</div>
+              <div class="panel-subtitle">Click to recall a complete look</div>
+            </div>
+          </div>
+          <div class="scenes-grid" id="scenesList">
+            <div class="empty-state">
+              <div class="empty-state-icon">🎬</div>
+              <p>No scenes saved yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THEME TAB -->
+      <div class="tab-content" id="tab-theme">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Theme Presets</div>
+              <div class="panel-subtitle">Professional monochrome luxury styles</div>
+            </div>
+          </div>
+          <div class="pill-group">
+            <div class="pill active" data-theme="midnight-luxe" onclick="applyThemePreset(this)">Midnight Luxe</div>
+            <div class="pill" data-theme="platinum-noir" onclick="applyThemePreset(this)">Platinum Noir</div>
+            <div class="pill" data-theme="gold-standard" onclick="applyThemePreset(this)">Gold Standard</div>
+            <div class="pill" data-theme="monochrome-elite" onclick="applyThemePreset(this)">Monochrome Elite</div>
+            <div class="pill" data-theme="pearl-essence" onclick="applyThemePreset(this)">Pearl Essence</div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Accent Colors</div>
+              <div class="panel-subtitle">Refined gold and platinum palette</div>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="form-group">
+              <label class="form-label">Primary Accent (Gold)</label>
+              <div class="color-picker">
+                <input type="color" class="color-swatch" id="accentPrimary" value="#d4af37">
+                <input type="text" class="input color-input" id="accentPrimaryText" value="#d4af37">
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Secondary Accent (Platinum)</label>
+              <div class="color-picker">
+                <input type="color" class="color-swatch" id="accentSecondary" value="#e5e4e2">
+                <input type="text" class="input color-input" id="accentSecondaryText" value="#e5e4e2">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Visual Effects</div>
+              <div class="panel-subtitle">Glassmorphism, lighting, and animations</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Glass Blur Intensity</label>
+            <input type="range" class="slider" id="glassIntensity" min="0" max="40" value="20">
+            <div class="slider-value">
+              <span id="glassIntensityValue">20px</span>
+              <span class="panel-subtitle">Frosted glass effect</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Particle Density</label>
+            <input type="range" class="slider" id="particleDensity" min="0" max="2000" step="100" value="500">
+            <div class="slider-value">
+              <span id="particleDensityValue">500 particles</span>
+              <span class="panel-subtitle">Three.js background</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Overlay Opacity</label>
+            <input type="range" class="slider" id="overlayOpacity" min="0.5" max="1" step="0.05" value="0.95">
+            <div class="slider-value">
+              <span id="overlayOpacityValue">95%</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle active" id="edgeLighting" onclick="toggleEffect(this)">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Edge lighting (simulated overhead light)</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle active" id="accentShimmer" onclick="toggleEffect(this)">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Accent word shimmer animation</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <div class="toggle-container">
+              <div class="toggle active" id="sparkleEffects" onclick="toggleEffect(this)">
+                <div class="toggle-thumb"></div>
+              </div>
+              <span>Sparkle effects on transitions</span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Ticker Position</label>
+            <div class="pill-group">
+              <div class="pill active" data-position="bottom" onclick="setTickerPosition(this)">Bottom</div>
+              <div class="pill" data-position="top" onclick="setTickerPosition(this)">Top</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveTheme()">💾 Save Theme</button>
+        </div>
+      </div>
+
+      <!-- SYSTEM TAB -->
+      <div class="tab-content" id="tab-system">
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Server Information</div>
+              <div class="panel-subtitle">Connection and status</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Overlay URL (for OBS Browser Source)</label>
+            <input type="text" class="input" id="overlayUrl" readonly placeholder="Loading...">
+          </div>
+          <div class="form-group">
+            <label class="form-label">WebSocket Status</label>
+            <div class="connection-status" style="display: inline-flex;">
+              <div class="status-dot" id="wsStatusDot"></div>
+              <span id="wsStatusText">Checking...</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Version</label>
+            <input type="text" class="input" readonly value="2.0.0 - Refined Luxury Edition">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Backup & Restore</div>
+              <div class="panel-subtitle">Export and import your configuration</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="exportConfig()">📥 Export Configuration</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">📤 Import Configuration</button>
+            <input type="file" id="importFile" style="display: none;" accept=".json" onchange="importConfig(event)">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Analytics</div>
+              <div class="panel-subtitle">Message performance and popup metrics</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="viewAnalytics()">📊 View Analytics</button>
+            <button class="btn btn-secondary" onclick="window.open('/analytics', '_blank')">🔗 Open in New Tab</button>
+          </div>
+          <div id="analyticsPreview" style="margin-top: 20px;"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Keyboard Shortcuts</div>
+              <div class="panel-subtitle">Quick access controls</div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+              <div class="form-label">Toggle Ticker</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">Space</div>
+            </div>
+            <div>
+              <div class="form-label">Toggle Popup</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">P</div>
+            </div>
+            <div>
+              <div class="form-label">Quick Add Message</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">Cmd/Ctrl+K</div>
+            </div>
+            <div>
+              <div class="form-label">Save Current Form</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">Cmd/Ctrl+Enter</div>
+            </div>
+            <div>
+              <div class="form-label">Tab Navigation</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">1-6</div>
+            </div>
+            <div>
+              <div class="form-label">Close/Cancel</div>
+              <div class="hotkey-badge" style="font-size: 14px; padding: 8px 16px;">Esc</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Enhanced Webhooks</div>
+              <div class="panel-subtitle">For Stream Deck, Touch Portal, OBS Advanced Scene Switcher, etc.</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Show Ticker</label>
+            <input type="text" class="input" readonly value="GET http://localhost:4155/hook/ticker/show">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Hide Ticker</label>
+            <input type="text" class="input" readonly value="GET http://localhost:4155/hook/ticker/hide">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Add Message (POST)</label>
+            <input type="text" class="input" readonly value="POST http://localhost:4155/hook/message/add">
+            <div class="panel-subtitle" style="margin-top: 4px;">
+              Body: {"text": "Your message", "category": "breaking", "priority": 3, "insertNow": true}
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Queue Popup (GET)</label>
+            <input type="text" class="input" readonly value="GET http://localhost:4155/hook/popup/queue?message=Alert&duration=10&variant=alert">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Apply Scene by Name (GET)</label>
+            <input type="text" class="input" readonly value="GET http://localhost:4155/hook/scene/apply?name=YourSceneName">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Set Popup (POST)</label>
+            <input type="text" class="input" readonly value="POST http://localhost:4155/hook/popup">
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Debug Information</div>
+              <div class="panel-subtitle">Server status and diagnostics</div>
+            </div>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="window.open('/debug/state', '_blank')">🔍 Debug State</button>
+            <button class="btn btn-secondary" onclick="window.open('/health', '_blank')">❤️ Health Check</button>
+            <button class="btn btn-secondary" onclick="window.open('/analytics', '_blank')">📊 Analytics</button>
+            <button class="btn btn-secondary" onclick="window.open('/metrics', '_blank')">📈 Metrics</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">Change History</div>
+              <div class="panel-subtitle">Recent configuration changes</div>
+            </div>
+          </div>
+          <div id="changeHistory">
+            <div class="empty-state">
+              <div class="empty-state-icon">📜</div>
+              <p>No changes recorded yet</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+    <script type="module" src="/assets/js/dashboard/main.js"></script>
+</body>
+</html>

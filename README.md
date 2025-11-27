@@ -1,223 +1,145 @@
-# M0 Ticker - Broadcast Ready Professional Widget Management
+# OBS Luxury Widgets – Control Suite
 
-## � Professional Glass Morphism Design System
+Observer-facing overlay and dashboard bundle designed for premium live productions. A Node/Express back end powers WebSocket updates while a luxury-themed dashboard orchestrates ticker messages, pop-up cards, scenes, themes, and automation.
 
-M0 Ticker has been completely redesigned with a **broadcast-ready glass morphism design system** featuring ultra-professional urban black & white aesthetics, perfect for live streaming and professional broadcasting.
+## Overview
 
-## ✨ Broadcast Ready Features
+| Stack | Details |
+|-------|---------|
+| Runtime | Node.js 16+ |
+| Server | Express + `ws` |
+| UI | HTML/CSS/vanilla JS (modularization in progress) |
+| Testing | Vitest (unit) + Playwright (smoke) |
+| Storage | JSON state file (`db/state.json`) |
 
-### 🎛️ Professional Control Dashboard
-- **Ultra-modern glass morphism interface**
-- **Real-time WebSocket synchronization** 
-- **Professional widget management**
-- **Broadcast-safe color palette**
-- **Responsive design for all devices**
+## Key Features
 
-### 🎬 Professional Output Overlays
-- **Broadcast-ready ticker component**
-- **Professional popup overlays**
-- **Full-screen BRB component**
-- **Advanced backdrop blur effects**
-- **Hardware-accelerated animations**
+- **Realtime dashboard** – tabbed interface for ticker, pop-up, scenes, theme, and system tabs.
+- **Ticker management** – inline editing, bulk operations, presets, and scene snapshots.
+- **Pop-up controls** – CTA links, auto-dismiss timers, queueing, Stream Deck webhooks.
+- **Theme + scale** – accent colors, overlay/popup scaling, optional effects.
+- **Persistence & history** – state migrations, undo stack, import/export endpoints.
+- **Automation & analytics** – auto-rotation scheduling, periodic analytics broadcasts.
 
-### 🎨 Design System Features
-- **Advanced Glass Morphism**: Multi-layer backdrop blur with perfect transparency
-- **Professional Typography**: Inter font family with complete weight range (100-900)
-- **Broadcast-Safe Colors**: Tested for streaming compatibility
-- **Professional Animations**: Smooth 60fps performance target
-- **Responsive Design**: Optimized for all screen sizes
+> Dashboard modularization, structured logging, and schema validation are currently in-flight. See [Roadmap](#roadmap) for details.
 
-## 🚀 Quick Start - Broadcast Ready
+## Project Layout
 
-### Start Server
+```
+m0_oldStreamDash/
+├── assets/
+│   ├── css/dashboard.css        # Extracted dashboard styling
+│   └── js/dashboard/            # (WIP) modular dashboard scripts
+├── db/state.json                # Persisted configuration (auto-generated)
+├── index.html                   # Dashboard UI (legacy inline JS)
+├── output.html                  # Overlay consumed by OBS
+├── playwright.config.ts         # Playwright smoke test setup
+├── scripts/refactor-index.js    # HTML refactor helper
+├── server.js                    # Express/WebSocket server + state helpers
+├── tests/
+│   ├── e2e/                     # Playwright smoke specs
+│   └── unit/                    # Vitest specs for state & analytics helpers
+├── package.json
+└── README.md
+```
+
+## Getting Started
+
+### Prerequisites
+- Node.js **16+** (18 LTS recommended)
+- npm
+- OBS Studio 28+ if you intend to render the overlay
+
+### Install & Run
 ```bash
-node server.js
+git clone <repository-url>
+cd m0_oldStreamDash
+npm install
+
+# optional: create .env to override defaults (see Configuration)
+
+npm run dev        # or npm start
 ```
 
-### Access Broadcast Interfaces
-- **🎛️ Professional Dashboard**: http://localhost:3000/ (default)
-- **🎬 Broadcast Output**: http://localhost:3000/output-broadcast.html
-- ** API Status**: http://localhost:3000/api/status
+Visit:
+- Dashboard → http://localhost:4155/dashboard
+- Overlay preview → http://localhost:4155/overlay
+- Health check → http://localhost:4155/health
 
-### Demo Setup
-```bash
-./demo-broadcast.sh
-```
-
-## 📁 Consolidated Project Structure
-
-```
-m0_Ticker/
-├── 🎛️ BROADCAST READY INTERFACES
-│   ├── dashboard-broadcast.html         # Professional control dashboard
-│   └── output-broadcast.html            # Broadcast-ready overlay
-├── 🎨 DESIGN SYSTEM
-│   └── css/
-│       └── broadcast-ready-design.css   # Complete glass morphism design system
-├── ⚙️ CORE JAVASCRIPT
-│   └── js/
-│       ├── websocket-client.js          # WebSocket connection & state management
-│       └── output-controller.js         # Output overlay logic
-├── 📖 DOCUMENTATION
-│   ├── README.md                        # Main documentation (this file)
-│   └── BROADCAST_DESIGN.md              # Complete design system guide
-├── 🚀 SCRIPTS & SETUP
-│   ├── demo-broadcast.sh                # One-click demo setup
-│   └── run-and-open.sh                  # Development server script
-├── 🏗️ CORE SYSTEM
-│   ├── server.js                        # Node.js Express server with WebSocket
-│   ├── package.json                     # Dependencies and scripts
-│   └── package-lock.json               # Dependency lock file
-└── 🧪 TESTING
-    └── tests/                           # Test suite
-        ├── client-normalisers.test.js
-        ├── server.integration.test.js
-        └── [additional test files]
-```
-│           ├── popup-component.js       # Popup widget
-│           ├── brb-component.js         # BRB widget
-│           └── state-manager.js         # State management
-└── 🧪 TESTING
-    └── tests/                           # Test suite
-```
-
-## � Core Components
-
-### Professional Ticker Component
-- **Advanced glass morphism background** with multi-layer backdrop blur
-- **Smooth scrolling animation** with broadcast-safe timing
-- **Professional accent line** with shimmer animation effects
-- **Responsive design** that scales across all screen sizes
-- **Hardware-accelerated animations** for 60fps performance
-
-### Professional Popup Overlay
-- **Multi-layer glass morphism** with perfect transparency levels
-- **Smooth scale and fade animations** with professional timing
-- **Professional shadow system** with accent glows
-- **Broadcast-safe typography** and spacing
-
-### Advanced BRB Component
-- **Full-screen professional overlay** with gradient backgrounds
-- **Animated loading indicators** with professional timing
-- **Professional gradient text effects** with glass morphism
-- **Advanced backdrop blur** for broadcast quality
-
-## 🎨 Design System Highlights
-
-### Glass Morphism Levels
-- **Ultra Light**: `rgba(255, 255, 255, 0.03)` - Subtle elements
-- **Light**: `rgba(255, 255, 255, 0.06)` - Secondary elements  
-- **Medium**: `rgba(255, 255, 255, 0.09)` - Primary components
-- **Strong**: `rgba(255, 255, 255, 0.12)` - Emphasis elements
-- **Intense**: `rgba(255, 255, 255, 0.15)` - Critical elements
-
-### Professional Backdrop Blur
-- **Small**: `blur(4px)` - Subtle effects
-- **Medium**: `blur(8px)` - Standard elements
-- **Large**: `blur(16px)` - Strong effects
-- **Extra Large**: `blur(24px)` - Premium effects
-- **Ultra**: `blur(32px)` - Maximum quality
-- **Maximum**: `blur(48px)` - Broadcast ready
-
-### Broadcast-Safe Colors
-- **Pure Black**: `#000000` - Background base
-- **Pure White**: `#ffffff` - Text and accents
-- **Professional Green**: `#00ff88` - Accent color
-- **Complete Grayscale**: 13 shades for perfect contrast
-
-## � Getting Started
-
-### One-Click Demo
-```bash
-chmod +x demo-broadcast.sh
-./demo-broadcast.sh
-```
-
-### Manual Setup
-```bash
-# Start server
-node server.js
-
-# Open interfaces
-open http://localhost:3000/dashboard-broadcast.html
-open http://localhost:3000/output-broadcast.html
-```
-
-## 🎬 Broadcast Integration
-
-### For OBS Studio
+### OBS Browser Source
 1. Add **Browser Source**
-2. URL: `http://localhost:3000/output-broadcast.html`
-3. Width: `1920`, Height: `1080`
-4. Enable **Shutdown source when not visible**
-5. Enable **Refresh browser when scene becomes active**
+2. URL: `http://<host>:<port>/overlay`
+3. Width 1920, Height 1080, FPS 60
+4. Disable “Shutdown when not visible” and “Refresh when scene becomes active”
 
-### For Streamlabs
-1. Add **Browser Source**
-2. URL: `http://localhost:3000/output-broadcast.html`  
-3. Width: `1920`, Height: `1080`
-4. Enable **Optimize for OBS**
+## Configuration
 
-### For XSplit
-1. Add **Webpage** source
-2. URL: `http://localhost:3000/output-broadcast.html`
-3. Enable **Transparent background**
+Environment variables can be stored in `.env` (loaded via `dotenv`).
 
-## 📊 Performance
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | `4155` | HTTP/WebSocket port |
+| `HOST` | `0.0.0.0` | Bind address |
+| `STATE_DB_PATH` | `<repo>/db/state.json` | Location of persisted state |
+| `ANALYTICS_INTERVAL_MS` | `15000` | Frequency of analytics broadcast |
+| `NODE_ENV` | _unset_ | Conventional Node environment flag |
+| `LOG_LEVEL` | _(planned)_ | To be used once structured logging rollout completes |
 
-### Optimization Features
-- **Hardware-accelerated animations** using transform and opacity
-- **Optimized backdrop filters** for balanced quality and performance
-- **Efficient DOM updates** with minimal reflows and repaints
-- **Memory-conscious effects** optimized for long streaming sessions
-- **Broadcast-safe colors** tested for streaming compatibility
+## npm Scripts
 
-### Browser Support
-- **Chrome 76+**: Complete glass morphism support
-- **Safari 14+**: Full backdrop-filter support  
-- **Firefox 103+**: Complete feature support
-- **Edge 79+**: Full compatibility
+| Script | Description |
+|--------|-------------|
+| `npm run dev` / `npm start` | Launch Node server (`server.js`) |
+| `npm test` | Run Vitest unit tests |
+| `npm run test:e2e` | Execute Playwright smoke suite (headless) |
+| `npm run test:e2e:headed` | Playwright tests with UI |
+| `npm run playwright:install` | Download Playwright browsers |
 
-## 🔧 Development
+## Testing
 
-### Adding Custom Widgets
-1. Create widget in `public/js/`
-2. Add styles to `public/css/broadcast-ready-design.css`
-3. Register with WebSocket client
-4. Add to dashboard interface
-
-### Customizing Design
-```css
-/* Modify accent colors */
-:root {
-  --accent-primary: #00ff88;
-  --accent-primary-dark: #00cc6a;
-  --accent-primary-light: #33ff99;
-}
-
-/* Adjust glass intensity */
-:root {
-  --glass-medium: rgba(255, 255, 255, 0.09);
-  --blur-xl: blur(24px);
-}
+### Unit Tests (Vitest)
+```bash
+npm test
 ```
+Validates state helpers (`appendTickerMessage`, `executeBulkAction`, history tracking) and analytics functions using exports from `server.js.__testing`.
 
-## 📄 License
+### Playwright Smoke Tests
+```bash
+npm run playwright:install   # first run
+npm run test:e2e
+```
+Checks ticker scroll continuity, pop-up interactions, and WebSocket reconnection.
 
-MIT License - Perfect for commercial streaming and broadcasting use.
+## Troubleshooting
+
+| Issue | Checks | Fix |
+|-------|--------|-----|
+| Dashboard shows “Disconnected” | Server running? Port free? | Restart Node process, refresh dashboard, or change `PORT` |
+| Ticker not visible | Messages enabled? Ticker shown? Overlay refreshed? | Add a message, click “Show Ticker”, refresh OBS Browser Source |
+| State not persisting | Write access to `STATE_DB_PATH`? | Ensure process permissions or adjust env path |
+| Playwright fails to connect | Is `PORT` in use? | Change `PORT`, update `playwright.config.ts` |
+| High CPU | Disable sparkle effects, reduce overlay scale, lower ticker speed |
+
+## Roadmap
+
+1. **Dashboard modularization** *(in progress)* – move inline JS to `assets/js/dashboard`, re-enable linting, optimize rendering.
+2. **Structured logging** *(shipped)* – adopt `logger` helper, add `LOG_LEVEL`, emit JSON logs with metadata.
+3. **Schema validation & async persistence** *(shipped)* – apply Zod to WS payloads, switch `saveState` to async `fs.promises` with retries.
+4. **CI automation** *(shipped)* – add GitHub Actions covering Vitest + Playwright.
+5. **Performance instrumentation** *(planned)* – measure render timings, implement incremental DOM updates per message.
+6. **Docs & onboarding** *(planned)* – add `.env.example`, contributor guide, and demo seed script.
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`feat/...` or `fix/...`)
+3. Run `npm test` (and Playwright when relevant)
+4. Submit a PR with a clear summary and testing notes
+
+## License
+
+MIT © OBS Luxury Widgets team
 
 ---
 
-## 🎯 Summary
-
-M0 Ticker is now a **professional, broadcast-ready widget management system** featuring:
-
-✅ **Ultra-professional glass morphism design**  
-✅ **Broadcast-safe color palette and typography**  
-✅ **Advanced backdrop blur and shadow effects**  
-✅ **60fps hardware-accelerated animations**  
-✅ **Complete responsive design system**  
-✅ **Professional component architecture**
-
-Perfect for **live streaming**, **professional broadcasts**, and **modern web applications**.
-
+Made for broadcasters who expect premium production quality.

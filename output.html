@@ -1,0 +1,2016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>OBS Luxury Overlay v2.1</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/CustomEase.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: transparent;
+      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    :root {
+      --black-off: #0a0a0b;
+      --black-elevated: #131315;
+      --white-off: #f8f8f7;
+      --white-pure: #ffffff;
+      --accent-gold: #d4af37;
+      --accent-gold-light: #f0d98e;
+      --accent-gold-dark: #9d8429;
+      
+      --overlay-scale: 1;
+      --popup-scale: 1;
+      
+      --glass-blur: 20px;
+      --glass-saturation: 120%;
+      
+      --radius-sm: 14px;
+      --radius-md: 18px;
+      
+      --font-size-body: 19px;
+      --font-weight-normal: 500;
+      --font-weight-accent: 600;
+      --letter-spacing-normal: -0.015em;
+      --line-height-normal: 1.6;
+      
+      --ticker-height: 64px;
+      --ticker-padding-x: 40px;
+      --ticker-padding-y: 18px;
+      --ticker-gap: 18px;
+      --ticker-speed: 60;
+      --ticker-fade-width: 120px;
+      --ticker-separator-height: 20px;
+      
+      --popup-max-width: 440px;
+      --popup-padding-x: 34px;
+      --popup-padding-y: 36px;
+      --popup-offset-x: 64px;
+      --popup-offset-y-top: 56px;
+      --popup-offset-y-bottom: 120px;
+      
+      --shadow-ticker: 0 4px 16px rgba(0, 0, 0, 0.2),
+                       0 12px 40px rgba(0, 0, 0, 0.4),
+                       0 24px 64px rgba(0, 0, 0, 0.5);
+      --shadow-popup: 0 8px 24px rgba(0, 0, 0, 0.3),
+                      0 20px 56px rgba(0, 0, 0, 0.45),
+                      0 36px 96px rgba(0, 0, 0, 0.6);
+      --shadow-alert: 0 12px 32px rgba(0, 0, 0, 0.4),
+                      0 28px 72px rgba(0, 0, 0, 0.55),
+                      0 48px 120px rgba(0, 0, 0, 0.7);
+      --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      
+      --border-default: 1px solid rgba(255, 255, 255, 0.1);
+      --border-gold: 1px solid rgba(212, 175, 55, 0.22);
+      
+      --text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+      
+      --status-size: 8px;
+      --status-connected: #4ade80;
+      --status-connecting: #fbbf24;
+      --status-disconnected: #ef4444;
+    }
+
+    .connection-status {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      width: var(--status-size);
+      height: var(--status-size);
+      border-radius: 50%;
+      background: var(--status-disconnected);
+      box-shadow: 0 0 8px currentColor;
+      z-index: 2000;
+      opacity: 0;
+      display: none;
+    }
+
+    .connection-status.connected {
+      background: var(--status-connected);
+    }
+
+    .connection-status.connecting {
+      background: var(--status-connecting);
+    }
+
+    #ticker-container {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: calc(var(--ticker-height) * var(--overlay-scale));
+      background: linear-gradient(155deg, rgba(15, 15, 17, 0.92), rgba(10, 10, 12, 0.95) 50%, rgba(8, 8, 10, 0.93));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      border-top: var(--border-default);
+      border-radius: min(calc(var(--radius-md) * var(--overlay-scale)), 24px) min(calc(var(--radius-md) * var(--overlay-scale)), 24px) 0 0;
+      padding: calc(var(--ticker-padding-y) * var(--overlay-scale)) calc(var(--ticker-padding-x) * var(--overlay-scale));
+      box-shadow: var(--shadow-ticker), var(--shadow-inset);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(100%) translateZ(0);
+      pointer-events: none;
+      z-index: 120;
+      will-change: transform, opacity;
+      backface-visibility: hidden;
+    }
+
+    /* === ENHANCEMENT #1: Inner Depth Shadow === */
+    /* Remove this block to disable inner shadow effect */
+    #ticker-container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4),
+                  inset 0 -1px 3px rgba(0, 0, 0, 0.2);
+      pointer-events: none;
+      z-index: 10;
+      border-radius: inherit;
+    }
+
+    /* === ENHANCEMENT #3: Micro-Shimmer Effect === */
+    /* Remove this block to disable shimmer effect */
+    #ticker-container::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.015) 50%,
+        transparent 100%);
+      animation: tickerShimmer 12s ease-in-out infinite;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    @keyframes tickerShimmer {
+      to { left: 100%; }
+    }
+
+    #ticker-container.visible {
+      pointer-events: auto;
+    }
+
+    #ticker-container.top {
+      bottom: auto;
+      top: 0;
+      border-top: none;
+      border-bottom: var(--border-default);
+      border-radius: 0 0 min(calc(var(--radius-md) * var(--overlay-scale)), 24px) min(calc(var(--radius-md) * var(--overlay-scale)), 24px);
+      transform: translateY(-100%) translateZ(0);
+    }
+
+    #ticker-container.top.visible {
+      transform: translateY(0);
+    }
+
+    .ticker-scroll-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      mask-image: linear-gradient(to right, 
+        transparent 0%, 
+        black calc(var(--ticker-fade-width) * var(--overlay-scale)), 
+        black calc(100% - var(--ticker-fade-width) * var(--overlay-scale)), 
+        transparent 100%);
+      -webkit-mask-image: linear-gradient(to right, 
+        transparent 0%, 
+        black calc(var(--ticker-fade-width) * var(--overlay-scale)), 
+        black calc(100% - var(--ticker-fade-width) * var(--overlay-scale)), 
+        transparent 100%);
+    }
+
+    .ticker-track {
+      display: inline-flex;
+      align-items: center;
+      gap: calc(var(--ticker-gap) * var(--overlay-scale));
+      white-space: nowrap;
+      will-change: transform;
+      position: relative;
+      transform: translateX(0) translateZ(0);
+      backface-visibility: hidden;
+      padding: calc(4px * var(--overlay-scale)) 0;
+    }
+
+    .ticker-message {
+      display: inline-block;
+      font-size: calc(var(--font-size-body) * var(--overlay-scale));
+      font-weight: var(--font-weight-normal);
+      color: var(--white-off);
+      letter-spacing: var(--letter-spacing-normal);
+      line-height: var(--line-height-normal);
+      text-shadow: var(--text-shadow);
+      white-space: nowrap;
+      padding: 0 calc(2px * var(--overlay-scale));
+    }
+
+    /* === ENHANCEMENT #2: Smooth Message Entrance === */
+    /* Remove this block to disable entrance animation */
+    .ticker-message {
+      animation: messageEnter 0.6s ease-out backwards;
+    }
+
+    @keyframes messageEnter {
+      from {
+        opacity: 0;
+        transform: scale(0.92) translateY(4px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+    
+    .ticker-message * {
+      display: inline;
+      white-space: nowrap;
+      line-height: inherit;
+    }
+
+    /* === TEXT MODIFIERS === */
+    /* Standard modifiers */
+    .text-bold { font-weight: var(--font-weight-bold); }
+    .text-italic { font-style: italic; }
+    .text-underline { text-decoration: underline; text-underline-offset: 2px; }
+    .text-strike { text-decoration: line-through; opacity: 0.8; }
+    
+    /* Highlight modifier */
+    .text-highlight {
+      background: linear-gradient(90deg, var(--accent-gold-dark), var(--accent-gold));
+      padding: 0 6px;
+      border-radius: 3px;
+      color: var(--black-true);
+      font-weight: var(--font-weight-semibold);
+      box-shadow: 0 0 12px rgba(212, 175, 55, 0.3);
+    }
+
+    /* Glow modifier */
+    .text-glow {
+      color: var(--accent-gold-light);
+      font-weight: var(--font-weight-semibold);
+      text-shadow: 
+        0 0 10px var(--accent-gold),
+        0 0 20px var(--accent-gold),
+        0 0 30px var(--accent-gold),
+        var(--text-shadow);
+      animation: glowPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes glowPulse {
+      0%, 100% { 
+        text-shadow: 
+          0 0 10px var(--accent-gold),
+          0 0 20px var(--accent-gold),
+          0 0 30px var(--accent-gold),
+          var(--text-shadow);
+      }
+      50% { 
+        text-shadow: 
+          0 0 15px var(--accent-gold),
+          0 0 30px var(--accent-gold),
+          0 0 45px var(--accent-gold),
+          var(--text-shadow);
+      }
+    }
+
+    /* Rainbow wave modifier */
+    .text-rainbow {
+      font-weight: var(--font-weight-semibold);
+      background: linear-gradient(
+        90deg,
+        #ff0080 0%,
+        #ff8c00 16.66%,
+        #ffd700 33.33%,
+        #00ff00 50%,
+        #00bfff 66.66%,
+        #8a2be2 83.33%,
+        #ff0080 100%
+      );
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: rainbowWave 3s linear infinite;
+      text-shadow: none;
+    }
+
+    @keyframes rainbowWave {
+      to { background-position: 200% center; }
+    }
+
+    /* Shimmer modifier */
+    .text-shimmer {
+      position: relative;
+      color: var(--white-pure);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .text-shimmer::before {
+      content: attr(data-text);
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.8) 50%,
+        transparent 100%
+      );
+      background-size: 200% auto;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmerSlide 2.5s linear infinite;
+    }
+
+    @keyframes shimmerSlide {
+      to { background-position: 200% center; }
+    }
+
+    /* Pulse modifier */
+    .text-pulse {
+      color: var(--accent-gold-light);
+      font-weight: var(--font-weight-semibold);
+      animation: textPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes textPulse {
+      0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% { 
+        opacity: 0.7;
+        transform: scale(1.05);
+      }
+    }
+
+    /* Sparkle modifier */
+    .text-sparkle {
+      position: relative;
+      color: var(--accent-gold-light);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    .text-sparkle::after {
+      content: '✨';
+      position: absolute;
+      font-size: 0.7em;
+      animation: sparkleFloat 2s ease-in-out infinite;
+      pointer-events: none;
+    }
+
+    @keyframes sparkleFloat {
+      0%, 100% { 
+        opacity: 0;
+        transform: translate(0, 0) scale(0);
+      }
+      50% { 
+        opacity: 1;
+        transform: translate(5px, -10px) scale(1);
+      }
+    }
+
+    /* Fade modifier */
+    .text-fade {
+      animation: textFade 3s ease-in-out infinite;
+    }
+
+    @keyframes textFade {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Shadow modifier */
+    .text-shadow {
+      color: var(--white-pure);
+      text-shadow: 
+        2px 2px 4px rgba(0, 0, 0, 0.8),
+        4px 4px 8px rgba(0, 0, 0, 0.6),
+        var(--text-shadow);
+    }
+
+    /* Neon modifier */
+    .text-neon {
+      color: #00ffff;
+      font-weight: var(--font-weight-bold);
+      text-shadow: 
+        0 0 5px #00ffff,
+        0 0 10px #00ffff,
+        0 0 20px #00ffff,
+        0 0 40px #00ffff,
+        0 0 80px #00ffff;
+      animation: neonFlicker 1.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes neonFlicker {
+      0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 
+          0 0 5px #00ffff,
+          0 0 10px #00ffff,
+          0 0 20px #00ffff,
+          0 0 40px #00ffff,
+          0 0 80px #00ffff;
+      }
+      20%, 24%, 55% {
+        text-shadow: none;
+      }
+    }
+
+    /* Wave modifier */
+    .text-wave {
+      display: inline-block;
+    }
+
+    .text-wave span {
+      display: inline-block;
+      animation: wave 1.5s ease-in-out infinite;
+    }
+
+    .text-wave span:nth-child(1) { animation-delay: 0s; }
+    .text-wave span:nth-child(2) { animation-delay: 0.1s; }
+    .text-wave span:nth-child(3) { animation-delay: 0.2s; }
+    .text-wave span:nth-child(4) { animation-delay: 0.3s; }
+    .text-wave span:nth-child(5) { animation-delay: 0.4s; }
+    .text-wave span:nth-child(6) { animation-delay: 0.5s; }
+    .text-wave span:nth-child(7) { animation-delay: 0.6s; }
+    .text-wave span:nth-child(8) { animation-delay: 0.7s; }
+    .text-wave span:nth-child(9) { animation-delay: 0.8s; }
+    .text-wave span:nth-child(10) { animation-delay: 0.9s; }
+
+    @keyframes wave {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .ticker-separator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: calc(2px * var(--overlay-scale));
+      height: calc(var(--ticker-separator-height) * var(--overlay-scale));
+      margin: 0 calc(16px * var(--overlay-scale));
+      position: relative;
+    }
+
+    .ticker-separator::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 20%,
+        rgba(255, 255, 255, 0.35) 50%,
+        rgba(255, 255, 255, 0.15) 80%,
+        transparent 100%);
+      border-radius: 1px;
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.1);
+    }
+
+    .ticker-separator::after {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom,
+        transparent 0%,
+        rgba(255, 255, 255, 0.05) 30%,
+        rgba(255, 255, 255, 0.08) 50%,
+        rgba(255, 255, 255, 0.05) 70%,
+        transparent 100%);
+      filter: blur(1px);
+    }
+
+    .ticker-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      background: linear-gradient(90deg, transparent, var(--accent-gold-light) 50%, transparent);
+      opacity: 0.4;
+      transform: scaleX(0) translateZ(0);
+      transform-origin: left center;
+    }
+
+    .accent-word {
+      color: var(--accent-gold-light);
+      font-weight: var(--font-weight-accent);
+      letter-spacing: inherit;
+      background: transparent !important;
+      padding: 0 !important;
+      margin: 0 0.08em !important;
+      border: none !important;
+      box-shadow: none !important;
+      text-decoration: none !important;
+      display: inline-block;
+      transform: translateZ(0);
+    }
+
+    #popup-container {
+      position: fixed;
+      max-width: calc(var(--popup-max-width) * var(--popup-scale));
+      background: linear-gradient(155deg, rgba(15, 15, 17, 0.92), rgba(10, 10, 12, 0.95) 50%, rgba(8, 8, 10, 0.93));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation));
+      border: var(--border-default);
+      border-radius: calc(var(--radius-md) * var(--popup-scale));
+      padding: calc(var(--popup-padding-y) * var(--popup-scale)) calc(var(--popup-padding-x) * var(--popup-scale));
+      box-shadow: var(--shadow-popup), var(--shadow-inset);
+      opacity: 0;
+      transform: translateY(32px) scale(0.95) translateZ(0);
+      pointer-events: none;
+      z-index: 200;
+      overflow: hidden;
+      will-change: transform, opacity, box-shadow;
+      backface-visibility: hidden;
+    }
+
+    #popup-container.visible {
+      pointer-events: auto;
+    }
+
+    #popup-container.pos-top-left {
+      top: calc(var(--popup-offset-y-top) * var(--popup-scale));
+      left: calc(var(--popup-offset-x) * var(--popup-scale));
+    }
+
+    #popup-container.pos-top-center {
+      top: calc(var(--popup-offset-y-top) * var(--popup-scale));
+      left: 50%;
+    }
+
+    #popup-container.pos-top-right {
+      top: calc(var(--popup-offset-y-top) * var(--popup-scale));
+      right: calc(var(--popup-offset-x) * var(--popup-scale));
+    }
+
+    #popup-container.pos-bottom-left {
+      bottom: calc(var(--popup-offset-y-bottom) * var(--popup-scale));
+      left: calc(var(--popup-offset-x) * var(--popup-scale));
+    }
+
+    #popup-container.pos-bottom-center {
+      bottom: calc(var(--popup-offset-y-bottom) * var(--popup-scale));
+      left: 50%;
+    }
+
+    #popup-container.pos-bottom-right {
+      bottom: calc(var(--popup-offset-y-bottom) * var(--popup-scale));
+      right: calc(var(--popup-offset-x) * var(--popup-scale));
+    }
+
+    #popup-container.variant-minimal {
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      box-shadow: 0 20px 64px rgba(0, 0, 0, 0.75), var(--shadow-inset);
+    }
+
+    #popup-container.variant-standard {
+      border: var(--border-gold);
+      box-shadow: var(--shadow-popup), 0 0 40px rgba(212, 175, 55, 0.15), var(--shadow-inset);
+    }
+
+    #popup-container.variant-elevated {
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      box-shadow: var(--shadow-alert), 0 0 56px rgba(212, 175, 55, 0.25), var(--shadow-inset);
+    }
+
+    #popup-container.variant-alert {
+      border: 1px solid rgba(255, 85, 85, 0.45);
+      box-shadow: var(--shadow-alert), 0 0 40px rgba(255, 85, 85, 0.25), var(--shadow-inset);
+    }
+
+    #popup-container.variant-success {
+      border: 1px solid rgba(100, 200, 255, 0.45);
+      box-shadow: var(--shadow-popup), 0 0 48px rgba(100, 200, 255, 0.22), var(--shadow-inset);
+    }
+
+    .popup-message {
+      font-size: calc(var(--font-size-body) * var(--popup-scale));
+      font-weight: var(--font-weight-normal);
+      color: var(--white-off);
+      line-height: var(--line-height-normal);
+      letter-spacing: var(--letter-spacing-normal);
+      text-shadow: var(--text-shadow);
+      position: relative;
+      z-index: 1;
+    }
+
+    .popup-bg-gradient {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+      background: radial-gradient(circle at 50% 50%, rgba(212, 175, 55, 0.08), transparent 70%);
+      z-index: 0;
+      transform: translateZ(0);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="connection-status" id="connection-status" role="status" aria-label="Connection status"></div>
+  
+  <div id="ticker-container" role="marquee" aria-live="off">
+    <div class="ticker-progress" id="ticker-progress"></div>
+    <div class="ticker-scroll-container">
+      <div class="ticker-track" id="ticker-track"></div>
+    </div>
+  </div>
+  
+  <div id="popup-container" class="pos-top-left variant-standard" role="alert" aria-live="polite">
+    <div class="popup-bg-gradient"></div>
+    <div class="popup-message" id="popup-message"></div>
+  </div>
+
+  <script>
+    gsap.registerPlugin(CustomEase);
+    CustomEase.create("luxuryEntrance", "0.22, 1, 0.36, 1");
+    CustomEase.create("luxuryExit", "0.64, 0, 0.78, 0");
+    CustomEase.create("smoothFlow", "0.42, 0, 0.58, 1");
+
+    window.addEventListener('error', (e) => {
+      console.error('Global error:', e.error);
+      return true;
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      console.error('Unhandled rejection:', e.reason);
+      e.preventDefault();
+    });
+
+    const CONFIG = {
+      wsReconnectDelays: [2000, 5000, 10000, 30000, 60000],
+      wsReconnectMaxAttempts: Infinity,
+      tickerDebounceMs: 100,
+      maxCacheSize: 100,
+      urlParamSupport: true,
+      reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      defaultWsHost: 'localhost:4155',
+      defaultWsProtocol: 'ws:',
+      memoryThreshold: 50 * 1024 * 1024,
+      cacheCleanupInterval: 300000
+    };
+
+    const INITIAL_STATE = {
+      ticker: {
+        enabled: false,
+        messages: [],
+        settings: {
+          speed: 60,
+          durationSec: 10,
+          intervalMin: 0,
+          scrollMode: 'continuous'
+        }
+      },
+      popup: {
+        visible: false,
+        position: 'top-left',
+        variant: 'standard',
+        message: '',
+        accentWords: '',
+        autoDismissSec: 0,
+        pinned: false
+      },
+      theme: {
+        overlayScale: 1,
+        popupScale: 1,
+        accentShimmer: true,
+        position: 'bottom'
+      }
+    };
+
+    const MessageSchema = {
+      state: (msg) => msg.payload && typeof msg.payload === 'object',
+      'ticker:show': () => true,
+      'ticker:hide': () => true,
+      'ticker:pause': () => true,
+      'ticker:resume': () => true,
+      'popup:show': (msg) => msg.payload && typeof msg.payload.message === 'string',
+      'popup:hide': () => true,
+      'config:update': (msg) => msg.payload && typeof msg.payload === 'object'
+    };
+
+    function validateMessage(msg) {
+      try {
+        if (!msg || typeof msg !== 'object' || !msg.type) return false;
+        const validator = MessageSchema[msg.type];
+        return validator ? validator(msg) : false;
+      } catch (error) {
+        console.error('Validation error:', error);
+        return false;
+      }
+    }
+
+    const accentWordCache = new Map();
+    const textModifierCache = new Map();
+
+    /**
+     * Parse inline text modifiers with markdown-like syntax
+     * Supports: **bold**, *italic*, ~~strike~~, __underline__,
+     *          ***rainbow***, ^^^^glow^^^^, ~~~~shimmer~~~~, @@pulse@@,
+     *          ##highlight##, %%fade%%, $$sparkle$$, ===shadow===,
+     *          +++neon+++, ~~~wave~~~
+     */
+    function parseTextModifiers(text) {
+      if (!text) return text;
+      
+      const cacheKey = text;
+      if (textModifierCache.has(cacheKey)) {
+        return textModifierCache.get(cacheKey);
+      }
+      
+      try {
+        let result = text;
+        
+        // Debug logging (remove after testing)
+        const hasModifiers = /\*\*|\*|__|~~|===|\+\+\+|@@|##|%%|\$\$|\^\^\^\^|~~~~|~~~/.test(text);
+        if (hasModifiers) {
+          console.log('[Text Modifiers] Parsing:', text);
+        }
+        
+        // Define modifier patterns (order matters - process longest patterns first)
+        const modifiers = [
+          // Animated modifiers (3+ characters)
+          { pattern: /\*\*\*(.*?)\*\*\*/g, class: 'text-rainbow', name: 'rainbow' },
+          { pattern: /\^\^\^\^(.*?)\^\^\^\^/g, class: 'text-glow', name: 'glow' },
+          { pattern: /~~~~(.*?)~~~~/g, class: 'text-shimmer', name: 'shimmer', dataAttr: true },
+          { pattern: /~~~(.*?)~~~/g, class: 'text-wave', name: 'wave', wrapChars: true },
+          { pattern: /\+\+\+(.*?)\+\+\+/g, class: 'text-neon', name: 'neon' },
+          { pattern: /===(.*?)===/g, class: 'text-shadow', name: 'shadow' },
+          { pattern: /@@(.*?)@@/g, class: 'text-pulse', name: 'pulse' },
+          { pattern: /##(.*?)##/g, class: 'text-highlight', name: 'highlight' },
+          { pattern: /%%(.+?)%%/g, class: 'text-fade', name: 'fade' },
+          { pattern: /\$\$(.*?)\$\$/g, class: 'text-sparkle', name: 'sparkle' },
+          
+          // Standard modifiers (2 characters)
+          { pattern: /\*\*(.*?)\*\*/g, class: 'text-bold', name: 'bold' },
+          { pattern: /__(.*?)__/g, class: 'text-underline', name: 'underline' },
+          { pattern: /~~(.*?)~~/g, class: 'text-strike', name: 'strike' },
+          { pattern: /\*(.*?)\*/g, class: 'text-italic', name: 'italic' }
+        ];
+        
+        // Apply each modifier
+        modifiers.forEach(mod => {
+          result = result.replace(mod.pattern, (match, content) => {
+            // For shimmer, we need data-text attribute
+            if (mod.dataAttr) {
+              return `<span class="${mod.class}" data-text="${escapeHtml(content)}">${content}</span>`;
+            }
+            // For wave, wrap each character in a span
+            else if (mod.wrapChars) {
+              const chars = content.split('').map((char, i) => 
+                `<span style="animation-delay: ${i * 0.1}s">${escapeHtml(char)}</span>`
+              ).join('');
+              return `<span class="${mod.class}">${chars}</span>`;
+            }
+            // Standard wrapping
+            else {
+              return `<span class="${mod.class}">${content}</span>`;
+            }
+          });
+        });
+        
+        if (textModifierCache.size >= CONFIG.maxCacheSize) {
+          const firstKey = textModifierCache.keys().next().value;
+          textModifierCache.delete(firstKey);
+        }
+        
+        // Debug logging (remove after testing)
+        if (result !== text) {
+          console.log('[Text Modifiers] Result:', result);
+        }
+        
+        textModifierCache.set(cacheKey, result);
+        return result;
+      } catch (error) {
+        console.error('Error parsing text modifiers:', error);
+        return text;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function highlightAccentWords(text, accentWords) {
+      if (!accentWords || !text) return text;
+      
+      const cacheKey = `${text}|${accentWords}`;
+      if (accentWordCache.has(cacheKey)) {
+        return accentWordCache.get(cacheKey);
+      }
+      
+      try {
+        const words = accentWords.split(',').map(w => w.trim()).filter(Boolean);
+        let result = text;
+        
+        words.forEach(word => {
+          const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`(\\b${escaped}\\b)`, 'gi');
+          result = result.replace(regex, '<span class="accent-word">$1</span>');
+        });
+        
+        if (accentWordCache.size >= CONFIG.maxCacheSize) {
+          const firstKey = accentWordCache.keys().next().value;
+          accentWordCache.delete(firstKey);
+        }
+        
+        accentWordCache.set(cacheKey, result);
+        return result;
+      } catch (error) {
+        console.error('Error highlighting:', error);
+        return text;
+      }
+    }
+
+    // CRITICAL FIX: Store interval ID for cleanup to prevent memory leak
+    let cacheCleanupInterval = setInterval(() => {
+      if (accentWordCache.size > CONFIG.maxCacheSize / 2) {
+        const keysToDelete = Array.from(accentWordCache.keys()).slice(0, CONFIG.maxCacheSize / 4);
+        keysToDelete.forEach(key => accentWordCache.delete(key));
+      }
+    }, CONFIG.cacheCleanupInterval);
+
+    function applyTheme(theme) {
+      if (!theme) return;
+      
+      try {
+        const root = document.documentElement;
+        const themeMap = {
+          accentPrimary: '--accent-gold',
+          overlayScale: '--overlay-scale',
+          popupScale: '--popup-scale',
+          glassIntensity: '--glass-blur'
+        };
+        
+        Object.entries(themeMap).forEach(([key, cssVar]) => {
+          if (theme[key] !== undefined) {
+            const value = key === 'glassIntensity' ? `${theme[key]}px` : theme[key];
+            root.style.setProperty(cssVar, value);
+          }
+        });
+
+        const tickerContainer = document.getElementById('ticker-container');
+        if (theme.position === 'top') {
+          tickerContainer.classList.add('top');
+        } else {
+          tickerContainer.classList.remove('top');
+        }
+      } catch (error) {
+        console.error('Error applying theme:', error);
+      }
+    }
+
+    function parseURLParams() {
+      if (!CONFIG.urlParamSupport) return null;
+      
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const config = {};
+        
+        if (params.has('scale')) config.overlayScale = parseFloat(params.get('scale'));
+        if (params.has('position')) config.popupPosition = params.get('position');
+        if (params.has('accent')) config.accentPrimary = params.get('accent');
+        
+        return Object.keys(config).length > 0 ? config : null;
+      } catch (error) {
+        console.error('Error parsing URL params:', error);
+        return null;
+      }
+    }
+
+    class StateManager {
+      constructor(initialState) {
+        this.state = JSON.parse(JSON.stringify(initialState));
+        this.listeners = [];
+      }
+
+      update(newState) {
+        this.state = JSON.parse(JSON.stringify(newState));
+        this.notify();
+      }
+
+      patch(updates) {
+        this.state = { ...this.state, ...updates };
+        this.notify();
+      }
+
+      get() {
+        return this.state;
+      }
+
+      subscribe(listener) {
+        this.listeners.push(listener);
+        return () => {
+          this.listeners = this.listeners.filter(l => l !== listener);
+        };
+      }
+
+      notify() {
+        this.listeners.forEach(listener => {
+          try {
+            listener(this.state);
+          } catch (error) {
+            console.error('Error in state listener:', error);
+          }
+        });
+      }
+    }
+
+    class WebSocketManager {
+      constructor(onMessage, onStateChange) {
+        this.ws = null;
+        this.onMessage = onMessage;
+        this.onStateChange = onStateChange;
+        this.reconnectAttempts = 0;
+        this.reconnectTimeout = null;
+        this.intentionallyClosed = false;
+        this.fallbackPollInterval = null;
+      }
+
+      connect() {
+        try {
+          let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+          let host = window.location.host;
+
+          try {
+            const params = new URLSearchParams(window.location.search);
+            if (!host && params.has('wsHost')) {
+              host = params.get('wsHost').trim();
+            }
+            if (params.has('wsProtocol')) {
+              const rawProtocol = params.get('wsProtocol').trim().toLowerCase();
+              if (rawProtocol === 'ws' || rawProtocol === 'wss') {
+                protocol = `${rawProtocol}:`;
+              }
+            }
+          } catch (error) {
+            console.error('Error reading WebSocket overrides:', error);
+          }
+
+          if (!host) {
+            host = CONFIG.defaultWsHost;
+          }
+
+          if (!host) {
+            console.warn('No host detected - starting fallback polling');
+            this.startFallbackPolling();
+            return false;
+          }
+
+          if (protocol === 'file:') {
+            protocol = CONFIG.defaultWsProtocol;
+          }
+
+          this.onStateChange('connecting');
+          this.ws = new WebSocket(`${protocol}//${host}`);
+
+          this.ws.onopen = () => {
+            console.log('✓ Overlay connected');
+            this.reconnectAttempts = 0;
+            this.onStateChange('connected');
+            this.send({ type: 'identify', clientType: 'overlay' });
+            this.stopFallbackPolling();
+          };
+
+          this.ws.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              if (validateMessage(msg)) {
+                this.onMessage(msg);
+              }
+            } catch (error) {
+              console.error('Error parsing message:', error);
+            }
+          };
+
+          this.ws.onclose = () => {
+            console.log('✗ Overlay disconnected');
+            this.onStateChange('disconnected');
+
+            if (!this.intentionallyClosed) {
+              // CRITICAL FIX: Limit reconnection attempts to prevent infinite loop
+              if (this.reconnectAttempts >= 20) {
+                console.error('Max reconnection attempts (20) reached. Stopping reconnection.');
+                this.stopFallbackPolling();
+                this.onStateChange('error');
+                return;
+              }
+              
+              const delayIndex = Math.min(this.reconnectAttempts, CONFIG.wsReconnectDelays.length - 1);
+              const delay = CONFIG.wsReconnectDelays[delayIndex];
+              
+              this.reconnectAttempts++;
+              console.log(`Reconnecting in ${delay}ms... (attempt ${this.reconnectAttempts})`);
+              
+              this.reconnectTimeout = setTimeout(() => this.connect(), delay);
+              
+              if (this.reconnectAttempts >= 3) {
+                this.startFallbackPolling();
+              }
+            }
+          };
+
+          this.ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+          };
+
+          return true;
+        } catch (error) {
+          console.error('Error creating WebSocket:', error);
+          this.onStateChange('disconnected');
+          this.startFallbackPolling();
+          return false;
+        }
+      }
+
+      startFallbackPolling() {
+        if (this.fallbackPollInterval) return;
+        
+        console.log('Starting fallback polling mode');
+        this.fallbackPollInterval = setInterval(async () => {
+          try {
+            const response = await fetch('/export');
+            if (response.ok) {
+              const data = await response.json();
+              this.onMessage({ type: 'state', payload: data });
+            }
+          } catch (error) {
+            console.error('Fallback polling error:', error);
+          }
+        }, 5000);
+      }
+
+      stopFallbackPolling() {
+        if (this.fallbackPollInterval) {
+          clearInterval(this.fallbackPollInterval);
+          this.fallbackPollInterval = null;
+        }
+      }
+
+      send(data) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+          try {
+            this.ws.send(JSON.stringify(data));
+          } catch (error) {
+            console.error('Error sending message:', error);
+          }
+        }
+      }
+
+      close() {
+        this.intentionallyClosed = true;
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+        }
+        this.stopFallbackPolling();
+        if (this.ws) {
+          this.ws.close();
+        }
+      }
+    }
+
+    class TickerManager {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.container = document.getElementById('ticker-container');
+        this.track = document.getElementById('ticker-track');
+        this.progress = document.getElementById('ticker-progress');
+        this.animation = null;
+        this.progressAnim = null;
+        this.width = 0;
+        this.speed = 60;
+        this.lastRenderTime = 0;
+        this.renderTimeout = null;
+        this.isVisible = false;
+        this.autoHideTimeout = null;
+        this.failsafeTimeout = null;
+        this.rafId = null;
+        this.isPaused = false;
+        this.lastStructureSignature = null;
+        this.lastContentSignature = null;
+        this.lastSpeed = this.speed;
+      }
+
+      createSeparator() {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'ticker-separator';
+        wrapper.setAttribute('aria-hidden', 'true');
+        return wrapper;
+      }
+
+      render() {
+        const now = Date.now();
+        if (now - this.lastRenderTime < CONFIG.tickerDebounceMs) {
+          clearTimeout(this.renderTimeout);
+          this.renderTimeout = setTimeout(() => {
+            this.renderImmediate();
+            this.lastRenderTime = Date.now();
+          }, CONFIG.tickerDebounceMs);
+          return;
+        }
+
+        this.renderImmediate();
+        this.lastRenderTime = now;
+      }
+
+      renderImmediate() {
+        try {
+          const state = this.stateManager.get();
+          const messages = state.ticker?.messages?.filter(m => m.enabled !== false) || [];
+          const settings = state.ticker?.settings || {};
+          const speed = settings.speed || 60;
+          const duration = settings.durationSec || 0;
+          const interval = settings.intervalMin || 0;
+          const structureSignature = messages.map(m => [
+            m.id || '',
+            m.enabled !== false ? '1' : '0',
+            m.sortIndex ?? 0
+          ].join(':')).join('|');
+          const contentSignature = messages.map(m => [
+            m.id || '',
+            m.text || '',
+            m.accentWords || ''
+          ].join(':')).join('|');
+
+          if (messages.length === 0) {
+            this.track.innerHTML = '';
+            this.stopAnimation();
+            this.lastStructureSignature = null;
+            this.lastContentSignature = null;
+            this.lastSpeed = speed;
+            this.speed = speed;
+            return;
+          }
+
+          if (structureSignature && structureSignature === this.lastStructureSignature) {
+            if (contentSignature !== this.lastContentSignature) {
+              const updated = this.updateRenderedMessages(messages);
+              if (updated) {
+                const widthAfterUpdate = this.track.scrollWidth / 3;
+                if (this.animation && widthAfterUpdate > 0) {
+                  const progress = this.animation.progress();
+                  this.width = widthAfterUpdate;
+                  const newDuration = this.width / (speed || 1);
+                  this.animation.duration(newDuration);
+                  this.animation.progress(progress);
+                } else {
+                  this.width = widthAfterUpdate;
+                }
+              }
+              this.lastContentSignature = contentSignature;
+            }
+
+            const previousSpeed = this.lastSpeed || this.speed || 60;
+            this.speed = speed;
+
+            const currentWidth = this.track.scrollWidth / 3;
+            const needsRestart = !this.animation || this.width === 0 || Math.abs(currentWidth - this.width) > 1.5;
+
+            if (needsRestart) {
+              this.width = currentWidth;
+              if (this.isVisible && !this.isPaused && this.width > 0) {
+                this.startAnimation();
+              }
+            } else if (this.animation && previousSpeed > 0) {
+              const scale = speed / previousSpeed;
+              // Tween timeScale for smooth speed transitions instead of instant change
+              gsap.to(this.animation, {
+                timeScale: scale === 0 ? 1 : scale,
+                duration: 0.8,
+                ease: 'power2.inOut'
+              });
+            }
+
+            if (this.progressAnim && interval > 0 && duration > 0 && !CONFIG.reducedMotion) {
+              const wasPaused = this.progressAnim.paused();
+              const currentProgress = this.progressAnim.progress();
+              this.progressAnim.kill();
+              this.progressAnim = gsap.to(this.progress, {
+                scaleX: 1,
+                duration: duration,
+                ease: 'none'
+              });
+              this.progressAnim.progress(currentProgress);
+              if (wasPaused) {
+                this.progressAnim.pause();
+              }
+            }
+
+            this.lastStructureSignature = structureSignature;
+            this.lastContentSignature = contentSignature || this.lastContentSignature;
+            this.lastSpeed = speed;
+            return;
+          }
+
+          this.speed = speed;
+          const fragment = document.createDocumentFragment();
+
+          for (let copy = 0; copy < 3; copy++) {
+            messages.forEach((msg, index) => {
+              const messageDiv = document.createElement('div');
+              messageDiv.className = 'ticker-message';
+              if (msg.id) {
+                messageDiv.dataset.messageId = msg.id;
+              }
+              // Apply text modifiers first, then accent words
+              const textWithModifiers = parseTextModifiers(msg.text);
+              messageDiv.innerHTML = highlightAccentWords(textWithModifiers, msg.accentWords);
+              fragment.appendChild(messageDiv);
+
+              if (index < messages.length - 1 || copy < 2) {
+                fragment.appendChild(this.createSeparator());
+              }
+            });
+          }
+
+          this.track.innerHTML = '';
+          this.track.appendChild(fragment);
+          this.lastStructureSignature = structureSignature;
+          this.lastContentSignature = contentSignature;
+          this.lastSpeed = speed;
+
+          if (this.rafId) {
+            cancelAnimationFrame(this.rafId);
+          }
+
+          this.rafId = requestAnimationFrame(() => {
+            this.width = this.track.scrollWidth / 3;
+            this.speed = speed;
+
+            if (this.isVisible && !this.isPaused) {
+              this.startAnimation();
+            }
+
+            this.rafId = null;
+          });
+        } catch (error) {
+          console.error('Error rendering ticker:', error);
+        }
+      }
+
+      updateRenderedMessages(messages) {
+        if (!Array.isArray(messages) || !messages.length) {
+          return false;
+        }
+
+        let updated = false;
+        messages.forEach(msg => {
+          if (!msg?.id) return;
+          // Apply text modifiers first, then accent words
+          const textWithModifiers = parseTextModifiers(msg.text || '');
+          const html = highlightAccentWords(textWithModifiers, msg.accentWords || '');
+          const nodes = this.track.querySelectorAll(`.ticker-message[data-message-id="${msg.id}"]`);
+          nodes.forEach(node => {
+            if (node.innerHTML !== html) {
+              node.innerHTML = html;
+              updated = true;
+            }
+          });
+        });
+        return updated;
+      }
+
+      startAnimation() {
+        this.stopAnimation();
+
+        if (!this.track || this.width === 0) return;
+
+        // Use seamless loop technique with tripled content
+        const singleWidth = this.width; // Width already represents one copy from scrollWidth / 3
+        const duration = singleWidth / this.speed;
+
+        // Start from right edge of screen
+        gsap.set(this.track, {
+          x: window.innerWidth,
+          force3D: true
+        });
+
+        // Animate to -singleWidth and wrap seamlessly at GPU level
+        this.animation = gsap.to(this.track, {
+          x: -(singleWidth + window.innerWidth),
+          duration: duration + (window.innerWidth / this.speed),
+          ease: 'none',
+          repeat: -1,
+          paused: CONFIG.reducedMotion || this.isPaused,
+          force3D: true,
+          modifiers: {
+            x: (x) => {
+              // Seamlessly wrap at GPU level - no JavaScript callback latency
+              const totalWidth = singleWidth + window.innerWidth;
+              const wrapped = (parseFloat(x) % totalWidth);
+              return (wrapped <= -singleWidth ? wrapped + singleWidth : wrapped) + 'px';
+            }
+          }
+        });
+      }
+
+      stopAnimation() {
+        if (this.animation) {
+          this.animation.kill();
+          this.animation = null;
+        }
+        if (this.progressAnim) {
+          this.progressAnim.kill();
+          this.progressAnim = null;
+        }
+      }
+
+      pause() {
+        this.isPaused = true;
+        if (this.animation) {
+          this.animation.pause();
+        }
+      }
+
+      resume() {
+        this.isPaused = false;
+        if (this.animation) {
+          this.animation.resume();
+        } else if (this.isVisible) {
+          this.startAnimation();
+        }
+      }
+
+      show() {
+        const state = this.stateManager.get();
+        const hasMessages = state.ticker?.messages?.some(m => m.enabled !== false) || false;
+
+        if (!hasMessages) {
+          console.warn('Ticker enabled but no active messages');
+          return;
+        }
+
+        if (this.isVisible) {
+          this.render();
+          return;
+        }
+
+        try {
+          this.isVisible = true;
+          this.container.classList.add('visible');
+          this.container.setAttribute('aria-live', 'polite');
+
+          const showDuration = CONFIG.reducedMotion ? 0.01 : 1.2;
+          const isTop = state.theme?.position === 'top';
+
+          const tl = gsap.timeline();
+
+          tl.to(this.container, {
+            opacity: 1,
+            y: 0,
+            duration: showDuration,
+            ease: 'luxuryEntrance',
+            force3D: true,
+            onComplete: () => {
+              this.render();
+            }
+          });
+
+          // Server controls auto-hide timing, but client has failsafe backup
+          const duration = state.ticker?.settings?.durationSec || 10;
+          const interval = state.ticker?.settings?.intervalMin || 0;
+
+          // Show progress bar only if auto-rotation is enabled
+          if (interval > 0 && duration > 0 && !CONFIG.reducedMotion) {
+            gsap.set(this.progress, { scaleX: 0 });
+            this.progressAnim = gsap.to(this.progress, {
+              scaleX: 1,
+              duration: duration,
+              ease: 'none'
+            });
+          }
+
+          // FAILSAFE: Client-side auto-hide backup (uses 2x duration as safety margin)
+          // This prevents ticker from staying visible indefinitely if server fails
+          if (interval > 0 && duration > 0) {
+            const failsafeMs = duration * 2000; // 2x duration in milliseconds
+            console.log(`[Ticker] Failsafe timeout set: ${failsafeMs}ms (2x ${duration}s)`);
+
+            if (this.failsafeTimeout) {
+              clearTimeout(this.failsafeTimeout);
+            }
+
+            this.failsafeTimeout = setTimeout(() => {
+              if (this.isVisible) {
+                console.warn('[Ticker] Failsafe auto-hide triggered - server did not send hide command');
+                this.hide();
+              }
+              this.failsafeTimeout = null;
+            }, failsafeMs);
+          }
+        } catch (error) {
+          console.error('Error showing ticker:', error);
+        }
+      }
+
+      hide() {
+        if (!this.isVisible) return;
+
+        try {
+          this.isVisible = false;
+          this.container.classList.remove('visible');
+          this.container.setAttribute('aria-live', 'off');
+
+          // Clear auto-hide timeout if it exists (legacy cleanup)
+          if (this.autoHideTimeout) {
+            clearTimeout(this.autoHideTimeout);
+            this.autoHideTimeout = null;
+          }
+
+          // Clear failsafe timeout
+          if (this.failsafeTimeout) {
+            clearTimeout(this.failsafeTimeout);
+            this.failsafeTimeout = null;
+          }
+
+          const hideDuration = CONFIG.reducedMotion ? 0.01 : 0.9;
+          const state = this.stateManager.get();
+          const isTop = state.theme?.position === 'top';
+
+          const tl = gsap.timeline();
+
+          const onComplete = () => {
+            if (!this.isVisible) {
+              this.stopAnimation();
+            }
+          };
+
+          if (isTop) {
+            tl.to(this.container, {
+              opacity: 0,
+              y: '-100%',
+              duration: hideDuration,
+              ease: 'luxuryExit',
+              force3D: true,
+              onComplete
+            });
+          } else {
+            tl.to(this.container, {
+              opacity: 0,
+              y: '100%',
+              duration: hideDuration,
+              ease: 'luxuryExit',
+              force3D: true,
+              onComplete
+            });
+          }
+        } catch (error) {
+          console.error('Error hiding ticker:', error);
+        }
+      }
+
+      destroy() {
+        this.stopAnimation();
+        clearTimeout(this.renderTimeout);
+        // Clear auto-hide timeout if it exists (legacy cleanup)
+        if (this.autoHideTimeout) {
+          clearTimeout(this.autoHideTimeout);
+        }
+        // Clear failsafe timeout
+        if (this.failsafeTimeout) {
+          clearTimeout(this.failsafeTimeout);
+        }
+        if (this.rafId) {
+          cancelAnimationFrame(this.rafId);
+        }
+      }
+    }
+
+    class PopupManager {
+      constructor(stateManager) {
+        this.stateManager = stateManager;
+        this.container = document.getElementById('popup-container');
+        this.messageEl = document.getElementById('popup-message');
+        this.bgGradient = this.container.querySelector('.popup-bg-gradient');
+        this.autoDismissTimeout = null;
+        this.isVisible = false;
+        this.currentVariant = 'standard';
+        this.masterTimeline = null;
+      }
+
+      getVariantAnimation(variant) {
+        const animations = {
+          minimal: {
+            entrance: { rotation: 0, scale: 1 },
+            exit: { y: -32, opacity: 0, scale: 0.9 }
+          },
+          standard: {
+            entrance: { rotation: -1, scale: 1 },
+            exit: { y: 32, opacity: 0, scale: 0.95 }
+          },
+          elevated: {
+            entrance: { rotation: 2, scale: 1.02 },
+            exit: { scale: 0.8, opacity: 0, rotation: -5 }
+          },
+          alert: {
+            entrance: { rotation: 0, scale: 1, repeat: 2, yoyo: true },
+            exit: { x: 100, opacity: 0, rotation: 15 }
+          },
+          success: {
+            entrance: { rotation: 0, scale: 1 },
+            exit: { y: -50, opacity: 0, scale: 1.1 }
+          }
+        };
+        
+        return animations[variant] || animations.standard;
+      }
+
+      animateVariantTransition(newVariant) {
+        if (this.currentVariant === newVariant || !this.isVisible) return;
+        
+        const oldClass = `variant-${this.currentVariant}`;
+        const newClass = `variant-${newVariant}`;
+        
+        const tl = gsap.timeline();
+        
+        tl.to(this.container, {
+          scale: 1.05,
+          duration: 0.2,
+          ease: 'power2.out'
+        })
+        .to(this.container, {
+          scale: 1,
+          duration: 0.3,
+          ease: 'elastic.out(1, 0.5)',
+          onStart: () => {
+            this.container.classList.remove(oldClass);
+            this.container.classList.add(newClass);
+          }
+        });
+        
+        this.currentVariant = newVariant;
+      }
+
+      render() {
+        try {
+          const state = this.stateManager.get();
+          
+          if (!state.popup || !state.popup.visible) {
+            this.hide();
+            return;
+          }
+          
+          const position = state.popup.position || 'top-left';
+          const variant = state.popup.variant || 'standard';
+          
+          this.container.className = `pos-${position} variant-${variant}`;
+          if (this.isVisible) {
+            this.container.classList.add('visible');
+          }
+          
+          const message = state.popup.message || '';
+          const accentWords = state.popup.accentWords || '';
+          
+          console.log('[Popup] Raw message:', message);
+          
+          // Apply text modifiers first, then accent words
+          const textWithModifiers = parseTextModifiers(message);
+          console.log('[Popup] After modifiers:', textWithModifiers);
+          
+          if (accentWords) {
+            this.messageEl.innerHTML = highlightAccentWords(textWithModifiers, accentWords);
+          } else {
+            this.messageEl.innerHTML = textWithModifiers;
+          }
+          
+          console.log('[Popup] Final HTML:', this.messageEl.innerHTML);
+          
+          this.show();
+          
+          if (state.popup.autoDismissSec > 0 && !state.popup.pinned) {
+            clearTimeout(this.autoDismissTimeout);
+            this.autoDismissTimeout = setTimeout(() => {
+              this.hide();
+            }, state.popup.autoDismissSec * 1000);
+          }
+        } catch (error) {
+          console.error('Error rendering popup:', error);
+        }
+      }
+
+      show() {
+        if (this.isVisible) {
+          const state = this.stateManager.get();
+          const variant = state.popup?.variant || 'standard';
+          this.animateVariantTransition(variant);
+          return;
+        }
+        
+        try {
+          this.isVisible = true;
+          this.container.classList.add('visible');
+          this.container.setAttribute('aria-live', 'assertive');
+          
+          const state = this.stateManager.get();
+          const variant = state.popup?.variant || 'standard';
+          const isCentered = state.popup?.position?.includes('center');
+          const variantAnim = this.getVariantAnimation(variant);
+          
+          if (this.masterTimeline) {
+            this.masterTimeline.kill();
+          }
+          
+          this.masterTimeline = gsap.timeline();
+          
+          const showDuration = CONFIG.reducedMotion ? 0.01 : 1;
+          
+          if (isCentered) {
+            this.masterTimeline.fromTo(this.container,
+              { 
+                opacity: 0, 
+                y: 50, 
+                xPercent: -50,
+                x: 0,
+                scale: 0.9,
+                rotation: variantAnim.entrance.rotation || 0
+              },
+              { 
+                opacity: 1,
+                y: 0,
+                xPercent: -50,
+                x: 0,
+                scale: variantAnim.entrance.scale || 1,
+                rotation: 0,
+                duration: showDuration,
+                ease: variant === 'alert' ? 'elastic.out(1, 0.85)' : 'luxuryEntrance',
+                force3D: true
+              }
+            );
+          } else {
+            this.masterTimeline.fromTo(this.container,
+              { 
+                opacity: 0, 
+                y: 50, 
+                scale: 0.9,
+                rotation: variantAnim.entrance.rotation || 0
+              },
+              { 
+                opacity: 1,
+                y: 0,
+                scale: variantAnim.entrance.scale || 1,
+                rotation: 0,
+                duration: showDuration,
+                ease: variant === 'alert' ? 'elastic.out(1, 0.85)' : 'luxuryEntrance',
+                force3D: true
+              }
+            );
+          }
+          
+          this.masterTimeline.to(this.bgGradient, {
+            opacity: 0.6,
+            scale: 1.2,
+            duration: showDuration * 0.8,
+            ease: 'power2.out'
+          }, 0);
+          
+          this.masterTimeline.to(this.bgGradient, {
+            opacity: 0.2,
+            scale: 1,
+            duration: 1.5,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: true
+          });
+          
+          if (variant === 'alert' && !CONFIG.reducedMotion) {
+            this.masterTimeline.to(this.container, {
+              keyframes: [
+                { xPercent: isCentered ? -50 : 0, x: -6, duration: 0.1 },
+                { xPercent: isCentered ? -50 : 0, x: 6, duration: 0.1 },
+                { xPercent: isCentered ? -50 : 0, x: -4, duration: 0.1 },
+                { xPercent: isCentered ? -50 : 0, x: 4, duration: 0.1 },
+                { xPercent: isCentered ? -50 : 0, x: 0, duration: 0.1 }
+              ],
+              ease: 'power2.inOut'
+            }, showDuration * 0.4);
+          }
+          
+          this.currentVariant = variant;
+        } catch (error) {
+          console.error('Error showing popup:', error);
+        }
+      }
+
+      hide() {
+        if (!this.isVisible) return;
+        
+        try {
+          this.isVisible = false;
+          this.container.classList.remove('visible');
+          this.container.setAttribute('aria-live', 'off');
+          
+          clearTimeout(this.autoDismissTimeout);
+          
+          if (this.masterTimeline) {
+            this.masterTimeline.kill();
+          }
+          
+          const hideDuration = CONFIG.reducedMotion ? 0.01 : 0.8;
+          const state = this.stateManager.get();
+          const isCentered = state.popup?.position?.includes('center');
+          const variantAnim = this.getVariantAnimation(this.currentVariant);
+          
+          this.masterTimeline = gsap.timeline();
+          
+          if (isCentered) {
+            this.masterTimeline.to(this.container, {
+              opacity: variantAnim.exit.opacity,
+              y: variantAnim.exit.y || 32,
+              xPercent: -50,
+              x: variantAnim.exit.x || 0,
+              scale: variantAnim.exit.scale || 0.95,
+              rotation: variantAnim.exit.rotation || 0,
+              duration: hideDuration,
+              ease: 'luxuryExit',
+              force3D: true
+            });
+          } else {
+            this.masterTimeline.to(this.container, {
+              opacity: variantAnim.exit.opacity,
+              y: variantAnim.exit.y || 32,
+              x: variantAnim.exit.x || 0,
+              scale: variantAnim.exit.scale || 0.95,
+              rotation: variantAnim.exit.rotation || 0,
+              duration: hideDuration,
+              ease: 'luxuryExit',
+              force3D: true
+            });
+          }
+          
+          this.masterTimeline.to(this.bgGradient, {
+            opacity: 0,
+            duration: hideDuration * 0.6,
+            ease: 'power2.in'
+          }, 0);
+          
+        } catch (error) {
+          console.error('Error hiding popup:', error);
+        }
+      }
+
+      destroy() {
+        clearTimeout(this.autoDismissTimeout);
+        if (this.masterTimeline) {
+          this.masterTimeline.kill();
+        }
+      }
+    }
+
+    class ConnectionStatusManager {
+      constructor() {
+        this.element = document.getElementById('connection-status');
+        this.currentStatus = 'disconnected';
+        this.pulseAnimation = null;
+      }
+
+      update(status) {
+        if (this.currentStatus === status) return;
+        
+        this.currentStatus = status;
+        this.element.className = `connection-status ${status}`;
+        this.element.setAttribute('aria-label', `Connection status: ${status}`);
+        
+        if (this.pulseAnimation) {
+          this.pulseAnimation.kill();
+        }
+        
+        if (status === 'connecting') {
+          this.pulseAnimation = gsap.to(this.element, {
+            opacity: 0.4,
+            scale: 1.3,
+            duration: 0.9,
+            ease: 'sine.inOut',
+            repeat: -1,
+            yoyo: true
+          });
+        } else {
+          gsap.to(this.element, {
+            opacity: 1,
+            scale: 1,
+            duration: 0.4,
+            ease: 'back.out(1.7)'
+          });
+        }
+      }
+    }
+
+    class OverlayApp {
+      constructor(initialState) {
+        this.stateManager = new StateManager(initialState);
+        this.tickerManager = new TickerManager(this.stateManager);
+        this.popupManager = new PopupManager(this.stateManager);
+        this.connectionStatus = new ConnectionStatusManager();
+        this.wsManager = null;
+
+        this.stateManager.subscribe((state) => {
+          this.onStateChange(state);
+        });
+
+        const urlConfig = parseURLParams();
+        if (urlConfig) {
+          this.stateManager.patch({ theme: { ...this.stateManager.get().theme, ...urlConfig } });
+        }
+
+        this.init();
+      }
+
+      init() {
+        applyTheme(this.stateManager.get().theme);
+        
+        this.tickerManager.render();
+        this.popupManager.render();
+
+        this.wsManager = new WebSocketManager(
+          (msg) => this.handleMessage(msg),
+          (status) => this.connectionStatus.update(status)
+        );
+
+        this.wsManager.connect();
+
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.tickerManager.stopAnimation();
+            gsap.globalTimeline.pause();
+          } else {
+            if (this.tickerManager.isVisible && !this.tickerManager.isPaused) {
+              this.tickerManager.startAnimation();
+            }
+            gsap.globalTimeline.resume();
+          }
+        });
+
+        // CRITICAL FIX: Store interval ID for cleanup to prevent memory leak
+        let memoryMonitorInterval = null;
+        if (window.performance && window.performance.memory) {
+          memoryMonitorInterval = setInterval(() => {
+            const memory = window.performance.memory;
+            if (memory.usedJSHeapSize > CONFIG.memoryThreshold) {
+              console.warn('Memory high:', Math.round(memory.usedJSHeapSize / 1024 / 1024) + 'MB');
+              accentWordCache.clear();
+            }
+          }, 60000);
+        }
+        
+        // Store interval IDs for cleanup
+        this.cleanupIntervals = {
+          cacheCleanup: cacheCleanupInterval,
+          memoryMonitor: memoryMonitorInterval
+        };
+      }
+
+      handleMessage(msg) {
+        try {
+          switch (msg.type) {
+            case 'state':
+              this.stateManager.update(msg.payload);
+              break;
+              
+            case 'ticker:show':
+              const currentState = this.stateManager.get();
+              this.stateManager.patch({
+                ticker: { ...currentState.ticker, enabled: true }
+              });
+              this.tickerManager.show();
+              break;
+              
+            case 'ticker:hide':
+              const currState = this.stateManager.get();
+              this.stateManager.patch({
+                ticker: { ...currState.ticker, enabled: false }
+              });
+              this.tickerManager.hide();
+              break;
+              
+            case 'ticker:pause':
+              this.tickerManager.pause();
+              break;
+              
+            case 'ticker:resume':
+              this.tickerManager.resume();
+              break;
+              
+            case 'popup:show':
+              if (msg.payload && msg.payload.message) {
+                this.stateManager.patch({
+                  popup: { ...this.stateManager.get().popup, ...msg.payload, visible: true }
+                });
+              }
+              break;
+              
+            case 'popup:hide':
+              this.popupManager.hide();
+              break;
+              
+            case 'config:update':
+              this.stateManager.patch(msg.payload);
+              break;
+              
+            default:
+              console.warn('Unhandled message type:', msg.type);
+          }
+        } catch (error) {
+          console.error('Error handling message:', error);
+        }
+      }
+
+      onStateChange(state) {
+        try {
+          applyTheme(state.theme);
+          this.tickerManager.render();
+          this.popupManager.render();
+
+          const hasMessages = state.ticker?.messages?.some(m => m.enabled !== false) || false;
+          if (state.ticker?.enabled && hasMessages) {
+            this.tickerManager.show();
+          } else if (!state.ticker?.enabled) {
+            this.tickerManager.hide();
+          }
+        } catch (error) {
+          console.error('Error handling state change:', error);
+        }
+      }
+
+      destroy() {
+        // CRITICAL FIX: Clean up intervals to prevent memory leaks
+        if (this.cleanupIntervals) {
+          if (this.cleanupIntervals.cacheCleanup) {
+            clearInterval(this.cleanupIntervals.cacheCleanup);
+          }
+          if (this.cleanupIntervals.memoryMonitor) {
+            clearInterval(this.cleanupIntervals.memoryMonitor);
+          }
+        }
+        
+        this.tickerManager.destroy();
+        this.popupManager.destroy();
+        if (this.wsManager) {
+          this.wsManager.close();
+        }
+        this.stateManager.clear();
+        gsap.killTweensOf('*');
+        
+        // Clear cache
+        if (typeof accentWordCache !== 'undefined') {
+          accentWordCache.clear();
+        }
+      }
+    }
+
+    let app;
+    
+    try {
+      app = new OverlayApp(INITIAL_STATE);
+      
+      window.addEventListener('beforeunload', () => {
+        if (app) {
+          app.destroy();
+        }
+      });
+      
+      if (window.location.search.includes('debug=true')) {
+        window.overlayApp = app;
+        console.log('Debug mode enabled. Access app via window.overlayApp');
+      }
+    } catch (error) {
+      console.error('Fatal error initializing overlay:', error);
+    }
+  </script>
+</body>
+</html>
